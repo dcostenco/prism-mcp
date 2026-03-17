@@ -10,7 +10,9 @@ async function verifyIndex() {
   const engineId = process.env.DISCOVERY_ENGINE_ENGINE_ID || '<your-engine-id>';
   const servingConfigId = process.env.DISCOVERY_ENGINE_SERVING_CONFIG || 'default_serving_config';
 
-  const client = new SearchServiceClient();
+  // Pass projectId so the gRPC client sends the x-goog-user-project header
+  // (required for Discovery Engine when using ADC / user credentials)
+  const client = new SearchServiceClient({ projectId });
 
   // Construct the serving config path
   const servingConfig = `projects/${projectId}/locations/${location}/collections/${collectionId}/engines/${engineId}/servingConfigs/${servingConfigId}`;
@@ -21,25 +23,43 @@ async function verifyIndex() {
   try {
     const request = {
       servingConfig,
-      query: 'deep learning', // A generic query to test the index
+      query: 'deep learning',
       pageSize: 5,
     };
 
-    const [response] = await client.search(request);
+    // Use rawResponse to get the full response object
+    const [results, , rawResponse] = await client.search(request, { autoPaginate: false });
 
-    if (response && response.results) {
+    // The response can be either the raw response (3rd element) or the results array (1st element)
+    const response = rawResponse || {};
+    const resultsList = Array.isArray(results) ? results : (response as any).results || [];
+
+    if (resultsList.length > 0) {
       console.log('✅ Index is ACTIVE and returning results!');
-      console.log(`📄 Results found: ${response.totalSize}`);
+      console.log(`📄 Results found: ${(response as any).totalSize || resultsList.length}`);
       
-      response.results.forEach((result: any, index: number) => {
-        console.log(`\n[${index + 1}] ${result.document.derivedStructData?.title || 'No Title'}`);
-        console.log(`🔗 URL: ${result.document.derivedStructData?.link || 'No Link'}`);
+      resultsList.slice(0, 5).forEach((result: any, index: number) => {
+        const doc = result.document || result;
+        const data = doc.derivedStructData;
+        // Protobuf Struct: access via .fields['key'].stringValue
+        const title = data?.fields?.title?.stringValue
+          || data?.fields?.htmlTitle?.stringValue
+          || data?.title
+          || doc?.name || 'No Title';
+        const link = data?.fields?.link?.stringValue
+          || data?.fields?.formattedUrl?.stringValue
+          || data?.link
+          || 'No Link';
+        console.log(`\n[${index + 1}] ${title}`);
+        console.log(`🔗 URL: ${link}`);
       });
     } else {
       console.log('⚠️ Index is active but returned 0 results. It might still be crawling.');
+      console.log('Debug — raw response keys:', Object.keys(response));
+      console.log('Debug — results type:', typeof results, Array.isArray(results) ? `(length: ${(results as any).length})` : '');
     }
   } catch (error: any) {
-    if (error.message.includes('not found') || error.message.includes('indexer is not ready')) {
+    if (error.message?.includes('not found') || error.message?.includes('indexer is not ready')) {
       console.log('⏳ Index is still being built or crawled. This can take 30-60 minutes.');
       console.log(`Original Error: ${error.message}`);
     } else {
