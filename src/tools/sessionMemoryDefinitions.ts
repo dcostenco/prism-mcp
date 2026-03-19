@@ -109,7 +109,113 @@ export const SESSION_LOAD_CONTEXT_TOOL: Tool = {
   },
 };
 
+// ─── Knowledge Search ─────────────────────────────────────────
+
+export const KNOWLEDGE_SEARCH_TOOL: Tool = {
+  name: "knowledge_search",
+  description:
+    "Search accumulated knowledge across all sessions by keywords, category, or free text. " +
+    "The knowledge base grows automatically as sessions are saved — keywords are extracted " +
+    "from every ledger and handoff entry. Use this to find related past work, decisions, " +
+    "and context from previous sessions.\n\n" +
+    "Categories available: debugging, architecture, deployment, testing, configuration, " +
+    "api-integration, data-migration, security, performance, documentation, ai-ml, " +
+    "ui-frontend, resume",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project: {
+        type: "string",
+        description: "Optional project filter. If omitted, searches across all projects.",
+      },
+      query: {
+        type: "string",
+        description: "Free-text search query. Searched against session summaries using full-text search.",
+      },
+      category: {
+        type: "string",
+        description: "Optional category filter (e.g. 'debugging', 'architecture', 'ai-ml'). " +
+          "Filters results to sessions in this category.",
+      },
+      limit: {
+        type: "integer",
+        description: "Maximum results to return (default: 10, max: 50).",
+        default: 10,
+      },
+    },
+  },
+};
+
+// ─── Knowledge Forget ─────────────────────────────────────────
+
+export const KNOWLEDGE_FORGET_TOOL: Tool = {
+  name: "knowledge_forget",
+  description:
+    "Selectively forget (delete) accumulated knowledge entries. " +
+    "Like a brain pruning bad memories — remove outdated, incorrect, or irrelevant " +
+    "session entries to keep the knowledge base clean and relevant.\n\n" +
+    "Forget modes:\n" +
+    "- **By project**: Clear all knowledge for a specific project\n" +
+    "- **By category**: Remove entries matching a category (e.g. 'debugging')\n" +
+    "- **By age**: Forget entries older than N days\n" +
+    "- **Full reset**: Wipe everything (requires confirm_all=true)\n\n" +
+    "⚠️ This permanently deletes ledger entries. Handoff state is preserved unless explicitly cleared.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project: {
+        type: "string",
+        description: "Project to forget entries for. Required unless using confirm_all.",
+      },
+      category: {
+        type: "string",
+        description: "Optional: only forget entries in this category (e.g. 'debugging', 'resume').",
+      },
+      older_than_days: {
+        type: "integer",
+        description: "Optional: only forget entries older than this many days.",
+      },
+      clear_handoff: {
+        type: "boolean",
+        description: "Also clear the handoff (live state) for this project. Default: false.",
+      },
+      confirm_all: {
+        type: "boolean",
+        description: "Set to true to confirm wiping ALL entries for the project (safety flag).",
+      },
+      dry_run: {
+        type: "boolean",
+        description: "If true, only count what would be deleted without actually deleting. Default: false.",
+      },
+    },
+  },
+};
+
 // ─── Type Guards ──────────────────────────────────────────────
+
+export function isKnowledgeForgetArgs(
+  args: unknown
+): args is {
+  project?: string;
+  category?: string;
+  older_than_days?: number;
+  clear_handoff?: boolean;
+  confirm_all?: boolean;
+  dry_run?: boolean;
+} {
+  return typeof args === "object" && args !== null;
+}
+
+export function isKnowledgeSearchArgs(
+  args: unknown
+): args is {
+  project?: string;
+  query?: string;
+  category?: string;
+  limit?: number;
+} {
+  return typeof args === "object" && args !== null;
+}
 
 export function isSessionSaveLedgerArgs(
   args: unknown

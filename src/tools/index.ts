@@ -22,5 +22,5 @@ export { webSearchHandler, braveWebSearchCodeModeHandler, localSearchHandler, br
 // These 3 tools are only active when Supabase is configured (SUPABASE_URL + SUPABASE_KEY).
 // The conditional registration happens in server.ts, not here.
 // This file always exports them — server.ts decides whether to include them in the tool list.
-export { SESSION_SAVE_LEDGER_TOOL, SESSION_SAVE_HANDOFF_TOOL, SESSION_LOAD_CONTEXT_TOOL } from "./sessionMemoryDefinitions.js";
-export { sessionSaveLedgerHandler, sessionSaveHandoffHandler, sessionLoadContextHandler } from "./sessionMemoryHandlers.js";
+export { SESSION_SAVE_LEDGER_TOOL, SESSION_SAVE_HANDOFF_TOOL, SESSION_LOAD_CONTEXT_TOOL, KNOWLEDGE_SEARCH_TOOL, KNOWLEDGE_FORGET_TOOL } from "./sessionMemoryDefinitions.js";
+export { sessionSaveLedgerHandler, sessionSaveHandoffHandler, sessionLoadContextHandler, knowledgeSearchHandler, knowledgeForgetHandler } from "./sessionMemoryHandlers.js";

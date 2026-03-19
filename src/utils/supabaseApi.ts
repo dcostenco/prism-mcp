@@ -138,3 +138,28 @@ export async function supabaseRpc(
     body: args,
   });
 }
+
+/**
+ * Delete rows from a Supabase table using PostgREST filters.
+ *
+ * Example: supabaseDelete("session_ledger", { project: "eq.my-app" })
+ *   → DELETE /rest/v1/session_ledger?project=eq.my-app
+ *
+ * IMPORTANT: Always include filter params to avoid deleting all rows.
+ * PostgREST requires at least one filter for DELETE operations.
+ */
+export async function supabaseDelete(
+  table: string,
+  params: Record<string, string>,
+  extraHeaders?: Record<string, string>
+): Promise<unknown> {
+  return supabaseRequest({
+    method: "DELETE",
+    path: `/rest/v1/${table}`,
+    params,
+    headers: {
+      "Prefer": "return=representation",
+      ...(extraHeaders || {}),
+    },
+  });
+}

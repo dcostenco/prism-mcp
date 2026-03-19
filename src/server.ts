@@ -57,9 +57,13 @@ import {
   SESSION_SAVE_LEDGER_TOOL,
   SESSION_SAVE_HANDOFF_TOOL,
   SESSION_LOAD_CONTEXT_TOOL,
+  KNOWLEDGE_SEARCH_TOOL,
+  KNOWLEDGE_FORGET_TOOL,
   sessionSaveLedgerHandler,
   sessionSaveHandoffHandler,
   sessionLoadContextHandler,
+  knowledgeSearchHandler,
+  knowledgeForgetHandler,
 } from "./tools/index.js";
 
 // ─── Dynamic Tool Registration ───────────────────────────────────
@@ -80,6 +84,8 @@ const SESSION_MEMORY_TOOLS: Tool[] = [
   SESSION_SAVE_LEDGER_TOOL,    // session_save_ledger — append immutable session log
   SESSION_SAVE_HANDOFF_TOOL,   // session_save_handoff — upsert latest project state
   SESSION_LOAD_CONTEXT_TOOL,   // session_load_context — progressive context loading
+  KNOWLEDGE_SEARCH_TOOL,       // knowledge_search — search accumulated knowledge
+  KNOWLEDGE_FORGET_TOOL,       // knowledge_forget — prune bad/old memories
 ];
 
 // Combine: if session memory is enabled, add those tools too
@@ -198,6 +204,14 @@ export function createServer() {
         case "session_load_context":
           if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
           return await sessionLoadContextHandler(args);
+
+        case "knowledge_search":
+          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+          return await knowledgeSearchHandler(args);
+
+        case "knowledge_forget":
+          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+          return await knowledgeForgetHandler(args);
 
         default:
           return {

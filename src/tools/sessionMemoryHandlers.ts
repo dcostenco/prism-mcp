@@ -1,8 +1,11 @@
-import { supabasePost, supabaseRpc } from "../utils/supabaseApi.js";
+import { supabasePost, supabaseRpc, supabaseDelete, supabaseGet } from "../utils/supabaseApi.js";
+import { toKeywordArray } from "../utils/keywordExtractor.js";
 import {
   isSessionSaveLedgerArgs,
   isSessionSaveHandoffArgs,
   isSessionLoadContextArgs,
+  isKnowledgeSearchArgs,
+  isKnowledgeForgetArgs,
 } from "./sessionMemoryDefinitions.js";
 
 /**
@@ -40,6 +43,11 @@ export async function sessionSaveLedgerHandler(args: unknown) {
 
   console.error(`[session_save_ledger] Saving ledger entry for project="${project}"`);
 
+  // Auto-extract keywords from summary + decisions for knowledge accumulation
+  const combinedText = [summary, ...(decisions || [])].join(" ");
+  const keywords = toKeywordArray(combinedText);
+  console.error(`[session_save_ledger] Extracted ${keywords.length} keywords: ${keywords.slice(0, 5).join(", ")}...`);
+
   // Build the record to insert into the session_ledger table
   const record = {
     project,
@@ -48,6 +56,7 @@ export async function sessionSaveLedgerHandler(args: unknown) {
     todos: todos || [],
     files_changed: files_changed || [],
     decisions: decisions || [],
+    keywords,
   };
 
   const result = await supabasePost("session_ledger", record);
@@ -90,12 +99,20 @@ export async function sessionSaveHandoffHandler(args: unknown) {
 
   console.error(`[session_save_handoff] Upserting handoff for project="${project}"`);
 
+  // Auto-extract keywords from summary + context for knowledge accumulation
+  const combinedText = [last_summary || "", key_context || ""].filter(Boolean).join(" ");
+  const keywords = combinedText ? toKeywordArray(combinedText) : undefined;
+  if (keywords) {
+    console.error(`[session_save_handoff] Extracted ${keywords.length} keywords: ${keywords.slice(0, 5).join(", ")}...`);
+  }
+
   // Only include fields that were actually provided (avoids overwriting with nulls)
   const record: Record<string, unknown> = { project };
   if (open_todos !== undefined) record.open_todos = open_todos;
   if (active_branch !== undefined) record.active_branch = active_branch;
   if (last_summary !== undefined) record.last_summary = last_summary;
   if (key_context !== undefined) record.key_context = key_context;
+  if (keywords !== undefined) record.keywords = keywords;
 
   // Use PostgREST upsert: on_conflict=project tells it which column has the UNIQUE constraint
   // "resolution=merge-duplicates" merges the new data into existing rows instead of erroring
@@ -187,3 +204,158 @@ export async function sessionLoadContextHandler(args: unknown) {
     isError: false,
   };
 }
+
+// ─── Knowledge Search Handler ─────────────────────────────────
+
+/**
+ * Searches accumulated knowledge across all past sessions.
+ *
+ * This is the "brain query" tool — it searches keywords that were
+ * automatically extracted from every saved ledger and handoff entry.
+ * Results are ranked by relevance (keyword overlap + full-text match).
+ */
+export async function knowledgeSearchHandler(args: unknown) {
+  if (!isKnowledgeSearchArgs(args)) {
+    throw new Error("Invalid arguments for knowledge_search");
+  }
+
+  const { project, query, category, limit = 10 } = args;
+
+  console.error(`[knowledge_search] Searching: project=${project || "all"}, query="${query || ""}", category=${category || "any"}, limit=${limit}`);
+
+  // Extract keywords from the query text to use in array-overlap search
+  const searchKeywords = query ? toKeywordArray(query) : [];
+
+  const result = await supabaseRpc("search_knowledge", {
+    p_project: project || null,
+    p_keywords: searchKeywords,
+    p_category: category || null,
+    p_query_text: query || null,
+    p_limit: Math.min(limit, 50),
+  });
+
+  const data = Array.isArray(result) ? result[0] : result;
+
+  if (!data || !data.results || data.count === 0) {
+    return {
+      content: [{
+        type: "text",
+        text: `🔍 No knowledge found matching your search.\n` +
+          (query ? `Query: "${query}"\n` : "") +
+          (category ? `Category: ${category}\n` : "") +
+          (project ? `Project: ${project}\n` : "") +
+          `\nTip: Knowledge accumulates as sessions are saved. Try broader search terms.`,
+      }],
+      isError: false,
+    };
+  }
+
+  return {
+    content: [{
+      type: "text",
+      text: `🧠 Found ${data.count} knowledge entries:\n\n${JSON.stringify(data, null, 2)}`,
+    }],
+    isError: false,
+  };
+}
+
+// ─── Knowledge Forget Handler ─────────────────────────────────
+
+/**
+ * Selectively forget (delete) accumulated knowledge entries.
+ *
+ * Like a brain pruning bad memories — removes outdated, incorrect,
+ * or irrelevant session data to keep the knowledge base clean.
+ *
+ * Supports multiple forget modes:
+ *   - By project: clear all entries for a project
+ *   - By category: remove entries matching a specific category
+ *   - By age: forget entries older than N days
+ *   - Full wipe: clear everything (requires confirm_all flag)
+ *   - Dry run: preview what would be deleted without deleting
+ */
+export async function knowledgeForgetHandler(args: unknown) {
+  if (!isKnowledgeForgetArgs(args)) {
+    throw new Error("Invalid arguments for knowledge_forget");
+  }
+
+  const {
+    project,
+    category,
+    older_than_days,
+    clear_handoff = false,
+    confirm_all = false,
+    dry_run = false,
+  } = args;
+
+  // Safety: require either a project filter or explicit confirm_all
+  if (!project && !confirm_all) {
+    return {
+      content: [{
+        type: "text",
+        text: `⚠️ Safety check: You must specify a 'project' to forget, ` +
+          `or set 'confirm_all: true' to wipe all entries.\n` +
+          `This prevents accidental deletion of all knowledge.`,
+      }],
+      isError: true,
+    };
+  }
+
+  console.error(`[knowledge_forget] ${dry_run ? "DRY RUN: " : ""}Forgetting: ` +
+    `project=${project || "ALL"}, category=${category || "any"}, ` +
+    `older_than=${older_than_days || "any"}d, clear_handoff=${clear_handoff}`);
+
+  // Build PostgREST filter params for the ledger DELETE
+  const ledgerParams: Record<string, string> = {};
+  if (project) {
+    ledgerParams.project = `eq.${project}`;
+  }
+  if (category) {
+    // Filter entries that have the "cat:<category>" keyword
+    ledgerParams.keywords = `cs.{cat:${category}}`;
+  }
+  if (older_than_days) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - older_than_days);
+    ledgerParams.created_at = `lt.${cutoffDate.toISOString()}`;
+  }
+
+  let ledgerCount = 0;
+  let handoffCleared = false;
+
+  if (dry_run) {
+    // Dry run: count what would be deleted using GET with the same filters
+    const selectParams = { ...ledgerParams, select: "id" };
+    const entries = await supabaseGet("session_ledger", selectParams);
+    ledgerCount = Array.isArray(entries) ? entries.length : 0;
+  } else {
+    // Actually delete ledger entries
+    const result = await supabaseDelete("session_ledger", ledgerParams);
+    ledgerCount = Array.isArray(result) ? result.length : 0;
+
+    // Optionally clear the handoff for this project
+    if (clear_handoff && project) {
+      await supabaseDelete("session_handoffs", { project: `eq.${project}` });
+      handoffCleared = true;
+    }
+  }
+
+  const action = dry_run ? "would be forgotten" : "forgotten";
+  const emoji = dry_run ? "🔍" : "🧹";
+
+  return {
+    content: [{
+      type: "text",
+      text: `${emoji} ${ledgerCount} ledger entries ${action}` +
+        (project ? ` for project "${project}"` : "") +
+        (category ? ` in category "${category}"` : "") +
+        (older_than_days ? ` older than ${older_than_days} days` : "") +
+        `.\n` +
+        (handoffCleared ? `🗑️ Handoff state also cleared for "${project}".\n` : "") +
+        (dry_run ? `\n💡 This was a dry run — nothing was actually deleted. Remove dry_run to execute.` : "") +
+        (!dry_run && ledgerCount > 0 ? `\n✅ Knowledge base pruned. Fresh start!` : ""),
+    }],
+    isError: false,
+  };
+}
+
