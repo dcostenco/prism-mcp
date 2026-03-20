@@ -183,10 +183,26 @@ export function renderDashboardHTML(): string {
     .badge-amber { background: rgba(245,158,11,0.2); color: var(--accent-amber); }
     .badge-green { background: rgba(16,185,129,0.2); color: var(--accent-green); }
 
-    /* ─── Briefing Card ─── */
     .briefing-text {
       font-size: 0.9rem; color: var(--text-secondary); line-height: 1.8;
       white-space: pre-wrap;
+    }
+
+    /* ─── Visual Memory ─── */
+    .visual-list { list-style: none; padding: 0; }
+    .visual-list li {
+      padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem; color: var(--text-secondary);
+      display: flex; align-items: flex-start; gap: 0.5rem;
+    }
+    .visual-list li:last-child { border-bottom: none; }
+    .visual-id {
+      font-family: var(--font-mono); font-size: 0.75rem;
+      color: var(--accent-rose); font-weight: 500;
+    }
+    .visual-date {
+      font-size: 0.7rem; color: var(--text-muted); margin-left: auto;
+      font-family: var(--font-mono); white-space: nowrap;
     }
 
     /* ─── Empty / Loading States ─── */
@@ -260,6 +276,12 @@ export function renderDashboardHTML(): string {
         <div class="card" id="briefingCard" style="display:none">
           <div class="card-title"><span class="dot" style="background:var(--accent-amber)"></span> Morning Briefing 🌅</div>
           <div class="briefing-text" id="briefingText"></div>
+        </div>
+
+        <!-- Visual Memory -->
+        <div class="card" id="visualCard" style="display:none">
+          <div class="card-title"><span class="dot" style="background:var(--accent-rose)"></span> Visual Memory 🖼️</div>
+          <ul class="visual-list" id="visualList"></ul>
         </div>
       </div>
 
@@ -336,6 +358,21 @@ export function renderDashboardHTML(): string {
           briefingCard.style.display = 'block';
         } else {
           briefingCard.style.display = 'none';
+        }
+
+        // ─── Visual Memory ───
+        var visualCard = document.getElementById('visualCard');
+        var visuals = meta.visual_memory || [];
+        if (visuals.length > 0) {
+          document.getElementById('visualList').innerHTML = visuals.map(function(v) {
+            var dateStr = v.timestamp ? v.timestamp.split('T')[0] : '';
+            return '<li><span class="visual-id">[' + escapeHtml(v.id) + ']</span> ' +
+              escapeHtml(v.description) +
+              '<span class="visual-date">' + dateStr + '</span></li>';
+          }).join('');
+          visualCard.style.display = 'block';
+        } else {
+          visualCard.style.display = 'none';
         }
 
         // ─── History Timeline ───

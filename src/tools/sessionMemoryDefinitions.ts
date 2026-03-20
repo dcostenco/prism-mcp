@@ -509,3 +509,85 @@ export function isMemoryCheckoutArgs(
     typeof (args as { target_version: number }).target_version === "number"
   );
 }
+
+// ─── v2.0: Visual Memory Tool Definitions ────────────────────
+
+export const SESSION_SAVE_IMAGE_TOOL: Tool = {
+  name: "session_save_image",
+  description:
+    "Save a local image file into the project's permanent visual memory. " +
+    "Use this to remember UI states, diagrams, architecture graphs, or bug screenshots. " +
+    "The image is copied into Prism's media vault and indexed in the handoff metadata. " +
+    "On the next session_load_context, the agent will see a lightweight index of available images.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project: {
+        type: "string",
+        description: "Project identifier — must match an existing project.",
+      },
+      file_path: {
+        type: "string",
+        description: "Absolute or relative path to the image file (png, jpg, jpeg, webp, gif, svg).",
+      },
+      description: {
+        type: "string",
+        description: "What does this image show? Used for indexing and context display.",
+      },
+    },
+    required: ["project", "file_path", "description"],
+  },
+};
+
+export const SESSION_VIEW_IMAGE_TOOL: Tool = {
+  name: "session_view_image",
+  description:
+    "Retrieve an image from visual memory using its ID. " +
+    "Returns the image as Base64 inline content for the LLM to analyze. " +
+    "Use session_load_context first to see available image IDs.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project: {
+        type: "string",
+        description: "Project identifier.",
+      },
+      image_id: {
+        type: "string",
+        description: "The short image ID (e.g., '8f2a1b3c') from the visual memory index.",
+      },
+    },
+    required: ["project", "image_id"],
+  },
+};
+
+// ─── v2.0: Visual Memory Type Guards ─────────────────────────
+
+export function isSessionSaveImageArgs(
+  args: unknown
+): args is { project: string; file_path: string; description: string } {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "project" in args &&
+    typeof (args as { project: string }).project === "string" &&
+    "file_path" in args &&
+    typeof (args as { file_path: string }).file_path === "string" &&
+    "description" in args &&
+    typeof (args as { description: string }).description === "string"
+  );
+}
+
+export function isSessionViewImageArgs(
+  args: unknown
+): args is { project: string; image_id: string } {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "project" in args &&
+    typeof (args as { project: string }).project === "string" &&
+    "image_id" in args &&
+    typeof (args as { image_id: string }).image_id === "string"
+  );
+}
+

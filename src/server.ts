@@ -113,6 +113,9 @@ import {
   // ─── v2.0: Time Travel tool definitions ───
   MEMORY_HISTORY_TOOL,
   MEMORY_CHECKOUT_TOOL,
+  // ─── v2.0: Visual Memory tool definitions ───
+  SESSION_SAVE_IMAGE_TOOL,
+  SESSION_VIEW_IMAGE_TOOL,
   sessionSaveLedgerHandler,
   sessionSaveHandoffHandler,
   sessionLoadContextHandler,
@@ -125,6 +128,9 @@ import {
   // ─── v2.0: Time Travel handlers ───
   memoryHistoryHandler,
   memoryCheckoutHandler,
+  // ─── v2.0: Visual Memory handlers ───
+  sessionSaveImageHandler,
+  sessionViewImageHandler,
 } from "./tools/index.js";
 
 // ─── Dynamic Tool Registration ───────────────────────────────────
@@ -155,6 +161,9 @@ const SESSION_MEMORY_TOOLS: Tool[] = [
   SESSION_BACKFILL_EMBEDDINGS_TOOL, // session_backfill_embeddings — repair missing embeddings
   MEMORY_HISTORY_TOOL,         // memory_history — view version timeline (v2.0)
   MEMORY_CHECKOUT_TOOL,        // memory_checkout — revert to past version (v2.0)
+  // ─── v2.0: Visual Memory tools ───
+  SESSION_SAVE_IMAGE_TOOL,     // session_save_image — save image to media vault (v2.0)
+  SESSION_VIEW_IMAGE_TOOL,     // session_view_image — retrieve image from vault (v2.0)
 ];
 
 // Combine: if session memory is enabled, add those tools too
@@ -588,6 +597,16 @@ export function createServer() {
         case "memory_checkout":
           if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
           return await memoryCheckoutHandler(args);
+
+        // ─── v2.0: Visual Memory Tools ───
+
+        case "session_save_image":
+          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+          return await sessionSaveImageHandler(args);
+
+        case "session_view_image":
+          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+          return await sessionViewImageHandler(args);
 
         default:
           return {

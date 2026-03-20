@@ -410,10 +410,21 @@ export async function sessionLoadContextHandler(args: unknown) {
     console.error(`[session_load_context] Showing cached Morning Briefing for "${project}"`);
   }
 
+  // ─── Visual Memory Index (v2.0 Step 9) ───
+  // Show lightweight index of saved images — never loads actual image data
+  let visualMemoryBlock = "";
+  const visuals = (data as any)?.metadata?.visual_memory || [];
+  if (visuals.length > 0) {
+    visualMemoryBlock = `\n\n[🖼️ VISUAL MEMORY]\nThe following reference images are available. Use session_view_image(id) to view them if needed:\n`;
+    visuals.forEach((v: any) => {
+      visualMemoryBlock += `- [ID: ${v.id}] ${v.description} (${v.timestamp?.split("T")[0] || "unknown"})\n`;
+    });
+  }
+
   return {
     content: [{
       type: "text",
-      text: `📋 Session context for "${project}" (${level}):\n\n${JSON.stringify(data, null, 2)}${driftReport}${briefingBlock}${versionNote}`,
+      text: `📋 Session context for "${project}" (${level}):\n\n${JSON.stringify(data, null, 2)}${driftReport}${briefingBlock}${visualMemoryBlock}${versionNote}`,
     }],
     isError: false,
   };
@@ -922,3 +933,211 @@ export async function memoryCheckoutHandler(args: unknown) {
     isError: false,
   };
 }
+
+// ─── v2.0 Step 9: Visual Memory Handlers ──────────────────────
+
+import * as fs from "fs";
+import * as nodePath from "path";
+import * as os from "os";
+import { randomUUID } from "crypto";
+import {
+  isSessionSaveImageArgs,
+  isSessionViewImageArgs,
+} from "./sessionMemoryDefinitions.js";
+
+/**
+ * session_save_image — Copy an image to the media vault and index it.
+ *
+ * Flow:
+ * 1. Validate file exists + is a supported image type
+ * 2. Copy to ~/.prism-mcp/media/<project>/<short-id>.<ext>
+ * 3. Push entry to handoff metadata.visual_memory[]
+ * 4. Save handoff (triggers history snapshot + telepathy broadcast)
+ */
+export async function sessionSaveImageHandler(args: unknown) {
+  if (!isSessionSaveImageArgs(args)) {
+    return {
+      content: [{ type: "text", text: "Invalid arguments. Requires: project, file_path, description." }],
+      isError: true,
+    };
+  }
+
+  const { project, file_path, description } = args;
+
+  // Resolve path (supports relative paths)
+  const resolvedPath = nodePath.resolve(file_path);
+  if (!fs.existsSync(resolvedPath)) {
+    return {
+      content: [{ type: "text", text: `Error: File not found at "${resolvedPath}".` }],
+      isError: true,
+    };
+  }
+
+  // Validate extension
+  const ext = nodePath.extname(resolvedPath).toLowerCase() || ".png";
+  const SUPPORTED_EXTS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"];
+  if (!SUPPORTED_EXTS.includes(ext)) {
+    return {
+      content: [{
+        type: "text",
+        text: `Error: Unsupported image format "${ext}". Supported: ${SUPPORTED_EXTS.join(", ")}.`,
+      }],
+      isError: true,
+    };
+  }
+
+  // Setup media vault directory
+  const mediaDir = nodePath.join(os.homedir(), ".prism-mcp", "media", project);
+  if (!fs.existsSync(mediaDir)) {
+    fs.mkdirSync(mediaDir, { recursive: true });
+  }
+
+  // Copy to vault with short UUID
+  const imageId = randomUUID().slice(0, 8);
+  const vaultFilename = `${imageId}${ext}`;
+  const vaultPath = nodePath.join(mediaDir, vaultFilename);
+  fs.copyFileSync(resolvedPath, vaultPath);
+
+  // Update handoff metadata
+  const storage = await getStorage();
+  const context = await storage.loadContext(project, "quick", PRISM_USER_ID);
+
+  if (!context) {
+    return {
+      content: [{
+        type: "text",
+        text: `Error: No active context for project "${project}". Save a handoff first.`,
+      }],
+      isError: true,
+    };
+  }
+
+  const contextObj = context as any;
+  const meta = contextObj.metadata || {};
+  meta.visual_memory = meta.visual_memory || [];
+  meta.visual_memory.push({
+    id: imageId,
+    description,
+    filename: vaultFilename,
+    original_path: resolvedPath,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Save back (triggers history snapshot + telepathy)
+  const handoffUpdate = {
+    project,
+    user_id: PRISM_USER_ID,
+    metadata: meta,
+    last_summary: contextObj.last_summary ?? null,
+    pending_todo: contextObj.pending_todo ?? null,
+    active_decisions: contextObj.active_decisions ?? null,
+    keywords: contextObj.keywords ?? null,
+    key_context: contextObj.key_context ?? null,
+    active_branch: contextObj.active_branch ?? null,
+  };
+
+  const currentVersion = contextObj.version;
+  await storage.saveHandoff(handoffUpdate, currentVersion);
+
+  const fileSize = fs.statSync(vaultPath).size;
+  const sizeKB = (fileSize / 1024).toFixed(1);
+  console.error(`[Visual Memory] Saved image [${imageId}] for "${project}" (${sizeKB}KB, ${ext})`);
+
+  return {
+    content: [{
+      type: "text",
+      text: `✅ Image saved to visual memory.\n\n` +
+        `• ID: \`${imageId}\`\n` +
+        `• Description: ${description}\n` +
+        `• Format: ${ext} (${sizeKB}KB)\n` +
+        `• Vault: ${vaultPath}\n\n` +
+        `Use \`session_view_image("${project}", "${imageId}")\` to retrieve it later.`,
+    }],
+    isError: false,
+  };
+}
+
+/**
+ * session_view_image — Retrieve an image from the media vault.
+ *
+ * Returns an MCP content array with both a text description
+ * and the image as Base64 inline data (ImageContent type).
+ */
+export async function sessionViewImageHandler(args: unknown) {
+  if (!isSessionViewImageArgs(args)) {
+    return {
+      content: [{ type: "text", text: "Invalid arguments. Requires: project, image_id." }],
+      isError: true,
+    };
+  }
+
+  const { project, image_id } = args;
+
+  // Load context to find image metadata
+  const storage = await getStorage();
+  const context = await storage.loadContext(project, "quick", PRISM_USER_ID);
+  const visuals = (context as any)?.metadata?.visual_memory || [];
+  const imgMeta = visuals.find((v: any) => v.id === image_id);
+
+  if (!imgMeta) {
+    return {
+      content: [{
+        type: "text",
+        text: `Error: Image ID [${image_id}] not found in visual memory for project "${project}".` +
+          (visuals.length > 0
+            ? `\n\nAvailable IDs: ${visuals.map((v: any) => `${v.id} (${v.description})`).join(", ")}`
+            : "\n\nNo images saved in visual memory yet."),
+      }],
+      isError: true,
+    };
+  }
+
+  const vaultPath = nodePath.join(os.homedir(), ".prism-mcp", "media", project, imgMeta.filename);
+  if (!fs.existsSync(vaultPath)) {
+    return {
+      content: [{
+        type: "text",
+        text: `Error: Image file missing from vault at "${vaultPath}". ` +
+          `The metadata exists but the file was deleted.`,
+      }],
+      isError: true,
+    };
+  }
+
+  // Read file and convert to base64
+  const base64Data = fs.readFileSync(vaultPath).toString("base64");
+
+  // Determine MIME type from extension
+  const ext = nodePath.extname(imgMeta.filename).toLowerCase();
+  const MIME_MAP: Record<string, string> = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+  };
+  const mimeType = MIME_MAP[ext] || "image/png";
+
+  const fileSize = fs.statSync(vaultPath).size;
+  console.error(`[Visual Memory] Retrieved image [${image_id}] for "${project}" (${(fileSize / 1024).toFixed(1)}KB)`);
+
+  // Return MCP content array with text + image
+  return {
+    content: [
+      {
+        type: "text",
+        text: `🖼️ Visual Memory [${image_id}]: ${imgMeta.description}\n` +
+          `Saved: ${imgMeta.timestamp?.split("T")[0] || "unknown"}\n` +
+          `Format: ${ext.replace(".", "").toUpperCase()} (${(fileSize / 1024).toFixed(1)}KB)`,
+      },
+      {
+        type: "image",
+        data: base64Data,
+        mimeType: mimeType,
+      },
+    ],
+    isError: false,
+  };
+}
+
