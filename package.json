@@ -1,6 +1,7 @@
 {
   "name": "prism-mcp-server",
   "version": "1.5.0",
+  "mcpName": "io.github.dcostenco/prism-mcp",
   "description": "Enterprise-grade MCP server with session memory, semantic search (pgvector), optimistic concurrency control, ledger compaction, MCP Prompts & Resources, knowledge accumulation, Brave Search, and Google Gemini — progressive context loading, brain-inspired knowledge search/forget, and multi-model orchestration for AI agents",
   "module": "index.ts",
   "type": "module",
@@ -39,10 +40,10 @@
     "rag",
     "embeddings"
   ],
-  "homepage": "https://github.com/dcostenco/BCBA",
+  "homepage": "https://github.com/dcostenco/prism-mcp",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dcostenco/BCBA.git"
+    "url": "https://github.com/dcostenco/prism-mcp.git"
   },
   "author": "Dmitri Costenco",
   "license": "MIT",

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.dcostenco/prism-mcp",
+  "description": "Session memory, knowledge search, Brave Search, Gemini AI, and code transforms for AI agents",
+  "repository": {
+    "url": "https://github.com/dcostenco/prism-mcp",
+    "source": "github"
+  },
+  "version": "1.5.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "prism-mcp-server",
+      "version": "1.5.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "BRAVE_API_KEY",
+          "description": "Brave Search API key for web search tools",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "GEMINI_API_KEY",
+          "description": "Google Gemini API key for AI-powered summarization and embeddings",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "SUPABASE_URL",
+          "description": "Supabase project URL for session memory and knowledge persistence",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "SUPABASE_KEY",
+          "description": "Supabase service role key for database access",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "PRISM_USER_ID",
+          "description": "User ID for multi-tenant row-level security isolation (defaults to 'default')",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "GCP_PROJECT_ID",
+          "description": "Google Cloud project ID for Vertex AI Discovery Engine integration",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "VERTEX_LOCATION",
+          "description": "Vertex AI location/region (defaults to 'global')",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "VERTEX_DATA_STORE_ID",
+          "description": "Vertex AI Discovery Engine data store ID for enterprise search",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
