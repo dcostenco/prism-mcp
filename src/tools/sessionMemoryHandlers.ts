@@ -339,10 +339,81 @@ export async function sessionLoadContextHandler(args: unknown) {
     }
   }
 
+  // ─── Morning Briefing (v2.0 Step 7) ───
+  // If it's been more than 4 hours since the last briefing, generate a fresh one.
+  // Otherwise, show the cached briefing from metadata.
+  let briefingBlock = "";
+  const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+  const now = Date.now();
+  const lastGenerated = meta?.briefing_generated_at as number || 0;
+
+  if (now - lastGenerated > FOUR_HOURS_MS) {
+    try {
+      // Only import when needed — keeps cold start fast when not generating
+      const { generateMorningBriefing } = await import("../utils/briefing.js");
+
+      // Fetch recent ledger entries for context
+      const recentRaw = await storage.getLedgerEntries({
+        project: `eq.${project}`,
+        user_id: `eq.${PRISM_USER_ID}`,
+        order: "created_at.desc",
+        limit: "10",
+      });
+
+      const recentEntries = (recentRaw as any[]).map(e => ({
+        type: e.type || "entry",
+        summary: e.summary || e.content || "",
+      }));
+
+      const contextObj = data as any;
+      const briefingText = await generateMorningBriefing(
+        {
+          project,
+          lastSummary: contextObj.last_summary ?? contextObj.summary ?? null,
+          pendingTodos: contextObj.pending_todo ?? contextObj.active_context ?? null,
+          keyContext: contextObj.key_context ?? null,
+          activeBranch: contextObj.active_branch ?? null,
+        },
+        recentEntries
+      );
+
+      briefingBlock = `\n\n[🌅 MORNING BRIEFING]\n${briefingText}`;
+
+      // Cache the briefing in metadata so we don't regenerate for 4 hours
+      // Fire-and-forget — never block the context response
+      const updatedMeta = { ...(meta || {}), briefing_generated_at: now, morning_briefing: briefingText };
+      const handoffUpdate = {
+        project,
+        user_id: PRISM_USER_ID,
+        metadata: updatedMeta,
+        last_summary: contextObj.last_summary ?? null,
+        pending_todo: contextObj.pending_todo ?? null,
+        active_decisions: contextObj.active_decisions ?? null,
+        keywords: contextObj.keywords ?? null,
+        key_context: contextObj.key_context ?? null,
+        active_branch: contextObj.active_branch ?? null,
+      };
+      const currentVersion = (data as any)?.version;
+      if (currentVersion) {
+        storage.saveHandoff(handoffUpdate, currentVersion).catch(err =>
+          console.error(`[Morning Briefing] Cache save failed (non-fatal): ${err}`)
+        );
+      }
+
+      console.error(`[session_load_context] Morning Briefing generated for "${project}"`);
+    } catch (err) {
+      console.error(`[session_load_context] Morning Briefing failed (non-fatal): ${err}`);
+    }
+  } else if (meta?.morning_briefing) {
+    // Show the cached briefing (generated within last 4 hours)
+    briefingBlock = `\n\n[🌅 MORNING BRIEFING]\n${meta.morning_briefing}`;
+    console.error(`[session_load_context] Showing cached Morning Briefing for "${project}"`);
+  }
+
   return {
     content: [{
       type: "text",
-      text: `📋 Session context for "${project}" (${level}):\n\n${JSON.stringify(data, null, 2)}${driftReport}${versionNote}`,
+      text: `📋 Session context for "${project}" (${level}):\n\n${JSON.stringify(data, null, 2)}${driftReport}${briefingBlock}${versionNote}`,
     }],
     isError: false,
   };
