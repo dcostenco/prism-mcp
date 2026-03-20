@@ -1,17 +1,17 @@
 {
   "name": "prism-mcp-server",
-  "version": "1.5.1",
+  "version": "2.1.0",
   "mcpName": "io.github.dcostenco/prism-mcp",
-  "description": "Enterprise-grade MCP server with session memory, semantic search (pgvector), optimistic concurrency control, ledger compaction, MCP Prompts & Resources, knowledge accumulation, Brave Search, and Google Gemini — progressive context loading, brain-inspired knowledge search/forget, and multi-model orchestration for AI agents",
+  "description": "The Mind Palace for AI Agents — local-first MCP server with persistent memory (SQLite/Supabase), visual dashboard, time travel, multi-agent sync, Morning Briefings, reality drift detection, code mode templates, semantic vector search, and Brave Search + Gemini analysis. Zero-config local mode.",
   "module": "index.ts",
   "type": "module",
-  "main": "build/server.js",
+  "main": "dist/server.js",
   "bin": {
-    "prism-mcp-server": "./build/server.js"
+    "prism-mcp-server": "./dist/server.js"
   },
   "scripts": {
     "build": "tsc",
-    "start": "node build/server.js",
+    "start": "node dist/server.js",
     "test:mcp": "node ./test_cross_mcp.js"
   },
   "keywords": [
@@ -21,8 +21,20 @@
     "ai-agent",
     "session-memory",
     "agent-memory",
+    "mind-palace",
+    "local-first",
+    "sqlite",
+    "time-travel",
+    "visual-memory",
+    "multi-agent-sync",
+    "telepathy",
+    "morning-briefing",
+    "reality-drift",
+    "code-mode-templates",
     "semantic-search",
+    "vector-search",
     "pgvector",
+    "f32-blob",
     "concurrency-control",
     "mcp-prompts",
     "mcp-resources",
@@ -31,9 +43,8 @@
     "llm",
     "claude-desktop",
     "supabase",
-    "context-loading",
+    "progressive-context-loading",
     "knowledge-accumulation",
-    "knowledge-graph",
     "ai-memory",
     "ai-tools",
     "typescript",
@@ -43,8 +54,9 @@
     "windsurf",
     "cline",
     "persistent-memory",
-    "session-management",
-    "context-window"
+    "zero-config",
+    "auto-capture",
+    "dashboard"
   ],
   "homepage": "https://github.com/dcostenco/prism-mcp",
   "repository": {

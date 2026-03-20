@@ -1,4 +1,4 @@
-# Prism MCP — Persistent Memory for Claude Desktop, Cursor & AI Agents
+# Prism MCP — The Mind Palace for AI Agents 🧠
 
 [![npm version](https://img.shields.io/npm/v/prism-mcp-server?color=cb0000&label=npm)](https://www.npmjs.com/package/prism-mcp-server)
 [![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-00ADD8?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTUtMTAtNXpNMiAxN2wxMCA1IDEwLTV2LTJMMTI0djJMMiA5djh6Ii8+PC9zdmc+)](https://registry.modelcontextprotocol.io)
@@ -8,71 +8,36 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-> **Give your AI agent memory that survives between sessions.** Prism MCP is a Model Context Protocol server that adds **persistent session memory**, **progressive context loading**, and **multi-engine search** to Claude Desktop, Cursor, Windsurf, and any MCP-compatible client. No more re-explaining your project every time you start a new chat.
+> **Your AI agent's memory that survives between sessions.** Prism MCP is a Model Context Protocol server that gives Claude Desktop, Cursor, Windsurf, and any MCP client **persistent memory**, **time travel**, **visual context**, **multi-agent sync**, and **multi-engine search** — all running locally with zero cloud dependencies.
 >
-> Built with **semantic search (pgvector)**, **optimistic concurrency control**, **MCP Prompts & Resources**, **auto-compaction**, and **multi-tenant RLS** on Supabase free tier.
+> Built with **SQLite + F32_BLOB vector search**, **optimistic concurrency control**, **MCP Prompts & Resources**, **auto-compaction**, **Gemini-powered Morning Briefings**, and optional **Supabase cloud sync**.
 
 ---
 
-## What's New in v1.5
+## What's New in v2.0 "Mind Palace" 🧠
+
+Prism MCP has been completely rebuilt from the ground up to support **local-first workflows**, **visual agent memory**, and **multi-client synchronization**.
 
 | Feature | Description |
 |---|---|
-| 🧠 **MCP Prompts** | `/resume_session` slash command — inject context before the LLM thinks. Zero tool calls. |
-| 📎 **MCP Resources** | Attach `memory://project/handoff` via paperclip — auto-refresh on state changes. |
-| 🔒 **Optimistic Concurrency** | Version-tracked handoffs prevent multi-client data loss. |
-| 🧹 **Ledger Compaction** | Gemini-powered rollup of old entries — keeps ledger lean with soft-delete archiving. |
-| 🔍 **Semantic Search** | pgvector embeddings — find sessions by meaning, not just keywords. |
-| ♻️ **Resource Subscriptions** | Attached memory auto-refreshes when handoff state changes mid-conversation. |
-| 🛡️ **Multi-Tenant RLS** | `PRISM_USER_ID` env var — Row Level Security isolates data per user on shared Supabase. |
+| 🏠 **Local-First SQLite** | Run Prism entirely locally with zero cloud dependencies. Full vector search (libSQL F32_BLOB) and FTS5 included. |
+| 🔮 **Mind Palace UI** | A beautiful glassmorphism dashboard at `localhost:3000` to inspect your agent's memory, visual vault, and Git drift. |
+| 🕰️ **Time Travel** | `memory_history` and `memory_checkout` act like `git revert` for your agent's brain — full version history with OCC. |
+| 🖼️ **Visual Memory** | Agents can save screenshots to a local media vault. Auto-capture mode snapshots your local dev server on every handoff save. |
+| 📡 **Agent Telepathy** | Multi-client sync: if your agent in Cursor saves state, Claude Desktop gets a live notification instantly. |
+| 🌅 **Morning Briefing** | Gemini auto-synthesizes a 3-bullet action plan if it's been >4 hours since your last session. |
+| 📝 **Code Mode Templates** | 8 pre-built QuickJS extraction templates for GitHub, Jira, OpenAPI, Slack, CSV, and DOM parsing — zero reasoning tokens. |
+| 🔍 **Reality Drift Detection** | Prism captures Git state on save and warns if files changed outside the agent's view. |
 
 ---
 
-## How Prism MCP Compares
+## Quick Start (Zero Config — Local Mode)
 
-| Capability | **Prism MCP** | **Mem0** | **Zep** | **Basic Memory** |
-|---|---|---|---|---|
-| **Architecture** | MCP-native (single npm package) | Standalone service + MCP adapter | Standalone service + API | MCP-native (local files) |
-| **Storage** | Supabase (PostgreSQL) | Hybrid (vector + graph DBs) | PostgreSQL + Neo4j | Local markdown files |
-| **Cold Start Fix** | ✅ MCP Prompts + Resources inject context before LLM thinks | ❌ Requires tool call | ❌ Requires tool call | ❌ Requires tool call |
-| **Progressive Loading** | ✅ quick / standard / deep levels | ❌ All-or-nothing | ❌ Fixed context window | ❌ All-or-nothing |
-| **Semantic Search** | ✅ pgvector + HNSW | ✅ Qdrant/Chroma | ✅ Built-in embeddings | ❌ No embeddings |
-| **Concurrency Control** | ✅ OCC with version tracking | ❌ Last write wins | ❌ Last write wins | ❌ Single user only |
-| **Auto-Compaction** | ✅ Gemini-powered rollup | ❌ Manual management | ✅ Auto-summarization | ❌ No compaction |
-| **Resource Subscriptions** | ✅ Live refresh on state change | ❌ Not MCP-native | ❌ Not MCP-native | ❌ Not supported |
-| **Knowledge Accumulation** | ✅ Auto-extracted keywords + categories | ✅ User/agent memories | ✅ Fact extraction | ❌ Manual tagging |
-| **Infrastructure Cost** | Free tier (Supabase + Gemini) | Free tier available, paid for scale | Self-hosted or cloud ($$$) | Free (local only) |
-| **Setup Complexity** | 2 env vars (Supabase URL + Key) | Docker + API keys + vector DB | Docker + PostgreSQL + Neo4j | No setup needed |
-| **Multi-Project** | ✅ Built-in project isolation | ✅ User-scoped memories | ✅ Session-scoped | ❌ Single knowledge base |
-| **Multi-Tenant RLS** | ✅ user_id + RLS policies | ❌ Not built-in | ❌ Not built-in | ❌ Single user only |
+Get the MCP server running with Claude Desktop or Cursor in **under 60 seconds**. No API keys required for basic local memory!
 
-> **When to choose Prism MCP**: You want MCP-native memory with zero infrastructure overhead, progressive context loading, and enterprise features (OCC, compaction, semantic search) that work directly in Claude Desktop — without running separate services.
+### Option A: npx (Fastest)
 
----
-
-## Overview
-
-Prism MCP is a unified AI agent platform with two core pillars:
-
-1. **Session Memory & Knowledge System** — Persistent session memory with progressive context loading, MCP Prompts for cold-start fix, MCP Resources for zero-tool-call context, semantic search via pgvector embeddings, optimistic concurrency control, auto-compaction, cross-project knowledge transfer, and selective memory pruning
-2. **Multi-Engine Search & Analysis** — Brave Search + Vertex AI Discovery Engine hybrid pipeline with 94% context reduction, Gemini research analysis, and sandboxed code transforms
-
-| Capability | Implementation |
-|---|---|
-| **Session Memory & Knowledge** | Progressive context loading (quick / standard / deep), MCP Prompts (/resume_session), MCP Resources (memory://), OCC (version tracking), ledger compaction, semantic search (pgvector), knowledge accumulation, and memory pruning via Supabase |
-| **Multi-Engine Search** | Brave Search (real-time web) + Vertex AI Discovery Engine (curated enterprise index) with hybrid merge/dedup pipeline |
-| **MCP Server Architecture** | Multi-tool server with `@modelcontextprotocol/sdk`, structured request handling, MCP Prompts, Resources with subscriptions, and extensible tool registration |
-| **LLM Integration** | Claude Desktop, Google Gemini, and Claude-on-Vertex AI with secure prompt patterns |
-| **API Orchestration** | Brave Search, Gemini, Gmail, Chrome DevTools Protocol, GCP Discovery Engine, and Supabase REST APIs |
-| **Code-Mode Transforms** | Sandboxed JavaScript extraction over raw JSON/CSV payloads — 85-95% token reduction |
-| **Security & IP Protection** | GCP Application Default Credentials, OAuth 2.0, encrypted credential management, env-based secrets |
-| **Testing & Validation** | Cross-MCP integration tests, Vertex AI verification scripts, schema validation, and benchmarks |
-
-## Quick Start
-
-Get the MCP server running with Claude Desktop in under 2 minutes:
-
-### Option A: npx (Fastest — No Clone Needed)
+Add this to your `claude_desktop_config.json` or `.cursor/mcp.json`:
 
 ```json
 {
@@ -81,6 +46,7 @@ Get the MCP server running with Claude Desktop in under 2 minutes:
       "command": "npx",
       "args": ["-y", "prism-mcp-server"],
       "env": {
+        "PRISM_STORAGE": "local",
         "BRAVE_API_KEY": "your-brave-api-key"
       }
     }
@@ -88,9 +54,30 @@ Get the MCP server running with Claude Desktop in under 2 minutes:
 }
 ```
 
-Paste into your Claude Desktop config and restart. That's it.
+> **Note:** `BRAVE_API_KEY` is required for search features. To enable semantic search, Morning Briefings, and paper analysis, add `GOOGLE_API_KEY`. Everything else works out of the box with zero config.
 
-### Option B: Clone & Build (Full Control)
+### Option B: Cloud Sync Mode (Supabase)
+
+To share memory across multiple machines or teams, switch to Supabase:
+
+```json
+{
+  "mcpServers": {
+    "prism-mcp": {
+      "command": "npx",
+      "args": ["-y", "prism-mcp-server"],
+      "env": {
+        "PRISM_STORAGE": "supabase",
+        "BRAVE_API_KEY": "your-brave-api-key",
+        "SUPABASE_URL": "https://your-project.supabase.co",
+        "SUPABASE_KEY": "your-supabase-anon-key"
+      }
+    }
+  }
+}
+```
+
+### Option C: Clone & Build (Full Control)
 
 ```bash
 git clone https://github.com/dcostenco/prism-mcp.git
@@ -99,49 +86,89 @@ npm install
 npm run build
 ```
 
-Then add to your `claude_desktop_config.json`:
+Then add to your MCP config:
 
 ```json
 {
   "mcpServers": {
     "prism-mcp": {
       "command": "node",
-      "args": ["/absolute/path/to/prism-mcp/build/server.js"],
+      "args": ["/absolute/path/to/prism-mcp/dist/server.js"],
       "env": {
+        "PRISM_STORAGE": "local",
         "BRAVE_API_KEY": "your-brave-api-key",
-        "GOOGLE_API_KEY": "your-google-gemini-key",
-        "SUPABASE_URL": "https://your-project.supabase.co",
-        "SUPABASE_KEY": "your-supabase-anon-key",
-        "PRISM_USER_ID": "your-unique-user-id"
+        "GOOGLE_API_KEY": "your-google-gemini-key"
       }
     }
   }
 }
 ```
 
-> **Note:** Only `BRAVE_API_KEY` is required. All other keys are optional and enable additional tools (Gemini analysis, session memory, etc.)
+### Restart your MCP client. That's it — all tools are now available.
 
-### 3. Restart Claude Desktop
+---
 
-That's it — all tools are now available in Claude.
+## 🔮 The Mind Palace Dashboard
 
-### Alternative: Local PostgreSQL (Docker)
+Prism MCP spins up a lightweight, zero-dependency HTTP server alongside the MCP stdio process. No frameworks, no build step — just pure glassmorphism CSS served as a template literal.
 
-If you prefer local PostgreSQL instead of Cloud Supabase:
+Open **`http://localhost:3000`** in your browser to see exactly what your AI agent is thinking:
 
-```bash
-docker compose up -d          # Start PostgreSQL + PostgREST
-# Run all migrations:
-cat supabase/migrations/*.sql | docker compose exec -T db psql -U prism -d prism_mcp
-```
+- **Current State & TODOs** — See the exact context injected into the LLM's prompt
+- **Git Drift Detection** — Alerts you if you've modified code outside the agent's view
+- **Morning Briefing** — AI-synthesized action plan from your last sessions
+- **Time Travel Timeline** — Browse historical handoff states and revert any version
+- **Visual Memory Vault** — Browse UI screenshots and auto-captured HTML states
+- **Session Ledger** — Full audit trail of every decision your agent has made
 
-Then set `SUPABASE_URL=http://localhost:3000` in your MCP config.
+The dashboard auto-discovers all your projects and updates in real time.
+
+---
+
+## How Prism MCP Compares
+
+| Capability | **Prism MCP** | **Mem0** | **Zep** | **Basic Memory** |
+|---|---|---|---|---|
+| **Architecture** | MCP-native (single npm package) | Standalone service + MCP adapter | Standalone service + API | MCP-native (local files) |
+| **Storage** | SQLite (local) or Supabase (cloud) | Hybrid (vector + graph DBs) | PostgreSQL + Neo4j | Local markdown files |
+| **Local-First** | ✅ Full SQLite mode, zero cloud | ❌ Requires cloud/Docker | ❌ Requires PostgreSQL | ✅ Local files |
+| **Visual Dashboard** | ✅ Mind Palace UI at localhost:3000 | ❌ No UI | ❌ No UI | ❌ No UI |
+| **Time Travel** | ✅ Version history + checkout | ❌ No versioning | ❌ No versioning | ❌ No versioning |
+| **Multi-Agent Sync** | ✅ Telepathy (realtime IPC/CDC) | ❌ Siloed | ❌ Siloed | ❌ Single user |
+| **Auto-Capture** | ✅ HTML snapshots of dev server | ❌ Text only | ❌ Text only | ❌ Text only |
+| **Cold Start Fix** | ✅ MCP Prompts + Resources | ❌ Requires tool call | ❌ Requires tool call | ❌ Requires tool call |
+| **Progressive Loading** | ✅ quick / standard / deep | ❌ All-or-nothing | ❌ Fixed window | ❌ All-or-nothing |
+| **Semantic Search** | ✅ F32_BLOB vectors (local) or pgvector (cloud) | ✅ Qdrant/Chroma | ✅ Built-in | ❌ None |
+| **Concurrency Control** | ✅ OCC with version tracking | ❌ Last write wins | ❌ Last write wins | ❌ Single user |
+| **Setup Complexity** | Zero config (local mode) | Docker + API keys + vector DB | Docker + PostgreSQL + Neo4j | No setup needed |
 
 ---
 
 ## Integration Examples
 
-Copy-paste configs for popular MCP clients. All configs use the `npx` method — replace with the `node` path if you cloned the repo.
+Copy-paste configs for popular MCP clients. All configs use the `npx` method.
+
+<details>
+<summary><strong>Claude Desktop</strong></summary>
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "prism-mcp": {
+      "command": "npx",
+      "args": ["-y", "prism-mcp-server"],
+      "env": {
+        "PRISM_STORAGE": "local",
+        "BRAVE_API_KEY": "your-brave-api-key"
+      }
+    }
+  }
+}
+```
+
+</details>
 
 <details>
 <summary><strong>Cursor</strong></summary>
@@ -155,9 +182,8 @@ Add to `.cursor/mcp.json` in your project root (or `~/.cursor/mcp.json` for glob
       "command": "npx",
       "args": ["-y", "prism-mcp-server"],
       "env": {
-        "BRAVE_API_KEY": "your-brave-api-key",
-        "SUPABASE_URL": "https://your-project.supabase.co",
-        "SUPABASE_KEY": "your-supabase-anon-key"
+        "PRISM_STORAGE": "local",
+        "BRAVE_API_KEY": "your-brave-api-key"
       }
     }
   }
@@ -178,9 +204,8 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
       "command": "npx",
       "args": ["-y", "prism-mcp-server"],
       "env": {
-        "BRAVE_API_KEY": "your-brave-api-key",
-        "SUPABASE_URL": "https://your-project.supabase.co",
-        "SUPABASE_KEY": "your-supabase-anon-key"
+        "PRISM_STORAGE": "local",
+        "BRAVE_API_KEY": "your-brave-api-key"
       }
     }
   }
@@ -190,33 +215,9 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 </details>
 
 <details>
-<summary><strong>VS Code + Continue</strong></summary>
+<summary><strong>VS Code + Continue / Cline</strong></summary>
 
-Add to your Continue `config.json` (usually `~/.continue/config.json`):
-
-```json
-{
-  "mcpServers": [
-    {
-      "name": "prism-mcp",
-      "command": "npx",
-      "args": ["-y", "prism-mcp-server"],
-      "env": {
-        "BRAVE_API_KEY": "your-brave-api-key",
-        "SUPABASE_URL": "https://your-project.supabase.co",
-        "SUPABASE_KEY": "your-supabase-anon-key"
-      }
-    }
-  ]
-}
-```
-
-</details>
-
-<details>
-<summary><strong>Cline (VS Code)</strong></summary>
-
-In VS Code, open Cline settings → MCP Servers → Add Server:
+Add to your Continue `config.json` or Cline MCP settings:
 
 ```json
 {
@@ -225,9 +226,8 @@ In VS Code, open Cline settings → MCP Servers → Add Server:
       "command": "npx",
       "args": ["-y", "prism-mcp-server"],
       "env": {
-        "BRAVE_API_KEY": "your-brave-api-key",
-        "SUPABASE_URL": "https://your-project.supabase.co",
-        "SUPABASE_KEY": "your-supabase-anon-key"
+        "PRISM_STORAGE": "local",
+        "BRAVE_API_KEY": "your-brave-api-key"
       }
     }
   }
@@ -242,13 +242,13 @@ In VS Code, open Cline settings → MCP Servers → Add Server:
 
 | Scenario | How Prism MCP Helps |
 |----------|-------------------|
-| **Long-running feature development** | Save session state at end of day, restore full context the next morning — no re-explaining |
-| **Multi-agent workflows** | Shared Supabase backend with RLS lets multiple agents collaborate on the same project |
-| **Consulting / multi-project work** | Switch between client projects with progressive context loading (quick / standard / deep) |
-| **Research & analysis** | Multi-engine search (Brave + Vertex AI) with 94% context reduction via sandboxed code transforms |
+| **Long-running feature work** | Save session state at end of day, restore full context the next morning — no re-explaining |
+| **Multi-agent collaboration** | Telepathy sync lets multiple agents share context in real time |
+| **Consulting / multi-project** | Switch between client projects with progressive context loading |
+| **Research & analysis** | Multi-engine search with 94% context reduction via sandboxed code transforms |
 | **Team onboarding** | New team member's agent loads full project history via `session_load_context("deep")` |
-| **Claude Desktop memory** | The `/resume_session` MCP Prompt injects context *before* Claude starts thinking — zero tool calls |
-| **Knowledge management** | Auto-extracted keywords + categories turn session logs into a searchable knowledge base |
+| **Visual debugging** | Save screenshots of broken UI to visual memory — the agent remembers what it looked like |
+| **Offline / air-gapped** | Full SQLite local mode with no internet dependency for memory features |
 
 ---
 
@@ -261,827 +261,326 @@ graph TB
     
     Client -- "MCP Protocol (stdio)" --> MCP
     
+    MCP --> Dashboard["Mind Palace Dashboard<br/>localhost:3000"]
     MCP --> Brave["Brave Search API<br/>Web + Local + AI Answers"]
-    MCP --> Gemini["Google Gemini API<br/>Research Paper Analysis"]
-    MCP --> Vertex["Vertex AI Discovery Engine<br/>Enterprise Search"]
-    MCP --> Sandbox["QuickJS Sandbox<br/>Code-Mode Transforms"]
-    MCP --> Supabase["Supabase<br/>Session Memory (Optional)"]
+    MCP --> Gemini["Google Gemini API<br/>Analysis + Briefings"]
+    MCP --> Sandbox["QuickJS Sandbox<br/>Code-Mode Templates"]
+    MCP --> SyncBus["SyncBus<br/>Agent Telepathy"]
     
-    Supabase --> Ledger["session_ledger<br/>(append-only log)"]
-    Supabase --> Handoffs["session_handoffs<br/>(project state)"]
-    Supabase --> Context["get_session_context<br/>(progressive loading<br/>+ knowledge cache)"]
-    Supabase --> Knowledge["Knowledge System<br/>(search / forget / cache)"]
+    MCP --> Storage{"Storage Backend"}
+    Storage --> SQLite["SQLite (Local)<br/>libSQL + F32_BLOB vectors"]
+    Storage --> Supabase["Supabase (Cloud)<br/>PostgreSQL + pgvector"]
+    
+    SQLite --> Ledger["session_ledger"]
+    SQLite --> Handoffs["session_handoffs"]
+    SQLite --> History["history_snapshots<br/>(Time Travel)"]
+    SQLite --> Media["media vault<br/>(Visual Memory)"]
     
     style Client fill:#4A90D9,color:#fff
     style MCP fill:#2D3748,color:#fff
+    style Dashboard fill:#9F7AEA,color:#fff
     style Brave fill:#FB542B,color:#fff
     style Gemini fill:#4285F4,color:#fff
-    style Vertex fill:#34A853,color:#fff
     style Sandbox fill:#805AD5,color:#fff
+    style SyncBus fill:#ED64A6,color:#fff
+    style Storage fill:#2D3748,color:#fff
+    style SQLite fill:#38B2AC,color:#fff
     style Supabase fill:#3ECF8E,color:#fff
-    style Knowledge fill:#F6AD55,color:#fff
 ```
 
-### ASCII Architecture (for terminals)
+---
+
+## Tool Reference
+
+### Search & Analysis Tools
+
+| Tool | Purpose |
+|------|---------|
+| `brave_web_search` | Real-time internet search |
+| `brave_local_search` | Location-based POI discovery |
+| `brave_web_search_code_mode` | JS extraction over web search results |
+| `brave_local_search_code_mode` | JS extraction over local search results |
+| `code_mode_transform` | Universal post-processing with **8 built-in templates** |
+| `gemini_research_paper_analysis` | Academic paper analysis via Gemini |
+| `brave_answers` | AI-grounded answers from Brave |
+
+### Session Memory & Knowledge Tools
+
+| Tool | Purpose |
+|------|---------|
+| `session_save_ledger` | Append immutable session log (summary, TODOs, decisions) |
+| `session_save_handoff` | Upsert latest project state with OCC version tracking |
+| `session_load_context` | Progressive context loading (quick / standard / deep) |
+| `knowledge_search` | Semantic search across accumulated knowledge |
+| `knowledge_forget` | Prune outdated or incorrect memories (4 modes + dry_run) |
+| `session_search_memory` | Vector similarity search across all sessions |
+| `backfill_embeddings` | Retroactively generate embeddings for existing entries |
+
+### v2.0 Advanced Memory Tools
+
+| Tool | Purpose |
+|------|---------|
+| `memory_history` | Browse all historical versions of a project's handoff state |
+| `memory_checkout` | Revert to any previous version (non-destructive, like `git revert`) |
+| `session_save_image` | Save a screenshot/image to the visual memory vault |
+| `session_view_image` | Retrieve and display a saved image from the vault |
+
+### Code Mode Templates (v2.1)
+
+Instead of writing custom JavaScript, pass a `template` name for instant extraction:
+
+| Template | Source Data | What It Extracts |
+|----------|-----------|-----------------|
+| `github_issues` | GitHub REST API | `#number [state] title (@author) {labels}` |
+| `github_prs` | GitHub REST API | `#number [state] title (base ← head)` |
+| `jira_tickets` | Jira REST API | `[KEY] summary - Status - Priority - Assignee` |
+| `dom_links` | Raw HTML | All `<a>` links as markdown |
+| `dom_headings` | Raw HTML | H1-H6 hierarchy with indentation |
+| `api_endpoints` | OpenAPI/Swagger JSON | `[METHOD] /path - summary` |
+| `slack_messages` | Slack Web API | `[timestamp] @user: message` |
+| `csv_summary` | CSV text | Column names, row count, sample rows |
+
+**Usage:** `{ "data": "<raw JSON>", "template": "github_issues" }` — no custom code needed.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `BRAVE_API_KEY` | Yes (for search) | Brave Search Pro API key |
+| `PRISM_STORAGE` | No | `"local"` (default) or `"supabase"` |
+| `GOOGLE_API_KEY` | No | Google AI / Gemini — enables paper analysis, Morning Briefings, compaction |
+| `BRAVE_ANSWERS_API_KEY` | No | Separate Brave Answers key for AI-grounded answers |
+| `SUPABASE_URL` | If cloud mode | Supabase project URL |
+| `SUPABASE_KEY` | If cloud mode | Supabase anon/service key |
+| `PRISM_USER_ID` | No | Multi-tenant user isolation (default: `"default"`) |
+| `PRISM_AUTO_CAPTURE` | No | Set `"true"` to auto-capture HTML snapshots of dev servers |
+| `PRISM_CAPTURE_PORTS` | No | Comma-separated ports to scan (default: `3000,3001,5173,8080`) |
+
+---
+
+## Progressive Context Loading
+
+Load only what you need — saves tokens and speeds up boot:
+
+| Level | What You Get | Size | When to Use |
+|-------|-------------|------|-------------|
+| **quick** | Open TODOs + keywords | ~50 tokens | Fast check-in: "what was I working on?" |
+| **standard** | Above + summary + recent decisions + knowledge cache + Git drift | ~200 tokens | **Recommended default** |
+| **deep** | Above + full logs (last 5 sessions) + cross-project knowledge | ~1000+ tokens | After a long break or when you need complete history |
+
+### Morning Briefing (Automatic)
+
+If it's been more than 4 hours since your last session, Prism automatically:
+1. Fetches the 10 most recent uncompacted ledger entries
+2. Sends a notification: *"🌅 Brewing your Morning Briefing..."*
+3. Uses Gemini to synthesize a 3-bullet action plan
+4. Injects the briefing into the `session_load_context` response
+
+The agent boots up knowing exactly what to do — zero prompting needed.
+
+---
+
+## Time Travel (Version History)
+
+Every successful handoff save creates a snapshot. You can browse and revert any version:
 
 ```
-┌────────────────────┐        MCP Protocol (stdio)        ┌──────────────────────────┐
-│   AI Client        │ ◄───────────────────────────────── │    MCP Server            │
-│   (Claude Desktop) │                                    │    (TypeScript + Python)  │
-└────────────────────┘                                    └────────────┬─────────────┘
-                                                                      │
-                    ┌──────────────────┬──────────────────┼──────────────────┬────────────────────┐
-                    │                  │                  │                  │                    │
-           ┌───────▼────────┐ ┌───────▼───────┐ ┌───────▼────────┐ ┌──────▼──────────┐ ┌───────▼──────────────┐
-           │  Brave Search  │ │  Gemini API   │ │  Gmail OAuth   │ │ Chrome DevTools │ │  Vertex AI Search    │
-           │  (Web + Local) │ │  (Analysis)   │ │  (Data Pipe)   │ │ (MCP Introspect)│ │  (Discovery Engine)  │
-           └────────────────┘ └───────────────┘ └────────────────┘ └─────────────────┘ └──────────────────────┘
-
-                    ┌──────────────────────────────────────────────────────┐
-                    │              Google Cloud (Vertex AI)               │
-                    │                                                      │
-                    │  ┌──────────────┐  ┌─────────────┐  ┌────────────┐  │
-                    │  │ Discovery    │  │ Gemini SDK  │  │ Claude on  │  │
-                    │  │ Engine /     │  │ (Vertex AI) │  │ Vertex AI  │  │
-                    │  │ AI Search    │  │             │  │ (Anthropic)│  │
-                    │  └──────────────┘  └─────────────┘  └────────────┘  │
-                    └──────────────────────────────────────────────────────┘
-
-                    ┌──────────────────────────────────────────────────────┐
-                    │              Supabase (Optional)                    │
-                    │                                                      │
-                    │  ┌──────────────┐  ┌─────────────┐  ┌────────────┐  │
-                    │  │ session_     │  │ session_    │  │ get_session│  │
-                    │  │ ledger       │  │ handoffs    │  │ _context() │  │
-                    │  │ (append-only)│  │ (upsert)    │  │ (RPC)      │  │
-                    │  └──────────────┘  └─────────────┘  └────────────┘  │
-                    └──────────────────────────────────────────────────────┘
+v1 → v2 → v3 → v4 (current)
+              ↑
+        memory_checkout(v2) → creates v5 with v2's content
 ```
 
-## Core Components
+This is a **non-destructive revert** — like `git revert`, not `git reset`. No history is ever lost.
 
-### 1. MCP Server (`src/`, `index.ts`)
+### Usage
 
-The backbone of the platform — a TypeScript MCP server that registers and exposes multiple tools via the Model Context Protocol standard.
+```json
+// Browse all versions
+{ "name": "memory_history", "arguments": { "project": "my-app" } }
 
-- **Server entry point** with stdio transport binding
-- **Modular tool definitions** with JSON Schema parameter validation
-- **Request handlers** with structured error handling and response formatting
-- **Config management** with environment-variable-driven API key injection
-
-### 2. Vertex AI Applications (`vertex-ai/`)
-
-Integration layer connecting Google Cloud's Vertex AI services with the MCP search pipeline, enabling hybrid retrieval and multi-model analysis:
-
-| Component | Description | GCP Service |
-|-----------|-------------|-------------|
-| `verify_discovery_engine.ts` | Queries and validates a Discovery Engine search index with structured result parsing | Vertex AI Search / Discovery Engine |
-| `test_gemini_vertex.py` | Gemini model invocation via the Vertex AI Python SDK with ADC authentication | Vertex AI Generative Models |
-| `test_claude_vertex.py` | Claude model deployment via Anthropic's Vertex AI integration with multi-region failover | Claude on Vertex AI (Model Garden) |
-
-**Key capabilities:**
-- **Discovery Engine Search** — Document ingestion, index building, and structured query execution via `@google-cloud/discoveryengine` SDK
-- **Multi-model orchestration** — Seamless switching between Gemini and Claude models through the same GCP project
-- **Application Default Credentials (ADC)** — Secure, keyless authentication using `gcloud auth application-default login`
-- **Multi-region failover** — Automatic region rotation for Claude on Vertex AI (`us-east5`, `us-central1`, `europe-west1`)
-
-### Hybrid Search Pipeline: MCP + Vertex AI Discovery Engine
-
-The platform's core architectural advantage is combining **real-time web search** (via MCP/Brave) with **enterprise-curated search** (via Vertex AI Discovery Engine) in a unified pipeline:
-
-```
-Query ──► MCP Server
-           ├── brave_web_search ──────────► Real-time web results
-           ├── Discovery Engine ──────────► Curated enterprise index
-           └── code_mode_transform ───────► Merged, deduplicated, normalized output
-                                                   │
-                                           gemini_research_paper_analysis
-                                                   │
-                                           Structured analysis (LLM)
+// Revert to version 2
+{ "name": "memory_checkout", "arguments": { "project": "my-app", "version": 2 } }
 ```
 
-**Why a hybrid pipeline?** Each source has distinct strengths — the enhancement comes from combining them, not replacing one with the other:
+---
 
-| Dimension | 🌐 Brave Search (MCP) | 🔍 Discovery Engine (Vertex AI) | 🔀 Hybrid (Combined) |
-|-----------|----------------------|----------------------------------|----------------------|
-| **Coverage** | Public web — broad, real-time | Curated document index — deep, domain-specific | **Both:** breadth + depth |
-| **Result quality** | Keyword-ranked web pages | ML-ranked with semantic understanding | **Deduplicated, best-of-both** |
-| **Speed** | **~200ms** (live search) | ~900ms (pre-indexed retrieval) | ~2.4s sequential (both stages) |
-| **Context efficiency** | 93% reduction via `code_mode_transform` | 95% reduction (pre-structured data) | 94% overall (71 KB → 4.1 KB) |
-| **Token savings** | **~10,074 / query** | **~7,087 / query** | Combined: **~17K tokens saved** |
-| **Freshness** | Real-time (seconds old) | Managed re-crawl schedules | Real-time + deep archive |
-| **Model routing** | Single Gemini API key | Multi-model (Gemini + Claude) via GCP | Full model flexibility |
+## Agent Telepathy (Multi-Client Sync)
 
-The `code_mode_transform` tool is the key performance enabler — it runs sandboxed JavaScript over raw API payloads to extract only the relevant fields before passing data to the LLM, reducing context window usage by **85-95%** (measured via the built-in `benchmark.ts` suite). When combined with Discovery Engine's pre-structured results, the total pipeline achieves significantly lower token consumption compared to raw web scraping approaches.
+When Agent A (Cursor) saves a handoff, Agent B (Claude Desktop) gets notified instantly:
 
-### Verified Test Results
+- **Local Mode:** File-based IPC via SQLite polling
+- **Cloud Mode:** Supabase Realtime (Postgres CDC)
 
-Benchmark data from [`test_pipeline_benchmark.ts`](vertex-ai/test_pipeline_benchmark.ts) (5 queries × 3 iterations each):
+No configuration needed — it just works.
 
-| Metric | 🌐 Brave (MCP) | 🔍 Discovery Engine | Hybrid Total |
-|--------|----------------|---------------------|--------------|
-| **Avg latency** | 220ms | 1,193ms | ~1.4s (sequential) |
-| **Avg raw payload** | 42.4 KB | 28.9 KB | 71.3 KB total input |
-| **Avg reduced payload** | 3.0 KB | 1.2 KB | **4.2 KB total** (94% reduction) |
-| **Token savings** | ~10,103 | ~7,097 | **~17,200 tokens saved / query** |
+---
 
-End-to-end pipeline results from [`test_hybrid_search_pipeline.ts`](vertex-ai/test_hybrid_search_pipeline.ts):
+## Reality Drift Detection
 
-| Pipeline Stage | Results | Latency | Payload |
-|----------------|---------|---------|--------|
-| Stage 1: Brave Web Search | 5 results | 520ms | 24.1 KB raw |
-| Stage 2: Discovery Engine | 5 results | 1,895ms | 23.1 KB raw |
-| Stage 3: Merge & Dedup | **9 unique** (1 duplicate removed) | <1ms | 2.6 KB → 1.4 KB |
-| Stage 4: Gemini Analysis | Structured summary | 4,919ms | — |
-| **Total Pipeline** | **9 merged results** | **7.3s end-to-end** | **~17K tokens saved** |
+Prism captures Git state (branch + commit SHA) on every handoff save. When the agent loads context, it compares the saved state against the current working directory:
 
-> *"The web search results provide practical understanding... the Discovery Engine results delve into specialized and cutting-edge topics from arXiv... Together, the sources provide a holistic perspective, bridging established techniques with advanced research."*
-> — Gemini 2.5 Flash analysis output
+```
+⚠️ REALITY DRIFT DETECTED for "my-app":
+  Branch changed: feature/auth → main
+  Commit changed: abc1234 → def5678
+  
+  The codebase has been modified since your last session.
+  Re-examine before making assumptions.
+```
 
-### Real-World Comparison: Why the Hybrid Pipeline Matters
+This prevents the agent from writing code based on stale context.
 
-Results from [`test_realworld_comparison.ts`](vertex-ai/test_realworld_comparison.ts) — 3 real AI/ML queries comparing Brave-only vs Hybrid:
+---
 
-| Real-World Query | Brave Only | Hybrid | DE Added |
-|-----------------|------------|--------|----------|
-| *RLHF implementation* (AI engineer) | 10 results (2 academic) | 20 results (12 academic) | **+10 unique papers** |
-| *INT8 quantization* (ML deployment) | 10 results (4 academic) | 20 results (14 academic) | **+10 unique papers** |
-| *RAG architecture* (enterprise dev) | 10 results (0 academic) | 20 results (10 academic) | **+10 unique papers** |
+## Visual Memory & Auto-Capture
 
-**Key finding:** For the RAG query, Brave returned **zero academic sources** — only vendor docs (AWS, NVIDIA, IBM, Google Cloud). Discovery Engine filled this gap entirely with 10 peer-reviewed papers including the foundational RAG paper by Lewis et al.
+### Manual: Save Screenshots
 
-| Aggregate Metric | Brave Only | Hybrid | Improvement |
-|-----------------|------------|--------|-------------|
-| **Avg results / query** | 10 | 20 | **+100%** |
-| **Avg academic sources** | 2.0 | 12.0 | **+10 per query** |
-| **Source overlap** | — | 0% | Fully complementary |
-| **Unique DE contributions** | — | 30 total | 10 per query |
+```json
+{ "name": "session_save_image", "arguments": {
+  "project": "my-app",
+  "image_path": "/path/to/screenshot.png",
+  "description": "Login page after CSS fix"
+}}
+```
+
+### Automatic: HTML Snapshots
+
+Set `PRISM_AUTO_CAPTURE=true` and Prism silently captures your local dev server's HTML on every handoff save. Supported formats: PNG, JPG, WebP, GIF, SVG, HTML.
+
+---
+
+## Knowledge Accumulation
+
+Every `session_save_ledger` and `session_save_handoff` automatically extracts keywords using lightweight, in-process NLP (~0.020ms/call). No LLM calls, no external dependencies.
+
+**Example:** Saving *"Fixed Stripe webhook race condition using database-backed idempotency keys"* auto-extracts:
+- **Keywords:** `stripe`, `webhook`, `race`, `condition`, `database`, `idempotency`
+- **Categories:** `cat:debugging`, `cat:api-integration`
+
+### Search Knowledge
+
+```json
+{ "name": "knowledge_search", "arguments": {
+  "project": "ecommerce-api",
+  "category": "debugging",
+  "query": "Stripe webhook"
+}}
+```
+
+### Forget Bad Memories
+
+| Mode | Example | Effect |
+|------|---------|--------|
+| **By project** | `project: "old-app"` | Clear all knowledge |
+| **By category** | `category: "debugging"` | Forget debugging entries only |
+| **By age** | `older_than_days: 30` | Forget entries older than 30 days |
+| **Dry run** | `dry_run: true` | Preview what would be deleted |
+
+---
+
+## Supabase Setup (Cloud Mode)
 
 <details>
-<summary><strong>Sample output: RAG Architecture query — Brave-only vs Hybrid</strong></summary>
+<summary><strong>Step-by-step Supabase configuration</strong></summary>
 
-**Brave Search returned** (0 academic sources):
-```
-[1] 🌐 Retrieval-augmented generation - Wikipedia (en.wikipedia.org)
-[2] 🌐 Retrieval-Augmented Generation (RAG) | Pinecone (pinecone.io)
-[3] 🌐 Introduction to RAG and Vector Databases (medium.com)
-[4] 🌐 What is RAG? - AWS (aws.amazon.com)
-[5] 🌐 RAG and vector databases - GitHub (github.com)
-[6] 🌐 What is RAG? | Databricks (databricks.com)
-[7] 🌐 What is RAG? | NVIDIA (nvidia.com)
-[8] 🌐 What is RAG? | IBM (ibm.com)
-[9] 🌐 What is RAG? | Confluent (confluent.io)
-[10] 🌐 What is RAG? | Google Cloud (cloud.google.com)
+### 1. Create a Supabase Project
+
+1. Go to [supabase.com](https://supabase.com) and sign in (free tier works)
+2. Click **New Project** → choose a name and password → select a region
+3. Wait for provisioning (~30 seconds)
+
+### 2. Apply Migrations
+
+In the SQL Editor, run:
+1. [`supabase/migrations/015_session_memory.sql`](supabase/migrations/015_session_memory.sql)
+2. [`supabase/migrations/016_knowledge_accumulation.sql`](supabase/migrations/016_knowledge_accumulation.sql)
+
+### 3. Get Credentials
+
+Go to **Settings → API** and copy:
+- **Project URL** (e.g. `https://abcdefg.supabase.co`)
+- **anon public** key (starts with `eyJ...`)
+
+### 4. Configure
+
+```bash
+export SUPABASE_URL="https://your-project.supabase.co"
+export SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+export PRISM_STORAGE="supabase"
 ```
 
-**Discovery Engine added** (10 academic sources, 0 overlap):
-```
-[+1] 📚 Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (arxiv.org)
-[+2] 📚 Benchmarking Vector, Graph and Hybrid RAG (arxiv.org)
-[+3] 📚 HybridRAG: Integrating Knowledge Graphs and Vector Retrieval (arxiv.org)
-[+4] 📚 Adversarial Threat Vectors and Risk Mitigation for RAG (arxiv.org)
-[+5] 📚 RAGdb: A Zero-Dependency, Embeddable Architecture (arxiv.org)
-[+6] 📚 Building Scalable AI-Powered Applications with Cloud Databases (arxiv.org)
-[+7] 📚 Federated Retrieval-Augmented Generation (FRAG) (arxiv.org)
-[+8] 📚 A Systematic Review of Key RAG Components (arxiv.org)
-[+9] 📚 From Traditional RAG to Agentic and Graph RAG (arxiv.org)
-[+10] 📚 Accelerating Retrieval-Augmented Generation (arxiv.org)
-```
+### Security
+
+1. **Use the anon key** for MCP server config
+2. **Enable RLS** on both tables
+3. **Never commit** your `SUPABASE_KEY` to version control
 
 </details>
 
-### 3. Search & Data Extraction Tools
+---
 
-Seven search/analysis tools plus five session memory & knowledge tools (12 total):
+## Hybrid Search Pipeline (Brave + Vertex AI)
 
-| Tool | Purpose | Input | Output |
-|------|---------|-------|--------|
-| `brave_web_search` | Real-time internet search | Query string | Structured search results |
-| `brave_local_search` | Location-based POI discovery | Query + location | Business/POI data |
-| `brave_web_search_code_mode` | JS extraction over web results | Query + JS transform | Filtered fields |
-| `brave_local_search_code_mode` | JS extraction over local results | Query + JS transform | Filtered fields |
-| `code_mode_transform` | Universal post-processing | Raw data + JS transform | Normalized output |
-| `gemini_research_paper_analysis` | Academic paper analysis | Paper text + analysis type | Structured analysis |
-| `brave_answers` | AI-grounded answers | Question | Concise answer |
+<details>
+<summary><strong>Enterprise search with Vertex AI Discovery Engine</strong></summary>
 
-**Optional: Session Memory & Knowledge Tools** *(enabled when Supabase is configured)*
+Prism can combine **real-time web search** (Brave) with **enterprise-curated search** (Vertex AI Discovery Engine) for a hybrid pipeline achieving **94% context reduction** and **~17K tokens saved per query**.
 
-| Tool | Purpose | Input | Output |
-|------|---------|-------|--------|
-| `session_save_ledger` | Append immutable session log | Project + summary + TODOs | Confirmation |
-| `session_save_handoff` | Upsert latest project state | Project + context | Confirmation |
-| `session_load_context` | Progressive context loading + knowledge cache | Project + level | Session context + hot keywords |
-| `knowledge_search` | Search accumulated knowledge | Keywords, category, or free text | Ranked results |
-| `knowledge_forget` | Prune bad/old session memories | Project + filters + dry_run | Deletion report |
+| Metric | Brave (Web) | Discovery Engine | Hybrid |
+|--------|------------|-----------------|--------|
+| Avg latency | 220ms | 1,193ms | ~1.4s |
+| Raw payload | 42.4 KB | 28.9 KB | 71.3 KB |
+| Reduced payload | 3.0 KB | 1.2 KB | **4.2 KB** (94% reduction) |
+| Token savings | ~10,103 | ~7,097 | **~17,200 / query** |
 
-### 4. Data Pipeline Integrations (Python)
+See [`vertex-ai/`](vertex-ai/) for setup and benchmarks.
 
-Python-based automation for API consumption and data manipulation:
+</details>
 
-- **Gmail API** — OAuth 2.0 authenticated email data retrieval and parsing
-- **Chrome DevTools Protocol** — Programmatic MCP tool introspection and browser automation
-- **Cross-MCP Testing** — Integration test suite validating tool interoperability across MCP servers
-
-### 5. Universal Code Mode Transform
-
-A powerful **post-processing layer** designed to normalize and extract specific fields from large MCP outputs. Supports ready-to-use templates for:
-
-- GitHub Issues / Pull Requests → compact summaries
-- Firecrawl scrape results → title + URL extraction
-- Chrome DevTools network logs → method + URL + status
-- Video transcripts → keyword-filtered timestamp extraction
-
-## Technical Stack
-
-| Layer | Technologies |
-|-------|-------------|
-| **Runtime** | Node.js 18+, TypeScript, `@modelcontextprotocol/sdk` |
-| **Cloud AI** | Google Cloud Vertex AI, Discovery Engine, Gemini SDK, Anthropic Vertex SDK |
-| **Data Processing** | Python 3.10+, JSON/CSV parsing, JavaScript extraction |
-| **APIs** | Brave Search (Pro + Answers), Google Gemini, Gmail, Chrome DevTools, GCP Discovery Engine |
-| **Auth & Security** | GCP ADC, OAuth 2.0, AES-encrypted credentials, env-based secrets injection |
-| **Testing** | MCP schema validation, cross-server integration tests, Vertex AI verification, hybrid pipeline benchmarks |
-| **Tooling** | Git, npm, gcloud CLI, Linux/macOS |
+---
 
 ## Project Structure
 
 ```
 ├── src/
-│   ├── server.ts                        # MCP server core (conditional tool registration)
-│   ├── config.ts                        # Configuration & environment management
+│   ├── server.ts                        # MCP server core + Mind Palace HTTP server
+│   ├── config.ts                        # Environment management
+│   ├── storage/
+│   │   ├── interface.ts                 # StorageBackend abstraction
+│   │   ├── sqlite.ts                    # SQLite local storage (libSQL + F32_BLOB)
+│   │   ├── supabase.ts                  # Supabase cloud storage
+│   │   └── index.ts                     # Backend factory (auto-selects based on PRISM_STORAGE)
+│   ├── sync/
+│   │   ├── interface.ts                 # SyncBus abstraction (Telepathy)
+│   │   ├── localSync.ts                 # File-based IPC for local mode
+│   │   ├── supabaseSync.ts             # Supabase Realtime CDC for cloud mode
+│   │   └── factory.ts                   # Auto-selects sync backend
+│   ├── dashboard/
+│   │   └── ui.ts                        # Mind Palace glassmorphism HTML template
+│   ├── templates/
+│   │   └── codeMode.ts                  # 8 pre-built QuickJS extraction templates
 │   ├── tools/
-│   │   ├── definitions.ts               # Search & analysis tool schemas
+│   │   ├── definitions.ts               # All tool schemas (JSON Schema + type guards)
 │   │   ├── handlers.ts                  # Search & analysis handlers
-│   │   ├── sessionMemoryDefinitions.ts  # Session memory + knowledge tool schemas
-│   │   ├── sessionMemoryHandlers.ts     # Session memory + knowledge handlers
+│   │   ├── sessionMemoryDefinitions.ts  # Memory + knowledge tool schemas
+│   │   ├── sessionMemoryHandlers.ts     # Memory handlers (OCC, Time Travel, Drift, Briefing)
 │   │   └── index.ts                     # Tool registration & re-exports
 │   └── utils/
 │       ├── braveApi.ts                  # Brave Search REST client
-│       ├── googleAi.ts                  # Google Gemini SDK wrapper
+│       ├── googleAi.ts                  # Gemini SDK wrapper
 │       ├── executor.ts                  # QuickJS sandbox executor
-│       ├── supabaseApi.ts               # Supabase REST client (optional)
-│       └── keywordExtractor.ts          # Zero-dependency keyword extraction
-├── supabase/
-│   └── migrations/
-│       ├── 015_session_memory.sql       # Session memory schema (tables + RPC)
-│       └── 016_knowledge_accumulation.sql # Knowledge indexes, search RPC, cache preload
-├── vertex-ai/
-│   ├── verify_discovery_engine.ts       # Vertex AI Search index verification
-│   ├── test_hybrid_search_pipeline.ts   # End-to-end hybrid pipeline test
-│   ├── test_pipeline_benchmark.ts       # Performance benchmark: Brave vs DE
-│   ├── test_realworld_comparison.ts     # Real-world side-by-side comparison
-│   ├── test_gemini_vertex.py            # Gemini model via Vertex AI SDK
-│   └── test_claude_vertex.py            # Claude model via Vertex AI
-├── index.ts                     # Server entry point
-├── benchmark.ts                 # Performance benchmarking suite
-├── test_mcp_schema.js           # MCP schema validation tests
-├── test_cross_mcp.js            # Cross-MCP integration test suite
-├── package.json                 # Dependencies & build config
-└── tsconfig.json                # TypeScript configuration
+│       ├── autoCapture.ts               # Dev server HTML snapshot utility
+│       ├── git.ts                       # Git state capture + drift detection
+│       ├── embeddingApi.ts              # Embedding generation (Gemini)
+│       └── keywordExtractor.ts          # Zero-dependency NLP keyword extraction
+├── supabase/migrations/                 # Cloud mode SQL schemas
+├── vertex-ai/                           # Vertex AI hybrid search pipeline
+├── index.ts                             # Server entry point
+└── package.json
 ```
-
-## Getting Started
-
-### Prerequisites
-- Node.js 18+
-- Python 3.10+
-- npm
-- Google Cloud SDK (`gcloud`) with Vertex AI enabled
-
-### Installation
-```bash
-git clone https://github.com/dcostenco/prism-mcp.git
-cd prism-mcp
-npm install
-npm run build
-```
-
-### GCP / Vertex AI Setup
-```bash
-# Authenticate for Vertex AI (no API keys needed — uses ADC)
-gcloud auth application-default login
-
-# Optional: set Discovery Engine env vars for hybrid search
-export DISCOVERY_ENGINE_PROJECT_ID=<your-gcp-project>
-export DISCOVERY_ENGINE_ENGINE_ID=<your-engine-id>
-export DISCOVERY_ENGINE_LOCATION=global
-export DISCOVERY_ENGINE_COLLECTION=default_collection
-export DISCOVERY_ENGINE_SERVING_CONFIG=default_serving_config
-```
-
-### Configuration
-
-All credentials are injected via environment variables or GCP Application Default Credentials — **no API keys are stored in this repository**.
-
-Required environment variables (set via your shell profile or a `.env` file, which is `.gitignore`’d):
-
-- `BRAVE_API_KEY` — Brave Search Pro subscription
-- `GEMINI_API_KEY` — Google AI Studio API key
-- `DISCOVERY_ENGINE_PROJECT_ID` — GCP project with Discovery Engine enabled
-- `DISCOVERY_ENGINE_ENGINE_ID` — Your Discovery Engine app/engine ID
-
-### Running
-```bash
-# MCP Server
-npm start
-
-# Vertex AI Discovery Engine verification
-npx ts-node vertex-ai/verify_discovery_engine.ts
-
-# Vertex AI model tests
-python3 vertex-ai/test_gemini_vertex.py
-python3 vertex-ai/test_claude_vertex.py
-
-# Hybrid pipeline test (MCP + Discovery Engine end-to-end)
-npx ts-node vertex-ai/test_hybrid_search_pipeline.ts
-
-# Performance benchmark (Brave Search vs Discovery Engine)
-npx ts-node vertex-ai/test_pipeline_benchmark.ts
-```
-
-### Claude Desktop Integration
-
-See [Quick Start](#quick-start) and [Integration Examples](#integration-examples) above for copy-paste configs.
-
-> **Note:** All 12 tools are available when both Brave and Supabase keys are configured. `SUPABASE_URL` and `SUPABASE_KEY` enable the 5 session memory + knowledge tools. Without them, the server runs with 7 search & analysis tools.
-
-## Key Design Decisions
-
-- **Protocol-first architecture** — All tools are exposed through the standardized MCP interface, ensuring compatibility with any MCP-compliant AI client
-- **Cloud-native AI** — Vertex AI integration provides enterprise-grade model access with GCP's security, quota management, and multi-region support
-- **Multi-model strategy** — Supports Gemini and Claude through the same GCP infrastructure, enabling model selection based on task requirements
-- **Separation of concerns** — Tool definitions, handlers, and configuration are cleanly separated for maintainability
-- **Security by design** — No hardcoded credentials; all secrets flow through environment variables, ADC, or encrypted stores
-- **Extensibility** — New tools can be registered by adding a definition + handler without modifying the server core
-- **Optional modules** — Session memory tools only register when Supabase is configured — zero impact on users who don't need them
-- **Cross-system interoperability** — Universal transform layer enables output normalization across heterogeneous MCP servers
-
----
-
-## Session Memory & Knowledge System
-
-Prism's core differentiator: persistent session memory and brain-inspired knowledge accumulation for AI agents — save work logs, hand off state between sessions, progressively load context on boot, search accumulated knowledge, and prune bad memories. This is what makes Prism more than just another search server.
-
-### Knowledge Accumulation System
-
-The brain-inspired knowledge layer that turns session data into searchable, manageable institutional memory.
-
-```
-Session saves → Keywords auto-extracted → GIN-indexed → Searchable at boot
-                                                           │
-                                            ┌──────────────┤
-                                            ▼              ▼
-                                    knowledge_search    knowledge_cache
-                                    (on-demand)         (auto at boot)
-```
-
-#### How Knowledge Accumulates (Zero Effort)
-
-Every `session_save_ledger` and `session_save_handoff` call automatically extracts keywords from the text using lightweight, in-process NLP (~0.020ms/call). No LLM calls, no external dependencies.
-
-**Example:** Saving a ledger entry with summary *"Fixed Stripe webhook race condition using database-backed idempotency keys"* automatically extracts:
-- **Keywords:** `stripe`, `webhook`, `race`, `condition`, `database`, `idempotency`, `keys`
-- **Categories:** `cat:debugging`, `cat:api-integration`
-
-#### `knowledge_search` — Query Accumulated Knowledge
-
-Search across all sessions by keyword, category, or free text:
-
-```json
-{
-  "name": "knowledge_search",
-  "arguments": {
-    "project": "ecommerce-api",
-    "category": "debugging",
-    "query": "Stripe webhook"
-  }
-}
-```
-
-**Available categories:** `debugging`, `architecture`, `deployment`, `testing`, `configuration`, `api-integration`, `data-migration`, `security`, `performance`, `documentation`, `ai-ml`, `ui-frontend`, `resume`
-
-#### `knowledge_forget` — Prune Bad Memories
-
-Selectively delete outdated or incorrect knowledge, like a brain pruning bad connections:
-
-| Mode | Example | Effect |
-|------|---------|--------|
-| **By project** | `project: "old-app"` | Clear all knowledge for that project |
-| **By category** | `project: "my-app", category: "debugging"` | Only forget debugging entries |
-| **By age** | `project: "my-app", older_than_days: 30` | Forget entries older than 30 days |
-| **Full reset** | `project: "my-app", confirm_all: true, clear_handoff: true` | Wipe everything + handoff state |
-| **Dry run** | `dry_run: true` | Preview what would be deleted |
-
-```json
-{
-  "name": "knowledge_forget",
-  "arguments": {
-    "project": "my-app",
-    "older_than_days": 30,
-    "dry_run": true
-  }
-}
-```
-**Response:** `🔍 12 ledger entries would be forgotten for project "my-app" older than 30 days. This was a dry run.`
-
-#### Knowledge Cache Preload (Automatic at Boot)
-
-When `session_load_context` runs at `standard` or `deep` level, it now automatically includes a `knowledge_cache` section with the brain's hottest pathways — no separate search call needed:
-
-```json
-{
-  "level": "standard",
-  "project": "ecommerce-api",
-  "knowledge_cache": {
-    "hot_keywords": ["stripe", "webhook", "idempotency", "subscription", "api"],
-    "top_categories": ["api-integration", "debugging"],
-    "total_sessions": 14
-  }
-}
-```
-
-At `deep` level, you also get **cross-project knowledge** — related sessions from OTHER projects that share keywords with the current one, enabling knowledge transfer across codebases.
-
-#### Why Prism's Approach Is Different
-
-Most MCP memory servers require **embedding models**, **graph databases**, or **LLM calls at save time**. Prism takes a fundamentally different approach:
-
-> **🧠 Zero-cost intelligence.** Knowledge accumulates automatically from data you're already saving — no new infrastructure, no extra API calls, no perceptible latency.
-
-**5 key benefits no other MCP memory server offers:**
-
-| # | Benefit | Details |
-|---|---|---|
-| ⚡ | **40,000× faster writes** | 0.005ms per save vs. 200–500ms for graph/embedding servers. Your agent never waits. |
-| 🏗️ | **Zero new infrastructure** | No Neo4j, no FalkorDB, no pgvector, no embedding API. Uses existing Supabase `TEXT[]` columns + PostgreSQL GIN indexes. |
-| 🧹 | **Built-in memory pruning** | The only MCP memory with a first-class `knowledge_forget` tool — 4 delete modes + dry_run safety. Others require manual DB operations. |
-| 🔥 | **Knowledge cache at boot** | `session_load_context` auto-includes hot keywords and top categories. No separate search call. No other server preloads knowledge. |
-| 🔗 | **Cross-project knowledge transfer** | At `deep` level, surfaces relevant sessions from *other* projects via keyword overlap. Graph servers enforce strict isolation — Prism treats cross-pollination as a feature. |
-
-**Comparison with leading alternatives:**
-
-```
-                    Prism       Knowledge Graph    Graphiti/FalkorDB    Hindsight
-Write overhead      0.005ms     ~200ms             ~500ms+              ~300ms
-External deps       None        Neo4j/JSON         FalkorDB (Docker)    pgvector + embeddings
-LLM at save time    No          No                 Yes                  Yes
-Auto-categorize     13 cats     Schema-dependent   Schema-dependent     Via LLM
-Forget/prune tool   ✅ 4 modes  ❌ Manual           ⚠️ TTL only          ❌ None
-Cache preload       ✅          ❌                  ❌                   ❌
-Cross-project       ✅          ❌                  ❌ Isolated           ❌
-```
-
-> **Philosophy:** Make the simplest thing that actually works, then make it invisible.
-
-### Why Session Memory?
-
-AI agents forget everything between sessions. Session memory solves this:
-
-```
-Session 1: Agent works on feature → saves ledger + handoff
-                                          │
-Session 2: Agent boots → loads context ← ─┘ → continues seamlessly
-```
-
-### How It Works
-
-Three complementary tools:
-
-| Tool | When to Use | What It Does |
-|------|-------------|---------------|
-| `session_save_ledger` | End of every session | Appends an **immutable** log entry (summary, TODOs, files changed, decisions) |
-| `session_save_handoff` | End of every session | **Upserts** the latest project state for next session boot |
-| `session_load_context` | Start of every session | **Loads** context at the requested depth level |
-
-### Progressive Context Loading
-
-Load only what you need — saves tokens and speeds up boot:
-
-| Level | What You Get | Approximate Size | When to Use |
-|-------|-------------|-------------------|-------------|
-| **quick** | Open TODOs and keywords from the last session | ~50 tokens (very small) | Fast check-ins — "what was I working on?" |
-| **standard** | Everything in *quick*, plus a summary of recent work and key decisions | ~200 tokens (small) | **Recommended for most sessions** — gives the agent enough context to continue working |
-| **deep** | Everything in *standard*, plus full logs from the last 5 sessions including all files changed | ~1000+ tokens (larger) | After a long break or when you need the complete history |
-
-### Real-Life Usage Examples
-
-#### Example 1: Saving a Session (End of Work)
-
-After completing a feature implementation session, the agent saves both a ledger entry and a handoff:
-
-**Save Ledger** — permanent record of what happened:
-```json
-{
-  "name": "session_save_ledger",
-  "arguments": {
-    "project": "ecommerce-api",
-    "conversation_id": "conv-2026-03-18-a1b2c3",
-    "summary": "Implemented Stripe webhook handler for subscription lifecycle events. Added idempotency keys to prevent duplicate processing. Fixed race condition in concurrent webhook delivery.",
-    "todos": [
-      "Add retry logic for failed Stripe API calls (currently fails silently)",
-      "Write integration tests for subscription upgrade/downgrade flows",
-      "Update API docs with new webhook endpoint schema"
-    ],
-    "files_changed": [
-      "src/webhooks/stripe.ts",
-      "src/services/subscription.ts",
-      "src/middleware/idempotency.ts",
-      "tests/webhooks/stripe.test.ts"
-    ],
-    "decisions": [
-      "Used database-backed idempotency keys instead of Redis (simpler ops, acceptable latency for webhook volume)",
-      "Chose to process webhooks synchronously rather than queue — volume is under 100/min",
-      "Deferred retry logic to next session — needs design review for exponential backoff strategy"
-    ]
-  }
-}
-```
-
-**Save Handoff** — live state for next session:
-```json
-{
-  "name": "session_save_handoff",
-  "arguments": {
-    "project": "ecommerce-api",
-    "open_todos": [
-      "Add retry logic for failed Stripe API calls",
-      "Write integration tests for subscription flows",
-      "Update API docs with webhook endpoint schema"
-    ],
-    "active_branch": "feature/stripe-webhooks",
-    "last_summary": "Stripe webhook handler implemented with idempotency. Race condition fixed. Tests passing. Retry logic deferred.",
-    "key_context": "Webhook endpoint is POST /api/webhooks/stripe. Using stripe.webhooks.constructEvent() for signature verification. Idempotency table is 'webhook_events' with unique constraint on stripe_event_id."
-  }
-}
-```
-
-#### Example 2: Booting a New Session (Start of Work)
-
-The next session (possibly hours or days later) loads context to resume:
-
-**Load Context (L2 — recommended default):**
-```json
-{
-  "name": "session_load_context",
-  "arguments": {
-    "project": "ecommerce-api",
-    "level": "standard"
-  }
-}
-```
-
-**What the agent gets back:**
-```json
-{
-  "handoff": {
-    "project": "ecommerce-api",
-    "open_todos": [
-      "Add retry logic for failed Stripe API calls",
-      "Write integration tests for subscription flows",
-      "Update API docs with webhook endpoint schema"
-    ],
-    "active_branch": "feature/stripe-webhooks",
-    "last_summary": "Stripe webhook handler implemented with idempotency. Race condition fixed. Tests passing. Retry logic deferred.",
-    "key_context": "Webhook endpoint is POST /api/webhooks/stripe. Using stripe.webhooks.constructEvent() for signature verification. Idempotency table is 'webhook_events' with unique constraint on stripe_event_id."
-  },
-  "recent_sessions": [
-    {
-      "summary": "Stripe webhook handler implemented with idempotency. Race condition fixed.",
-      "created_at": "2026-03-18T16:30:00Z"
-    },
-    {
-      "summary": "Set up Stripe SDK integration and customer portal. Created subscription model.",
-      "created_at": "2026-03-17T14:00:00Z"
-    },
-    {
-      "summary": "Designed payment architecture. Chose Stripe over Paddle for webhook flexibility.",
-      "created_at": "2026-03-16T10:00:00Z"
-    }
-  ]
-}
-```
-
-The agent now knows exactly where to pick up — it can immediately start on the retry logic without asking the user to re-explain the project.
-
-#### Example 3: Multi-Day Workflow (Full Lifecycle)
-
-A realistic multi-day development workflow showing how session memory accumulates:
-
-```
-Day 1 (Monday) — Architecture & Setup
-├── Agent designs auth system architecture
-├── session_save_ledger: "Designed JWT auth with refresh tokens. Chose bcrypt over argon2."
-└── session_save_handoff: branch=feature/auth, todos=["implement signup endpoint"]
-
-Day 2 (Tuesday) — Implementation
-├── session_load_context("standard"): Gets Day 1 handoff + summary
-├── Agent implements signup/login endpoints
-├── session_save_ledger: "Built signup + login. Added rate limiting. 12 tests passing."
-└── session_save_handoff: branch=feature/auth, todos=["add password reset flow"]
-
-Day 3 (Wednesday) — Bug Fix (Different Agent Session)
-├── session_load_context("standard"): Gets Day 2 handoff + Day 1-2 summaries
-├── Agent fixes token refresh race condition
-├── session_save_ledger: "Fixed refresh token rotation bug (was invalidating too early)."
-└── session_save_handoff: todos=["add password reset", "deploy to staging"]
-
-Day 5 (Friday) — Deep Recovery After Break
-├── session_load_context("deep"): Gets FULL history — all summaries, all TODOs, all decisions
-├── Agent sees complete project context despite 2-day gap
-└── Continues with password reset implementation
-```
-
-**A "deep" recovery response** includes aggregated data across all sessions:
-```json
-{
-  "handoff": { "...": "latest state" },
-  "recent_sessions": [ "...3 most recent..." ],
-  "all_todos_aggregated": [
-    "add password reset flow",
-    "deploy to staging",
-    "add password complexity validation"
-  ],
-  "all_decisions": [
-    "JWT auth with refresh tokens (Day 1)",
-    "bcrypt over argon2 for password hashing (Day 1)",
-    "Rate limiting: 5 attempts per 15 min window (Day 2)",
-    "Refresh token rotation: invalidate after use, not on issue (Day 3)"
-  ],
-  "session_count": 4,
-  "first_session": "2026-03-16T10:00:00Z",
-  "last_session": "2026-03-19T09:00:00Z"
-}
-```
-
-### Supabase Setup (Step-by-Step)
-
-#### 1. Create a Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) and sign in (free tier works)
-2. Click **New Project** → choose a name and password → select a region close to you
-3. Wait for the project to be provisioned (~30 seconds)
-
-#### 2. Apply the Migration
-
-1. In your Supabase dashboard, go to **SQL Editor** (left sidebar)
-2. Click **New query**
-3. Copy the contents of [`supabase/migrations/015_session_memory.sql`](supabase/migrations/015_session_memory.sql) and paste into the editor
-4. Click **Run** (or press `Cmd+Enter`)
-5. You should see: `Success. No rows returned`
-
-This creates:
-- `session_ledger` table — append-only session logs
-- `session_handoffs` table — latest project state (one per project)
-- `get_session_context()` RPC function — progressive context loading
-
-#### 3. Get Your Credentials
-
-1. Go to **Settings → API** in your Supabase dashboard
-2. Copy the **Project URL** (e.g. `https://abcdefg.supabase.co`)
-3. Copy the **anon public** key (starts with `eyJ...`)
-
-#### 4. Set Environment Variables
-
-```bash
-# Add to your shell profile (.zshrc, .bashrc) or .env file
-export SUPABASE_URL="https://your-project.supabase.co"
-export SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-#### 5. Rebuild and Restart
-
-```bash
-npm run build
-# Restart your MCP client (Claude Desktop, etc.)
-```
-
-On startup you'll see:
-```
-Session memory enabled (Supabase configured)
-Registering 12 tools (7 base + 5 session memory & knowledge)
-```
-
-#### 6. Apply Knowledge Accumulation Migration
-
-1. In your Supabase dashboard, go to **SQL Editor**
-2. Click **New query**
-3. Copy the contents of [`supabase/migrations/016_knowledge_accumulation.sql`](supabase/migrations/016_knowledge_accumulation.sql)
-4. Click **Run**
-5. You should see: `Success. No rows returned`
-
-This adds:
-- GIN indexes on keywords columns for fast search
-- `search_knowledge()` RPC for querying accumulated knowledge
-- Enhanced `get_session_context()` with knowledge cache preload
-
-### Verifying the Setup
-
-After configuring, verify the tables exist by running this in the Supabase SQL Editor:
-
-```sql
--- Should return 3 rows: session_ledger, session_handoffs, get_session_context
-SELECT
-  CASE
-    WHEN routine_type IS NOT NULL THEN 'function'
-    ELSE 'table'
-  END AS type,
-  COALESCE(table_name, routine_name) AS name
-FROM information_schema.tables
-WHERE table_schema = 'public'
-  AND table_name IN ('session_ledger', 'session_handoffs')
-UNION ALL
-SELECT 'function', routine_name
-FROM information_schema.routines
-WHERE routine_schema = 'public'
-  AND routine_name = 'get_session_context';
-```
-
-### Maintenance Guide
-
-#### Cleaning Up Old Ledger Entries
-
-The ledger grows over time. To prune entries older than 30 days:
-
-```sql
-DELETE FROM session_ledger
-WHERE created_at < NOW() - INTERVAL '30 days';
-```
-
-#### Backing Up Session Data
-
-```sql
--- Export all session data as JSON
-SELECT json_agg(t) FROM (
-  SELECT * FROM session_ledger ORDER BY created_at
-) t;
-
-SELECT json_agg(t) FROM (
-  SELECT * FROM session_handoffs ORDER BY updated_at
-) t;
-```
-
-#### Restoring from Backup
-
-Paste the JSON arrays into INSERT statements:
-
-```sql
-INSERT INTO session_ledger (project, conversation_id, summary, todos, files_changed, decisions)
-SELECT project, conversation_id, summary, todos, files_changed, decisions
-FROM json_populate_recordset(NULL::session_ledger, '<paste JSON array>');
-```
-
-#### Monitoring Table Size
-
-```sql
-SELECT
-  relname AS table_name,
-  pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
-  n_live_tup AS row_count
-FROM pg_stat_user_tables
-WHERE schemaname = 'public'
-  AND relname IN ('session_ledger', 'session_handoffs')
-ORDER BY pg_total_relation_size(relid) DESC;
-```
-
-### Troubleshooting
-
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| `Session memory disabled` on startup | `SUPABASE_URL` or `SUPABASE_KEY` not set | Set both env vars and restart |
-| `Supabase POST failed: 404` | Migration not applied | Run `015_session_memory.sql` in SQL Editor |
-| `Supabase POST failed: 401` | Wrong API key | Use the **anon public** key from Settings → API |
-| `Supabase POST failed: 42501` | RLS blocking inserts | Ensure RLS policies allow inserts (see Security below) |
-| `No session context found` | No prior sessions saved | Expected for new projects — save a ledger entry first |
-| `session_save_handoff` returns empty | First-time upsert | Normal — the handoff is created, subsequent loads will work |
-
-### Security Recommendations
-
-1. **Use the anon key** for MCP server config — it's safe for client-side use
-2. **Enable Row Level Security (RLS)** on both tables:
-
-```sql
--- Enable RLS
-ALTER TABLE session_ledger ENABLE ROW LEVEL SECURITY;
-ALTER TABLE session_handoffs ENABLE ROW LEVEL SECURITY;
-
--- Allow inserts and reads for authenticated and anon users
-CREATE POLICY "Allow all for session_ledger" ON session_ledger
-  FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Allow all for session_handoffs" ON session_handoffs
-  FOR ALL USING (true) WITH CHECK (true);
-```
-
-3. **For multi-user setups**, restrict policies to specific projects:
-
-```sql
--- Example: only allow access to your own projects
-CREATE POLICY "User-scoped access" ON session_ledger
-  FOR ALL USING (project = current_setting('request.jwt.claims')::json->>'project')
-  WITH CHECK (project = current_setting('request.jwt.claims')::json->>'project');
-```
-
-4. **Never commit** your `SUPABASE_KEY` to version control — use environment variables
 
 ---
 
@@ -1091,4 +590,4 @@ MIT
 
 ---
 
-<sub>**Keywords:** MCP server, Model Context Protocol, Claude Desktop memory, persistent session memory, AI agent memory, Claude context window, MCP session persistence, Cursor MCP server, Windsurf MCP server, Cline MCP server, pgvector semantic search, Supabase MCP, progressive context loading, MCP Prompts, MCP Resources, knowledge management AI, multi-engine search, Brave Search MCP, Gemini analysis, optimistic concurrency control, session handoff, AI agent state management</sub>
+<sub>**Keywords:** MCP server, Model Context Protocol, Claude Desktop memory, persistent session memory, AI agent memory, local-first, SQLite MCP, Mind Palace, time travel, visual memory, agent telepathy, multi-agent sync, reality drift detection, morning briefing, code mode templates, cursor MCP server, windsurf MCP server, cline MCP server, pgvector semantic search, progressive context loading, MCP Prompts, MCP Resources, knowledge management AI, Brave Search MCP, Gemini analysis, optimistic concurrency control, zero config</sub>
