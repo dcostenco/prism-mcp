@@ -44,3 +44,4 @@ bcba/
 .smithery/
 repomix-output.xml
 supabase/.temp/
+examples/langgraph-agent/research_ledger.json
