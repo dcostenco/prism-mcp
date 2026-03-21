@@ -1,5 +1,5 @@
 /**
- * Mind Palace Dashboard — UI Renderer (v2.3.2)
+ * Mind Palace Dashboard — UI Renderer (v2.3.3)
  *
  * Pure CSS + Vanilla JS single-page dashboard.
  * No build step, no Tailwind, no framework — served as a template literal.
@@ -280,7 +280,7 @@ export function renderDashboardHTML(): string {
       <div class="logo">
         <span class="logo-icon">🧠</span>
         Prism Mind Palace
-        <span class="version-badge">v2.3.2</span>
+        <span class="version-badge">v2.3.3</span>
       </div>
       <div class="selector">
         <select id="projectSelect">
