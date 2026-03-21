@@ -14,7 +14,7 @@
 
 ---
 
-## What's New in v2.3.4 — AI Reasoning Engine 🧠
+## What's New in v2.3.5 — AI Reasoning Engine 🧠
 
 | Feature | Description |
 |---|---|
