@@ -43,7 +43,10 @@ export async function startDashboardServer(): Promise<void> {
 
       // ─── Serve the Dashboard UI ───
       if (url.pathname === "/" || url.pathname === "/index.html") {
-        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        });
         return res.end(renderDashboardHTML());
       }
 
