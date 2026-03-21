@@ -398,6 +398,48 @@ If it's been more than 4 hours since your last session, Prism automatically:
 
 The agent boots up knowing exactly what to do — zero prompting needed.
 
+### Auto-Load on Session Start (Recommended)
+
+For the best experience, configure your AI coding assistant to **automatically call `session_load_context`** at the start of every new session. This ensures your agent always boots with full project memory — no manual prompting needed.
+
+<details>
+<summary><strong>Claude Code (.clauderules / CLAUDE.md)</strong></summary>
+
+Add this rule to your project's `.clauderules` or `CLAUDE.md`:
+
+```markdown
+## Prism MCP Memory Auto-Load (CRITICAL)
+At the start of every new session, you MUST call `session_load_context`
+at the `standard` level for these projects:
+- `my-project`
+- `my-other-project`
+
+Do NOT skip this step.
+```
+
+</details>
+
+<details>
+<summary><strong>Gemini / Antigravity (GEMINI.md)</strong></summary>
+
+Add this rule to your `~/.gemini/GEMINI.md` global rules file:
+
+```markdown
+## Prism MCP Memory Auto-Load (CRITICAL)
+**At the start of every new session**, immediately after displaying
+the startup block, you MUST call `session_load_context` (via Prism MCP
+/ athena-public server) at the `standard` level for these projects:
+- `my-project`
+- `my-other-project`
+
+This ensures accumulated project memory, pending TODOs, and key context
+from previous sessions are always available. Do NOT skip this step.
+```
+
+</details>
+
+> **Tip:** Replace `my-project` with your actual project identifiers. You can list as many projects as you need — each one gets its own independent memory timeline.
+
 ---
 
 ## Time Travel (Version History)
