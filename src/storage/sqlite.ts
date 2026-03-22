@@ -176,6 +176,42 @@ export class SqliteStorage implements StorageBackend {
       CREATE INDEX IF NOT EXISTS idx_history_version
         ON session_handoffs_history(project, version);
     `);
+
+    // ─── Phase 2 Migration: GDPR Soft Delete Columns ──────────
+    //
+    // SQLITE GOTCHA: Unlike CREATE TABLE IF NOT EXISTS, ALTER TABLE
+    // throws a fatal error if the column already exists. We MUST
+    // wrap each ALTER TABLE in a try/catch and only ignore
+    // "duplicate column name" errors.
+    //
+    // This migration runs on every boot but is idempotent — the
+    // try/catch ensures it's safe to run repeatedly.
+
+    try {
+      await this.db.execute(
+        `ALTER TABLE session_ledger ADD COLUMN deleted_at TEXT DEFAULT NULL`
+      );
+      debugLog("[SqliteStorage] Phase 2 migration: added deleted_at column");
+    } catch (e: any) {
+      // "duplicate column name" = column already exists from prior boot.
+      // Any other error is a real problem — rethrow it.
+      if (!e.message?.includes("duplicate column name")) throw e;
+    }
+
+    try {
+      await this.db.execute(
+        `ALTER TABLE session_ledger ADD COLUMN deleted_reason TEXT DEFAULT NULL`
+      );
+      debugLog("[SqliteStorage] Phase 2 migration: added deleted_reason column");
+    } catch (e: any) {
+      if (!e.message?.includes("duplicate column name")) throw e;
+    }
+
+    // Index for fast WHERE deleted_at IS NULL queries.
+    // CREATE INDEX IF NOT EXISTS is safe to run repeatedly (no try/catch needed).
+    await this.db.execute(
+      `CREATE INDEX IF NOT EXISTS idx_ledger_deleted ON session_ledger(deleted_at)`
+    );
   }
 
   // ─── PostgREST Filter Parser ───────────────────────────────
@@ -374,6 +410,40 @@ export class SqliteStorage implements StorageBackend {
     return entries;
   }
 
+  // ─── Phase 2: GDPR-Compliant Memory Deletion ──────────────
+  //
+  // These methods are SURGICAL — they operate on a single entry by ID.
+  // They MUST verify user_id ownership to prevent cross-user deletion.
+  //
+  // softDeleteLedger: Sets deleted_at + deleted_reason. Entry stays in
+  //   DB for audit trail. All search queries filter it out via
+  //   "AND deleted_at IS NULL". Reversible.
+  //
+  // hardDeleteLedger: Physical DELETE. Irreversible. FTS5 triggers
+  //   automatically clean up the full-text index.
+
+  async softDeleteLedger(id: string, userId: string, reason?: string): Promise<void> {
+    // UPDATE (not DELETE): sets tombstone fields while preserving the row.
+    // The JS-side datetime('now') matches SQLite's native format.
+    await this.db.execute({
+      sql: `UPDATE session_ledger
+            SET deleted_at = datetime('now'), deleted_reason = ?
+            WHERE id = ? AND user_id = ?`,
+      args: [reason || null, id, userId],
+    });
+    debugLog(`[SqliteStorage] Soft-deleted ledger entry ${id} (reason: ${reason || "none"})`);
+  }
+
+  async hardDeleteLedger(id: string, userId: string): Promise<void> {
+    // Physical DELETE — row is permanently removed.
+    // FTS5 trigger (ledger_fts_delete) automatically cleans up the index.
+    await this.db.execute({
+      sql: `DELETE FROM session_ledger WHERE id = ? AND user_id = ?`,
+      args: [id, userId],
+    });
+    debugLog(`[SqliteStorage] Hard-deleted ledger entry ${id}`);
+  }
+
   // ─── Handoff Operations (OCC) ──────────────────────────────
 
   async saveHandoff(
@@ -524,10 +594,11 @@ export class SqliteStorage implements StorageBackend {
 
     if (level === "standard") {
       // Add recent ledger entries as summaries
+      // Phase 2: AND deleted_at IS NULL — exclude soft-deleted entries
       const recentLedger = await this.db.execute({
         sql: `SELECT summary, decisions, session_date, created_at
               FROM session_ledger
-              WHERE project = ? AND user_id = ? AND archived_at IS NULL
+              WHERE project = ? AND user_id = ? AND archived_at IS NULL AND deleted_at IS NULL
               ORDER BY created_at DESC
               LIMIT 5`,
         args: [project, userId],
@@ -543,10 +614,11 @@ export class SqliteStorage implements StorageBackend {
     }
 
     // Deep: add full session history
+    // Phase 2: AND deleted_at IS NULL — exclude soft-deleted entries
     const fullLedger = await this.db.execute({
       sql: `SELECT summary, decisions, files_changed, todos, session_date, created_at
             FROM session_ledger
-            WHERE project = ? AND user_id = ? AND archived_at IS NULL
+            WHERE project = ? AND user_id = ? AND archived_at IS NULL AND deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT 50`,
       args: [project, userId],
@@ -599,6 +671,7 @@ export class SqliteStorage implements StorageBackend {
           AND l.project = ?
           AND l.user_id = ?
           AND l.archived_at IS NULL
+          AND l.deleted_at IS NULL
         ORDER BY rank
         LIMIT ?
       `;
@@ -613,6 +686,7 @@ export class SqliteStorage implements StorageBackend {
         WHERE ledger_fts MATCH ?
           AND l.user_id = ?
           AND l.archived_at IS NULL
+          AND l.deleted_at IS NULL
         ORDER BY rank
         LIMIT ?
       `;
@@ -651,7 +725,7 @@ export class SqliteStorage implements StorageBackend {
     limit: number;
     userId: string;
   }): Promise<KnowledgeSearchResult | null> {
-    const conditions: string[] = ["user_id = ?", "archived_at IS NULL"];
+    const conditions: string[] = ["user_id = ?", "archived_at IS NULL", "deleted_at IS NULL"];
     const args: InValue[] = [params.userId];
 
     if (params.project) {
@@ -718,6 +792,7 @@ export class SqliteStorage implements StorageBackend {
             AND l.user_id = ?
             AND l.project = ?
             AND l.archived_at IS NULL
+            AND l.deleted_at IS NULL
           ORDER BY similarity DESC
           LIMIT ?
         `;
@@ -731,6 +806,7 @@ export class SqliteStorage implements StorageBackend {
           WHERE l.embedding IS NOT NULL
             AND l.user_id = ?
             AND l.archived_at IS NULL
+            AND l.deleted_at IS NULL
           ORDER BY similarity DESC
           LIMIT ?
         `;

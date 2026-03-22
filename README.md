@@ -8,19 +8,31 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-> **Your AI agent's memory that survives between sessions.** Prism MCP is a Model Context Protocol server that gives Claude Desktop, Cursor, Windsurf, and any MCP client **persistent memory**, **time travel**, **visual context**, **multi-agent sync**, and **multi-engine search** — all running locally with zero cloud dependencies.
+> **Your AI agent's memory that survives between sessions.** Prism MCP is a Model Context Protocol server that gives Claude Desktop, Cursor, Windsurf, and any MCP client **persistent memory**, **time travel**, **visual context**, **multi-agent sync**, **GDPR-compliant deletion**, **memory tracing**, and **LangChain integration** — all running locally with zero cloud dependencies.
 >
-> Built with **SQLite + F32_BLOB vector search**, **optimistic concurrency control**, **MCP Prompts & Resources**, **auto-compaction**, **Gemini-powered Morning Briefings**, and optional **Supabase cloud sync**.
+> Built with **SQLite + F32_BLOB vector search**, **optimistic concurrency control**, **MCP Prompts & Resources**, **auto-compaction**, **Gemini-powered Morning Briefings**, **MemoryTrace explainability**, and optional **Supabase cloud sync**.
 
 ---
 
-## What's New in v2.3.12 — Stability & Fixes 🛠️
+## What's New in v2.5.0 — Enterprise Memory 🏗️
+
+| Feature | Description |
+|---|---|
+| 🔍 **Memory Tracing (Phase 1)** | Every search now returns a structured `MemoryTrace` with latency breakdown (`embedding_ms`, `storage_ms`, `total_ms`), search strategy, and scoring metadata — surfaced as a separate `content[1]` block for LangSmith integration. |
+| 🛡️ **GDPR Memory Deletion (Phase 2)** | New `session_forget_memory` tool with soft-delete (tombstoning via `deleted_at`) and hard-delete. Ownership guards prevent cross-user deletion. `deleted_reason` column captures GDPR Article 17 justification. Top-K Hole solved by filtering inside SQL, not post-query. |
+| 🔗 **LangChain Integration (Phase 3)** | `PrismMemoryRetriever` and `PrismKnowledgeRetriever` — async-first `BaseRetriever` subclasses that wrap Prism MCP's traced search endpoints. Trace metadata flows automatically into `Document.metadata["trace"]` for LangSmith visibility. |
+| 🧩 **LangGraph Research Agent** | Full example in `examples/langgraph-agent/` — a 5-node agentic research loop with MCP bridge, persistent memory, and `EnsembleRetriever` hybrid search. |
+
+<details>
+<summary><strong>What's in v2.3.12 — Stability & Fixes</strong></summary>
 
 | Feature | Description |
 |---|---|
 | 🪲 **Windows Black Screen Fix** | Fixed Python `subprocess.Popen` spawning visible Node.js terminal windows on Windows. |
 | 📝 **Debug Logging** | Gated verbose startup logs behind `PRISM_DEBUG_LOGGING` for a cleaner default experience. |
 | ⚡ **Excess Loading Fixes** | Performance improvements to resolve excess loading loops. |
+
+</details>
 
 <details>
 <summary><strong>What's in v2.3.8 — LangGraph Research Agent</strong></summary>
@@ -82,6 +94,9 @@
 | **Auto-Compaction** | ✅ Gemini rollups | ❌ | ❌ | ❌ | ❌ |
 | **Morning Briefing** | ✅ Gemini synthesis | ❌ | ❌ | ❌ | ❌ |
 | **OCC (Concurrency)** | ✅ Version-based | ❌ | ❌ | ❌ | ❌ |
+| **GDPR Compliance** | ✅ Soft/hard delete + audit trail | ❌ | ❌ | ❌ | ❌ |
+| **Memory Tracing** | ✅ MemoryTrace with latency breakdown | ❌ | ❌ | ❌ | ❌ |
+| **LangChain Native** | ✅ BaseRetriever adapters | ❌ | ❌ | ❌ | ❌ |
 | **MCP Native** | ✅ stdio (Claude Desktop, Cursor) | ✅ stdio | ❌ Python SDK / REST | ✅ HTTP + MCP | ✅ stdio |
 | **Language** | TypeScript | TypeScript | Python | Python | Python |
 
@@ -316,32 +331,39 @@ Verification pattern (same for both clients):
 ```mermaid
 graph TB
     Client["AI Client<br/>(Claude Desktop / Cursor / Windsurf)"]
+    LangChain["LangChain / LangGraph<br/>(Python Retrievers)"]
     MCP["Prism MCP Server<br/>(TypeScript)"]
     
     Client -- "MCP Protocol (stdio)" --> MCP
+    LangChain -- "JSON-RPC via MCP Bridge" --> MCP
     
+    MCP --> Tracing["MemoryTrace Engine<br/>Latency + Strategy + Scoring"]
     MCP --> Dashboard["Mind Palace Dashboard<br/>localhost:3000"]
     MCP --> Brave["Brave Search API<br/>Web + Local + AI Answers"]
     MCP --> Gemini["Google Gemini API<br/>Analysis + Briefings"]
     MCP --> Sandbox["QuickJS Sandbox<br/>Code-Mode Templates"]
     MCP --> SyncBus["SyncBus<br/>Agent Telepathy"]
+    MCP --> GDPR["GDPR Engine<br/>Soft/Hard Delete + Audit"]
     
     MCP --> Storage{"Storage Backend"}
     Storage --> SQLite["SQLite (Local)<br/>libSQL + F32_BLOB vectors"]
     Storage --> Supabase["Supabase (Cloud)<br/>PostgreSQL + pgvector"]
     
-    SQLite --> Ledger["session_ledger"]
+    SQLite --> Ledger["session_ledger<br/>(+ deleted_at tombstoning)"]
     SQLite --> Handoffs["session_handoffs"]
     SQLite --> History["history_snapshots<br/>(Time Travel)"]
     SQLite --> Media["media vault<br/>(Visual Memory)"]
     
     style Client fill:#4A90D9,color:#fff
+    style LangChain fill:#1C3D5A,color:#fff
     style MCP fill:#2D3748,color:#fff
+    style Tracing fill:#D69E2E,color:#fff
     style Dashboard fill:#9F7AEA,color:#fff
     style Brave fill:#FB542B,color:#fff
     style Gemini fill:#4285F4,color:#fff
     style Sandbox fill:#805AD5,color:#fff
     style SyncBus fill:#ED64A6,color:#fff
+    style GDPR fill:#E53E3E,color:#fff
     style Storage fill:#2D3748,color:#fff
     style SQLite fill:#38B2AC,color:#fff
     style Supabase fill:#3ECF8E,color:#fff
@@ -390,6 +412,14 @@ graph TB
 |------|---------|----------|---------|
 | `session_health_check` | Scan brain for integrity issues (`fsck`) | `auto_fix` (boolean) | Health report & auto-repairs |
 
+### v2.5 Enterprise Memory Tools
+
+| Tool | Purpose | Key Args | Returns |
+|------|---------|----------|---------|
+| `session_forget_memory` | GDPR-compliant deletion (soft/hard) | `memory_id`, `hard_delete`, `reason` | Deletion confirmation + audit |
+| `session_search_memory` | Semantic search with `enable_trace` | `query`, `enable_trace` | Results + `MemoryTrace` in `content[1]` |
+| `knowledge_search` | Knowledge search with `enable_trace` | `query`, `enable_trace` | Results + `MemoryTrace` in `content[1]` |
+
 ### Code Mode Templates (v2.1)
 
 Instead of writing custom JavaScript, pass a `template` name for instant extraction:
@@ -409,6 +439,53 @@ Instead of writing custom JavaScript, pass a `template` name for instant extract
 
 ---
 
+## LangChain / LangGraph Integration
+
+Prism MCP includes first-class Python adapters for the LangChain ecosystem, located in `examples/langgraph-agent/`:
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| **MCP Bridge** | `mcp_client.py` | JSON-RPC 2.0 client with `call_tool()` and `call_tool_raw()` (preserves `MemoryTrace`) |
+| **Semantic Retriever** | `prism_retriever.py` | `PrismMemoryRetriever(BaseRetriever)` — async-first vector search |
+| **Keyword Retriever** | `prism_retriever.py` | `PrismKnowledgeRetriever(BaseRetriever)` — FTS5 keyword search |
+| **Forget Tool** | `tools.py` | `forget_memory()` — GDPR deletion bridge |
+| **Research Agent** | `agent.py` | 5-node LangGraph agent (plan→search→analyze→decide→answer→save) |
+
+### Hybrid Search with EnsembleRetriever
+
+Combine both retrievers for hybrid (semantic + keyword) search with a single line:
+
+```python
+from langchain.retrievers import EnsembleRetriever
+from prism_retriever import PrismMemoryRetriever, PrismKnowledgeRetriever
+
+retriever = EnsembleRetriever(
+    retrievers=[PrismMemoryRetriever(...), PrismKnowledgeRetriever(...)],
+    weights=[0.7, 0.3],  # 70% semantic, 30% keyword
+)
+```
+
+### MemoryTrace in LangSmith
+
+When `enable_trace=True`, each `Document.metadata["trace"]` contains:
+
+```json
+{
+  "strategy": "vector_cosine_similarity",
+  "latency": { "embedding_ms": 45, "storage_ms": 12, "total_ms": 57 },
+  "result_count": 5,
+  "threshold": 0.7
+}
+```
+
+This metadata flows automatically into LangSmith traces for observability.
+
+### Async Architecture
+
+The retrievers use `_aget_relevant_documents` as the primary path with `asyncio.to_thread()` to wrap the synchronous MCP bridge. This prevents the `RuntimeError: This event loop is already running` crash that plagues most LangGraph deployments.
+
+---
+
 ## Environment Variables
 
 | Variable | Required | Description |
@@ -422,6 +499,7 @@ Instead of writing custom JavaScript, pass a `template` name for instant extract
 | `PRISM_USER_ID` | No | Multi-tenant user isolation (default: `"default"`) |
 | `PRISM_AUTO_CAPTURE` | No | Set `"true"` to auto-capture HTML snapshots of dev servers |
 | `PRISM_CAPTURE_PORTS` | No | Comma-separated ports to scan (default: `3000,3001,5173,8080`) |
+| `PRISM_DEBUG_LOGGING` | No | Set `"true"` to enable verbose debug logs (default: quiet) |
 
 ---
 
@@ -590,6 +668,29 @@ Every `session_save_ledger` and `session_save_handoff` automatically extracts ke
 | **By age** | `older_than_days: 30` | Forget entries older than 30 days |
 | **Dry run** | `dry_run: true` | Preview what would be deleted |
 
+### GDPR-Compliant Deletion (v2.5)
+
+Prism supports surgical, per-entry deletion for GDPR Article 17 compliance:
+
+```json
+// Soft delete (tombstone — reversible, keeps audit trail)
+{ "name": "session_forget_memory", "arguments": {
+  "memory_id": "abc123",
+  "reason": "User requested data deletion"
+}}
+
+// Hard delete (permanent — irreversible)
+{ "name": "session_forget_memory", "arguments": {
+  "memory_id": "abc123",
+  "hard_delete": true
+}}
+```
+
+**How it works:**
+- **Soft delete** sets `deleted_at = NOW()` + `deleted_reason`. The entry stays in the DB for audit but is excluded from ALL search results (vector, FTS5, and context loading).
+- **Hard delete** physically removes the row. FTS5 triggers auto-clean the full-text index.
+- **Top-K Hole Prevention**: `deleted_at IS NULL` filtering happens INSIDE the SQL query, BEFORE the `LIMIT` clause — so `LIMIT 5` always returns 5 live results, never fewer.
+
 ---
 
 ## Supabase Setup (Cloud Mode)
@@ -657,12 +758,12 @@ See [`vertex-ai/`](vertex-ai/) for setup and benchmarks.
 
 ```
 ├── src/
-│   ├── server.ts                        # MCP server core + Mind Palace HTTP server
+│   ├── server.ts                        # MCP server core + tool routing
 │   ├── config.ts                        # Environment management
 │   ├── storage/
-│   │   ├── interface.ts                 # StorageBackend abstraction
-│   │   ├── sqlite.ts                    # SQLite local storage (libSQL + F32_BLOB)
-│   │   ├── supabase.ts                  # Supabase cloud storage
+│   │   ├── interface.ts                 # StorageBackend abstraction (+ GDPR delete methods)
+│   │   ├── sqlite.ts                    # SQLite local storage (libSQL + F32_BLOB + deleted_at migration)
+│   │   ├── supabase.ts                  # Supabase cloud storage (+ soft/hard delete)
 │   │   └── index.ts                     # Backend factory (auto-selects based on PRISM_STORAGE)
 │   ├── sync/
 │   │   ├── interface.ts                 # SyncBus abstraction (Telepathy)
@@ -675,21 +776,30 @@ See [`vertex-ai/`](vertex-ai/) for setup and benchmarks.
 │   ├── templates/
 │   │   └── codeMode.ts                  # 8 pre-built QuickJS extraction templates
 │   ├── tools/
-│   │   ├── definitions.ts               # All tool schemas (JSON Schema + type guards)
+│   │   ├── definitions.ts               # Search & analysis tool schemas
 │   │   ├── handlers.ts                  # Search & analysis handlers
-│   │   ├── sessionMemoryDefinitions.ts  # Memory + knowledge tool schemas
-│   │   ├── sessionMemoryHandlers.ts     # Memory handlers (OCC, Time Travel, Drift, Briefing)
+│   │   ├── sessionMemoryDefinitions.ts  # Memory tools + GDPR + tracing schemas
+│   │   ├── sessionMemoryHandlers.ts     # Memory handlers (OCC, GDPR, Tracing, Time Travel)
+│   │   ├── compactionHandler.ts         # Gemini-powered ledger compaction
 │   │   └── index.ts                     # Tool registration & re-exports
 │   └── utils/
+│       ├── tracing.ts                   # MemoryTrace types + factory (Phase 1)
+│       ├── logger.ts                    # Debug logging (gated by PRISM_DEBUG_LOGGING)
 │       ├── braveApi.ts                  # Brave Search REST client
 │       ├── googleAi.ts                  # Gemini SDK wrapper
 │       ├── executor.ts                  # QuickJS sandbox executor
 │       ├── autoCapture.ts               # Dev server HTML snapshot utility
-│       ├── healthCheck.ts               # Brain integrity engine (v2.2.0) + security scanner (v2.3.0)
-│       ├── factMerger.ts                # Async LLM contradiction resolution (v2.3.0)
+│       ├── healthCheck.ts               # Brain integrity engine + security scanner
+│       ├── factMerger.ts                # Async LLM contradiction resolution
 │       ├── git.ts                       # Git state capture + drift detection
 │       ├── embeddingApi.ts              # Embedding generation (Gemini)
 │       └── keywordExtractor.ts          # Zero-dependency NLP keyword extraction
+├── examples/langgraph-agent/            # LangChain/LangGraph integration
+│   ├── agent.py                         # 5-node LangGraph research agent
+│   ├── mcp_client.py                    # MCP Bridge (call_tool + call_tool_raw)
+│   ├── prism_retriever.py               # PrismMemoryRetriever + PrismKnowledgeRetriever
+│   ├── tools.py                         # Agent tools + GDPR forget_memory
+│   └── demo_retriever.py                # Standalone retriever demo
 ├── supabase/migrations/                 # Cloud mode SQL schemas
 ├── vertex-ai/                           # Vertex AI hybrid search pipeline
 ├── index.ts                             # Server entry point
@@ -704,4 +814,4 @@ MIT
 
 ---
 
-<sub>**Keywords:** MCP server, Model Context Protocol, Claude Desktop memory, persistent session memory, AI agent memory, local-first, SQLite MCP, Mind Palace, time travel, visual memory, agent telepathy, multi-agent sync, reality drift detection, morning briefing, code mode templates, cursor MCP server, windsurf MCP server, cline MCP server, pgvector semantic search, progressive context loading, MCP Prompts, MCP Resources, knowledge management AI, Brave Search MCP, Gemini analysis, optimistic concurrency control, zero config</sub>
+<sub>**Keywords:** MCP server, Model Context Protocol, Claude Desktop memory, persistent session memory, AI agent memory, local-first, SQLite MCP, Mind Palace, time travel, visual memory, agent telepathy, multi-agent sync, reality drift detection, morning briefing, code mode templates, cursor MCP server, windsurf MCP server, cline MCP server, pgvector semantic search, progressive context loading, MCP Prompts, MCP Resources, knowledge management AI, Brave Search MCP, Gemini analysis, optimistic concurrency control, zero config, GDPR compliant, memory tracing, LangChain retriever, LangGraph agent, soft delete, memory lineage, explainability, enterprise AI memory</sub>

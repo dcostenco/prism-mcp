@@ -119,6 +119,8 @@ import {
   SESSION_VIEW_IMAGE_TOOL,
   // ─── v2.2.0: Health Check tool definition ───
   SESSION_HEALTH_CHECK_TOOL,
+  // ─── Phase 2: GDPR Memory Deletion tool definition ───
+  SESSION_FORGET_MEMORY_TOOL,
   sessionSaveLedgerHandler,
   sessionSaveHandoffHandler,
   sessionLoadContextHandler,
@@ -136,6 +138,8 @@ import {
   sessionViewImageHandler,
   // ─── v2.2.0: Health Check handler ───
   sessionHealthCheckHandler,
+  // ─── Phase 2: GDPR Memory Deletion handler ───
+  sessionForgetMemoryHandler,
 } from "./tools/index.js";
 
 // ─── Dynamic Tool Registration ───────────────────────────────────
@@ -170,6 +174,8 @@ const SESSION_MEMORY_TOOLS: Tool[] = [
   SESSION_VIEW_IMAGE_TOOL,     // session_view_image — retrieve image from vault (v2.0)
   // ─── v2.2.0: Health Check tool ───
   SESSION_HEALTH_CHECK_TOOL,   // session_health_check — brain integrity checker (v2.2.0)
+  // ─── Phase 2: GDPR Memory Deletion tool ───
+  SESSION_FORGET_MEMORY_TOOL,  // session_forget_memory — GDPR-compliant memory deletion (Phase 2)
 ];
 
 // Combine: always list ALL tools so scanners (Glama, Smithery, MCP Registry)
@@ -592,6 +598,12 @@ export function createServer() {
         case "session_health_check":
           if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
           return await sessionHealthCheckHandler(args);
+
+        // ─── Phase 2: GDPR Memory Deletion Tool ───
+
+        case "session_forget_memory":
+          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+          return await sessionForgetMemoryHandler(args);
 
         default:
           return {

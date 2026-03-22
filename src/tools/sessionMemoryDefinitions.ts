@@ -126,6 +126,10 @@ export const SESSION_LOAD_CONTEXT_TOOL: Tool = {
 };
 
 // ─── Knowledge Search ─────────────────────────────────────────
+// Phase 1 Change: Added `enable_trace` optional boolean.
+// When true, the handler returns a separate content[1] block with a
+// MemoryTrace object (strategy="keyword", latency, result metadata).
+// Default: false — output is identical to pre-Phase 1 behavior.
 
 export const KNOWLEDGE_SEARCH_TOOL: Tool = {
   name: "knowledge_search",
@@ -157,6 +161,14 @@ export const KNOWLEDGE_SEARCH_TOOL: Tool = {
         type: "integer",
         description: "Maximum results to return (default: 10, max: 50).",
         default: 10,
+      },
+      // Phase 1: Explainability — when true, appends a MemoryTrace JSON
+      // object as content[1] in the response array.
+      // MCP clients can parse content[1] programmatically for debugging.
+      enable_trace: {
+        type: "boolean",
+        description: "If true, returns a separate MEMORY TRACE content block with search strategy, " +
+          "latency breakdown, and scoring metadata for explainability. Default: false.",
       },
     },
   },
@@ -288,6 +300,15 @@ export const SESSION_SEARCH_MEMORY_TOOL: Tool = {
         description: "Minimum similarity score 0-1 (default: 0.7). Higher = more relevant, fewer results.",
         default: 0.7,
       },
+      // Phase 1: Explainability — when true, appends a MemoryTrace JSON
+      // object as content[1] in the response array. For semantic search,
+      // the trace includes embedding_ms (Gemini API time) vs storage_ms
+      // (pgvector query time) to pinpoint performance bottlenecks.
+      enable_trace: {
+        type: "boolean",
+        description: "If true, returns a separate MEMORY TRACE content block with search strategy, " +
+          "latency breakdown (embedding vs storage), and scoring metadata. Default: false.",
+      },
     },
     required: ["query"],
   },
@@ -344,6 +365,9 @@ export function isKnowledgeForgetArgs(
   return typeof args === "object" && args !== null;
 }
 
+// Phase 1: Added enable_trace to the type guard.
+// Optional boolean — when true, the handler returns a MemoryTrace content block.
+// Default: false, so existing callers see no change in behavior.
 export function isKnowledgeSearchArgs(
   args: unknown
 ): args is {
@@ -351,6 +375,7 @@ export function isKnowledgeSearchArgs(
   query?: string;
   category?: string;
   limit?: number;
+  enable_trace?: boolean;  // Phase 1: Explainability flag
 } {
   return typeof args === "object" && args !== null;
 }
@@ -398,6 +423,9 @@ export function isSessionSaveHandoffArgs(
 }
 
 // ─── v0.4.0: Type guard for semantic search ──────────────────
+// Phase 1: Added enable_trace to the type guard.
+// Optional boolean — when true, a MemoryTrace block (with embedding_ms,
+// storage_ms, top_score, etc.) is appended as content[1] in the response.
 export function isSessionSearchMemoryArgs(
   args: unknown
 ): args is {
@@ -405,6 +433,7 @@ export function isSessionSearchMemoryArgs(
   project?: string;
   limit?: number;
   similarity_threshold?: number;
+  enable_trace?: boolean;  // Phase 1: Explainability flag
 } {
   return (
     typeof args === "object" &&
@@ -631,3 +660,74 @@ export function isSessionHealthCheckArgs(
   return typeof args === "object" && args !== null;  // any object is valid
 }
 
+// ─── Phase 2: GDPR-Compliant Memory Deletion Tool ────────────
+//
+// This tool enables SURGICAL deletion of individual memory entries by ID.
+// It supports two modes:
+//   1. Soft Delete (default): Sets deleted_at = NOW(). The entry remains
+//      in the database for audit trails but is excluded from ALL search
+//      queries (both FTS5 and vector). This prevents the Top-K Hole
+//      problem where LIMIT N queries return fewer results than expected.
+//   2. Hard Delete: Physical removal from the database. Irreversible.
+//      Use only when GDPR Article 17 requires complete erasure.
+//
+// DESIGN DECISION: This is intentionally separate from knowledge_forget,
+// which operates on bulk filter criteria (project, category, age).
+// session_forget_memory is surgical — one entry at a time — for
+// precise GDPR compliance.
+
+export const SESSION_FORGET_MEMORY_TOOL: Tool = {
+  name: "session_forget_memory",
+  description:
+    "Forget (delete) a specific memory entry by its ID. " +
+    "Supports two modes:\n\n" +
+    "- **Soft delete** (default): Tombstones the entry — it stays in the database " +
+    "for audit trails but is excluded from all search results. Reversible.\n" +
+    "- **Hard delete**: Permanently removes the entry from the database. Irreversible. " +
+    "Use only when GDPR Article 17 requires complete erasure.\n\n" +
+    "⚠️ Soft delete is recommended for most use cases. The entry can be " +
+    "restored in the future if needed.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      memory_id: {
+        type: "string",
+        description:
+          "The UUID of the memory (ledger) entry to forget. " +
+          "You can find this ID in search results returned by " +
+          "session_search_memory or knowledge_search.",
+      },
+      hard_delete: {
+        type: "boolean",
+        description:
+          "If true, permanently removes the entry (irreversible). " +
+          "If false (default), soft-deletes by setting deleted_at timestamp. " +
+          "Soft-deleted entries are excluded from searches but remain in the database.",
+      },
+      reason: {
+        type: "string",
+        description:
+          "Optional GDPR Article 17 justification for the deletion. " +
+          "Examples: 'User requested', 'Data retention policy', 'Outdated information'. " +
+          "Stored alongside the tombstone for audit trail purposes.",
+      },
+    },
+    required: ["memory_id"],
+  },
+};
+
+/**
+ * Type guard for session_forget_memory arguments.
+ * Validates that memory_id (required) is present and is a string.
+ * hard_delete and reason are optional.
+ */
+export function isSessionForgetMemoryArgs(
+  args: unknown
+): args is { memory_id: string; hard_delete?: boolean; reason?: string } {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "memory_id" in args &&
+    typeof (args as { memory_id: string }).memory_id === "string"
+  );
+}

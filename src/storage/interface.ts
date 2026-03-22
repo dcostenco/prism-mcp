@@ -48,6 +48,13 @@ export interface LedgerEntry {
   rollup_count?: number;
   archived_at?: string | null;
 
+  // ─── Phase 2: GDPR Soft Delete ───────────────────────────────
+  // When deleted_at is set, the entry is "tombstoned" — hidden from
+  // all search queries but still physically present for audit trails.
+  // deleted_reason captures the GDPR Article 17 justification.
+  deleted_at?: string | null;
+  deleted_reason?: string | null;
+
   // Timestamps
   created_at?: string;
   session_date?: string;
@@ -200,6 +207,40 @@ export interface StorageBackend {
    * Used by knowledge_forget to prune old entries.
    */
   deleteLedger(params: Record<string, string>): Promise<unknown[]>;
+
+  // ─── Phase 2: GDPR-Compliant Memory Deletion ────────────────
+  //
+  // These methods operate on INDIVIDUAL entries by ID (surgical).
+  // This is intentionally different from deleteLedger() which uses
+  // filter params for bulk operations.
+  //
+  // WHY TWO METHODS?
+  //   softDeleteLedger → Sets deleted_at = NOW(). Entry stays in DB
+  //     for audit trail. Search queries filter it out via
+  //     "WHERE deleted_at IS NULL". Reversible.
+  //   hardDeleteLedger → Physical DELETE. Irreversible. Use for
+  //     GDPR "right to erasure" when audit trail must also go.
+
+  /**
+   * Soft-delete a ledger entry (tombstone).
+   * Sets deleted_at = NOW() and deleted_reason = reason.
+   * The entry remains in the database but is excluded from all searches.
+   *
+   * @param id - UUID of the ledger entry to soft-delete
+   * @param userId - Owner verification (MUST match entry's user_id)
+   * @param reason - GDPR Article 17 justification (optional but recommended)
+   */
+  softDeleteLedger(id: string, userId: string, reason?: string): Promise<void>;
+
+  /**
+   * Hard-delete a ledger entry (physical removal).
+   * Permanently removes the row from the database. Irreversible.
+   * Use only when GDPR Article 17 requires complete erasure.
+   *
+   * @param id - UUID of the ledger entry to physically delete
+   * @param userId - Owner verification (MUST match entry's user_id)
+   */
+  hardDeleteLedger(id: string, userId: string): Promise<void>;
 
   // ─── Handoff Operations (OCC-Controlled) ───────────────────
 

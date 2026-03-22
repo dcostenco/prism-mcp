@@ -242,6 +242,67 @@ class PrismMCPBridge:
         return "\n".join(texts) if texts else str(result)
 
     # ------------------------------------------------------------------
+    # Phase 3 Enhancement: Raw Tool Execution — Preserves content blocks
+    # ------------------------------------------------------------------
+    # Why this exists:
+    # call_tool() above flattens all content blocks into a single string.
+    # This loses the Phase 1 MemoryTrace data returned as content[1].
+    #
+    # call_tool_raw() preserves the full MCP response structure, allowing
+    # consumers (like PrismMemoryRetriever) to access content[0] (results)
+    # and content[1] (trace metadata) independently.
+    #
+    # BACKWARD COMPATIBILITY: call_tool() is NOT modified. Existing
+    # consumers (agent.py, search_node, demo scripts) continue to work
+    # exactly as before. Only new code that needs trace data uses this.
+
+    def call_tool_raw(self, tool_name: str, arguments: dict = None) -> dict:
+        """Execute a Prism MCP tool and return the FULL structured response.
+
+        Unlike call_tool() which flattens content blocks into a string,
+        this method preserves the MCP response structure so that callers
+        can inspect individual content blocks (e.g., content[1] for trace).
+
+        Phase 1 Context:
+            When enable_trace=True is passed to session_search_memory or
+            knowledge_search, the handler returns TWO content blocks:
+              content[0] → human-readable search results (text)
+              content[1] → MemoryTrace JSON (latency, scores, strategy)
+
+            call_tool() would concatenate both into one string.
+            call_tool_raw() keeps them separate for programmatic access.
+
+        Args:
+            tool_name: Name of the MCP tool (e.g., "session_search_memory").
+            arguments: Tool arguments as a dictionary.
+
+        Returns:
+            dict with keys:
+              - "content": list of content block dicts, each with "type" and "text"
+              - "isError": bool indicating if the tool call failed
+
+        Example:
+            raw = bridge.call_tool_raw("session_search_memory", {
+                "query": "RAG patterns",
+                "enable_trace": True
+            })
+            results_text = raw["content"][0]["text"]      # Human-readable
+            trace_json   = raw["content"][1]["text"]       # MemoryTrace JSON
+        """
+        response = self._send_request("tools/call", {
+            "name": tool_name,
+            "arguments": arguments or {},
+        })
+
+        result = response.get("result", {})
+
+        # Return the full structured result — content blocks intact
+        return {
+            "content": result.get("content", []),
+            "isError": result.get("isError", False),
+        }
+
+    # ------------------------------------------------------------------
     # Phase 4: MCP Resources — Read Prism memory/context
     # ------------------------------------------------------------------
 

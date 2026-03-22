@@ -96,6 +96,44 @@ export class SupabaseStorage implements StorageBackend {
     return Array.isArray(result) ? result : [];
   }
 
+  // ─── Phase 2: GDPR-Compliant Memory Deletion ──────────────
+  //
+  // These methods are SURGICAL — they operate on a single entry by ID.
+  // They MUST verify user_id ownership to prevent cross-user deletion.
+  //
+  // softDeleteLedger: Sets deleted_at + deleted_reason. Entry stays in
+  //   DB for audit trail. Supabase RPCs and TypeScript queries filter
+  //   it out via "WHERE deleted_at IS NULL". Reversible.
+  //
+  // hardDeleteLedger: Physical DELETE. Irreversible. For GDPR Article 17
+  //   "right to erasure" when the audit trail must also be removed.
+
+  async softDeleteLedger(id: string, userId: string, reason?: string): Promise<void> {
+    // PATCH (not DELETE): sets tombstone fields while preserving the row.
+    // The deleted_at timestamp is set server-side for consistency.
+    // deleted_reason captures the GDPR justification (e.g., "User requested",
+    // "Data retention policy", "GDPR Article 17 request").
+    await supabasePatch("session_ledger", {
+      deleted_at: new Date().toISOString(),
+      deleted_reason: reason || null,
+    }, {
+      id: `eq.${id}`,
+      user_id: `eq.${userId}`,  // Ownership guard — prevents cross-user deletion
+    });
+    debugLog(`[SupabaseStorage] Soft-deleted ledger entry ${id} (reason: ${reason || "none"})`);
+  }
+
+  async hardDeleteLedger(id: string, userId: string): Promise<void> {
+    // Physical DELETE — row is permanently removed from the database.
+    // This is irreversible. The FTS5 index (if any) is cleaned up by
+    // Supabase's built-in trigger handling.
+    await supabaseDelete("session_ledger", {
+      id: `eq.${id}`,
+      user_id: `eq.${userId}`,  // Ownership guard
+    });
+    debugLog(`[SupabaseStorage] Hard-deleted ledger entry ${id}`);
+  }
+
   // ─── Handoff Operations ────────────────────────────────────
 
   async saveHandoff(
