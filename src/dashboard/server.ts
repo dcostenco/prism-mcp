@@ -18,7 +18,7 @@
  */
 
 import * as http from "http";
-import { execSync } from "child_process";
+import { exec } from "child_process";
 import { getStorage } from "../storage/index.js";
 import { PRISM_USER_ID, SERVER_CONFIG } from "../config.js";
 import { renderDashboardHTML } from "./ui.js";
@@ -29,41 +29,45 @@ const PORT = parseInt(process.env.PRISM_DASHBOARD_PORT || "3000", 10);
  * Kill any existing process holding the dashboard port.
  * This prevents zombie dashboard processes from surviving IDE restarts
  * and serving stale versions of the UI.
+ *
+ * CRITICAL: Uses async exec() instead of execSync() to avoid blocking
+ * the Node.js event loop. Blocking during startup prevents the MCP
+ * stdio transport from responding to the initialize handshake in time,
+ * causing Antigravity to report MCP_SERVER_INIT_ERROR.
  */
-function killPortHolder(port: number): void {
-  try {
-    // lsof returns PIDs listening on the port; -t gives terse (PID-only) output
-    const pids = execSync(`lsof -ti tcp:${port}`, { encoding: "utf-8" })
-      .trim()
-      .split("\n")
-      .filter(Boolean);
+async function killPortHolder(port: number): Promise<void> {
+  return new Promise((resolve) => {
+    exec(`lsof -ti tcp:${port}`, { encoding: "utf-8" }, (err, stdout) => {
+      if (err) {
+        // lsof exits with code 1 when no matches found — that's expected.
+        // Any other failure (lsof missing, permission denied, etc.) gets a warning.
+        const isNoMatch = err.code === 1;
+        if (!isNoMatch) {
+          console.error(
+            `[Dashboard] killPortHolder: could not check port ${port} (lsof may not be installed) — skipping.`
+          );
+        }
+        return resolve();
+      }
 
-    if (pids.length === 0) return;
+      const pids = stdout.trim().split("\n").filter(Boolean);
+      if (pids.length === 0) return resolve();
 
-    // Don't kill ourselves
-    const myPid = String(process.pid);
-    const stalePids = pids.filter(p => p !== myPid);
+      // Don't kill ourselves
+      const myPid = String(process.pid);
+      const stalePids = pids.filter(p => p !== myPid);
 
-    if (stalePids.length > 0) {
-      console.error(`[Dashboard] Killing stale process(es) on port ${port}: ${stalePids.join(", ")}`);
-      execSync(`kill ${stalePids.join(" ")}`, { encoding: "utf-8" });
-      // Brief pause to let the OS release the port
-      execSync("sleep 0.3");
-    }
-  } catch (err: unknown) {
-    // lsof exits with code 1 when no matches found — that's expected.
-    // Any other failure (lsof missing, permission denied, etc.) gets a warning.
-    const isNoMatch =
-      err instanceof Error &&
-      "status" in err &&
-      (err as any).status === 1;
-
-    if (!isNoMatch) {
-      console.error(
-        `[Dashboard] killPortHolder: could not check port ${port} (lsof may not be installed) — skipping.`
-      );
-    }
-  }
+      if (stalePids.length > 0) {
+        console.error(`[Dashboard] Killing stale process(es) on port ${port}: ${stalePids.join(", ")}`);
+        exec(`kill ${stalePids.join(" ")}`, () => {
+          // Brief pause to let the OS release the port
+          setTimeout(resolve, 300);
+        });
+      } else {
+        resolve();
+      }
+    });
+  });
 }
 
 export async function startDashboardServer(): Promise<void> {

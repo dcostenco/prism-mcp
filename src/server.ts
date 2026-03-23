@@ -43,7 +43,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  InitializeRequestSchema,
   // ─── v0.4.0: MCP Prompts support (Enhancement #1) ───
   // REVIEWER NOTE: These schemas enable the /resume_session
   // slash command in Claude Desktop. ListPrompts tells the
@@ -234,9 +233,8 @@ export function createServer() {
     },
     {
       capabilities: {
-        tools: {
-          tools: ALL_TOOLS,
-        },
+        tools: {},
+
         // ─── v0.4.0: Prompt capability (Enhancement #1) ───
         // REVIEWER NOTE: Declaring `prompts: {}` tells Claude Desktop
         // that we support the prompts/list and prompts/get methods.
@@ -257,24 +255,12 @@ export function createServer() {
   );
 
   // ── Handler: Initialize ──
-  // REVIEWER NOTE: The initialize handler is unchanged from v0.3.0
-  // except that it now reports the expanded capabilities.
-  server.setRequestHandler(InitializeRequestSchema, async (request) => {
-    return {
-      protocolVersion: request.params.protocolVersion,
-      serverInfo: {
-        name: SERVER_CONFIG.name,
-        version: SERVER_CONFIG.version,
-      },
-      capabilities: {
-        tools: {
-          tools: ALL_TOOLS,
-        },
-        ...(SESSION_MEMORY_ENABLED ? { prompts: {} } : {}),
-        ...(SESSION_MEMORY_ENABLED ? { resources: { subscribe: true } } : {}),
-      },
-    };
-  });
+  // NOTE: The SDK's built-in _oninitialize() handles the Initialize request.
+  // It stores _clientCapabilities, _clientVersion, negotiates protocol version,
+  // and returns capabilities from the Server constructor config.
+  // Do NOT override InitializeRequestSchema — doing so bypasses critical
+  // internal state management and can cause MCP clients (like Antigravity)
+  // to fail during the init handshake.
 
   // ── Handler: List Tools ──
   server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -642,9 +628,8 @@ export function createSandboxServer() {
     },
     {
       capabilities: {
-        tools: {
-          tools: [...BASE_TOOLS, ...SESSION_MEMORY_TOOLS],
-        },
+        tools: {},
+
         prompts: {},
         resources: { subscribe: true },
       },

@@ -45,7 +45,6 @@ export async function createMcpClient() {
 
   const client = new Client(
     { name: "gemini-mcp-client", version: "1.0.0" },
-    { capabilities: { tools: {} } }
   );
 
   await client.connect(transport);
