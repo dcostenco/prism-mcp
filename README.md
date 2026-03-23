@@ -573,6 +573,29 @@ Just add `"role"` to any of the core memory tools:
 - When loading *with* a role, Prism auto-injects a **Team Roster** block listing active teammates, roles, and tasks — no extra tool call needed
 - The Hivemind Radar widget in the Mind Palace dashboard shows agent activity in real time
 
+### Setting Your Role in Agent Startup Rules
+
+The easiest way to use roles is to hardcode your role in your AI assistant's startup prompt. The agent will always load the right memory lane automatically.
+
+**Gemini / Antigravity (`~/.gemini/GEMINI.md`):**
+
+```markdown
+## Prism MCP Memory Auto-Load (CRITICAL)
+At the start of every new session, call `session_load_context` with:
+- project: "my-app", role: "dev"
+- project: "my-other-project", role: "dev"
+```
+
+**Claude Code (`.clauderules` or `CLAUDE.md`):**
+
+```markdown
+## Prism MCP Memory Auto-Load (CRITICAL)
+At the start of every new session, call session_load_context with:
+- project: "my-app", role: "qa"
+```
+
+> **Tip:** Each agent instance gets a different role hardcoded in its prompt — one agent is `dev`, another is `qa`, another is `lead`. That's how true multi-agent role isolation works without any extra configuration.
+
 ---
 
 ## LangChain / LangGraph Integration
