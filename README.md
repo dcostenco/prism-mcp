@@ -22,6 +22,7 @@
 - [Use Cases](#use-cases)
 - [Architecture](#architecture)
 - [Tool Reference](#tool-reference)
+- [Agent Hivemind — Role Usage](#agent-hivemind--role-usage)
 - [LangChain / LangGraph Integration](#langchain--langgraph-integration)
 - [Environment Variables](#environment-variables)
 - [Boot Settings (Restart Required)](#-boot-settings-restart-required)
@@ -489,6 +490,88 @@ Instead of writing custom JavaScript, pass a `template` name for instant extract
 | `csv_summary` | CSV text | Column names, row count, sample rows |
 
 **Tool Arguments:** `{ "data": "<raw JSON>", "template": "github_issues" }` — no custom code needed.
+
+---
+
+## Agent Hivemind — Role Usage
+
+Role-scoped memory lets multiple agents work on the same project without stepping on each other's memory. Each role gets its own isolated memory lane. Defaults to `global` for full backward compatibility.
+
+### Available Roles
+
+| Role | Use for |
+|------|---------|
+| `dev` | Development agent |
+| `qa` | Testing / QA agent |
+| `pm` | Product management |
+| `lead` | Tech lead / orchestrator |
+| `security` | Security review |
+| `ux` | Design / UX |
+| `global` | Default — shared, no isolation |
+
+Custom role strings are also supported (e.g. `"docs"`, `"ml"`).
+
+### Using Roles with Memory Tools
+
+Just add `"role"` to any of the core memory tools:
+
+```json
+// Save a ledger entry as the "dev" agent
+{ "name": "session_save_ledger", "arguments": {
+  "project": "my-app",
+  "role": "dev",
+  "conversation_id": "abc123",
+  "summary": "Fixed the auth race condition"
+}}
+
+// Load context scoped to your role
+// Also injects a Team Roster showing active teammates
+{ "name": "session_load_context", "arguments": {
+  "project": "my-app",
+  "role": "dev",
+  "level": "standard"
+}}
+
+// Save handoff as the "qa" agent
+{ "name": "session_save_handoff", "arguments": {
+  "project": "my-app",
+  "role": "qa",
+  "last_summary": "Ran regression suite — 2 failures in auth module"
+}}
+```
+
+### Hivemind Coordination Tools
+
+> **Requires:** `PRISM_ENABLE_HIVEMIND=true` (Boot Setting — restart required)
+
+```json
+// Announce yourself to the team at session start
+{ "name": "agent_register", "arguments": {
+  "project": "my-app",
+  "role": "dev",
+  "agent_name": "Dev Agent #1",
+  "current_task": "Refactoring auth module"
+}}
+
+// Pulse every ~5 min to stay visible (agents pruned after 30 min)
+{ "name": "agent_heartbeat", "arguments": {
+  "project": "my-app",
+  "role": "dev",
+  "current_task": "Now writing tests"
+}}
+
+// See everyone on the team
+{ "name": "agent_list_team", "arguments": {
+  "project": "my-app"
+}}
+```
+
+### How Role Isolation Works
+
+- `session_load_context` with `role: "dev"` only sees entries saved with `role: "dev"`
+- The `global` role is a shared pool — anything saved without a role goes here
+- When loading *with* a role, Prism auto-injects a **Team Roster** block listing active teammates, roles, and tasks — no extra tool call needed
+- The Hivemind Radar widget in the Mind Palace dashboard shows agent activity in real time
 
 ---
 
