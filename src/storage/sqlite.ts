@@ -21,6 +21,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { randomUUID } from "crypto";
+import { getSetting as cfgGet, setSetting as cfgSet, getAllSettings as cfgGetAll } from "./configStorage.js";
 
 import type {
   StorageBackend,
@@ -1309,8 +1310,20 @@ export class SqliteStorage implements StorageBackend {
     debugLog(`[SqliteStorage] Agent deregistered: ${project}/${role}`);
   }
 
-  // ─── System Settings (v3.0 Dashboard) - MOVED TO configStorage.ts ───
-  // These were removed to prevent chicken-and-egg database initialization.
+  // ─── System Settings (v3.0 Dashboard) — proxy to configStorage ───
+
+  async getSetting(key: string): Promise<string | null> {
+    const val = await cfgGet(key, "");
+    return val === "" ? null : val;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    await cfgSet(key, value);
+  }
+
+  async getAllSettings(): Promise<Record<string, string>> {
+    return cfgGetAll();
+  }
 
 }
 

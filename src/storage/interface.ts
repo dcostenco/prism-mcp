@@ -385,4 +385,22 @@ export interface StorageBackend {
    * Remove an agent from the registry.
    */
   deregisterAgent(project: string, userId: string, role: string): Promise<void>;
+
+  // ─── v3.0: Dashboard Settings (configStorage proxy) ──────────
+
+  /**
+   * Get a single dashboard setting by key.
+   * Returns null if the key does not exist.
+   */
+  getSetting(key: string): Promise<string | null>;
+
+  /**
+   * Set (upsert) a dashboard setting.
+   */
+  setSetting(key: string, value: string): Promise<void>;
+
+  /**
+   * Retrieve all dashboard settings as a key→value map.
+   */
+  getAllSettings(): Promise<Record<string, string>>;
 }

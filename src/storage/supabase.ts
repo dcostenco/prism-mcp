@@ -34,6 +34,7 @@ import {
   AgentRegistryEntry,      // v3.0: Agent Hivemind registry
 } from "./interface.js";
 import { debugLog } from "../utils/logger.js";
+import { getSetting as cfgGet, setSetting as cfgSet, getAllSettings as cfgGetAll } from "./configStorage.js";
 
 export class SupabaseStorage implements StorageBackend {
   // ─── Lifecycle ─────────────────────────────────────────────
@@ -390,5 +391,20 @@ export class SupabaseStorage implements StorageBackend {
       user_id: `eq.${userId}`,
       role: `eq.${role}`,
     });
+  }
+
+  // ─── System Settings (v3.0 Dashboard) — proxy to configStorage ───
+
+  async getSetting(key: string): Promise<string | null> {
+    const val = await cfgGet(key, "");
+    return val === "" ? null : val;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    await cfgSet(key, value);
+  }
+
+  async getAllSettings(): Promise<Record<string, string>> {
+    return cfgGetAll();
   }
 }
