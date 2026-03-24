@@ -382,7 +382,7 @@ Automatically loads context when a new session begins:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import json; print(json.dumps({'continue': True, 'suppressOutput': False, 'systemMessage': 'At session start: 1) Call session_load_context with project=my-project and level=standard (do NOT pass role — the server reads it from the Prism dashboard settings). 2) After success, print PRISM_CONTEXT_LOADED.'}))\"",
+            "command": "python3 -c \"import json; print(json.dumps({'continue': True, 'suppressOutput': False, 'systemMessage': 'MANDATORY STARTUP WORKFLOW: 1) Display the startup block. 2) Call mcp__prism-mcp__session_load_context with project=my-project and level=standard. 3) After success, print PRISM_CONTEXT_LOADED.'}))\"",
             "timeout": 10
           }
         ]
@@ -405,7 +405,7 @@ Automatically saves session memory when a session ends:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import json; print(json.dumps({'continue': True, 'suppressOutput': False, 'systemMessage': 'Before ending: call session_save_ledger first, then session_save_handoff with expected_version from the loaded version. Do NOT pass role — the server reads it from dashboard settings.'}))\"",
+            "command": "python3 -c \"import json; print(json.dumps({'continue': True, 'suppressOutput': False, 'systemMessage': 'MANDATORY END WORKFLOW: 1) Call mcp__prism-mcp__session_save_ledger with project and summary. 2) Call mcp__prism-mcp__session_save_handoff with expected_version set to the loaded version.'}))\"",
             "timeout": 10
           }
         ]
@@ -414,6 +414,18 @@ Automatically saves session memory when a session ends:
   }
 }
 ```
+
+### How the Hooks Work
+
+The hook `command` runs a Python one-liner that returns a JSON object to Claude Code:
+
+| Field | Purpose |
+|---|---|
+| `continue: true` | Tell Claude Code to proceed (don't abort the session) |
+| `suppressOutput: false` | Show the hook result to the agent |
+| `systemMessage` | Instruction injected as a system message — the agent follows it |
+
+The agent receives the `systemMessage` as an instruction and executes the tool calls. The server resolves the agent's **role** and **name** automatically from the dashboard — no need to specify them in the hook.
 
 ### Role Resolution — No Hardcoding Needed
 
@@ -427,7 +439,7 @@ explicit tool argument  →  dashboard setting  →  "global" (default)
 2. **Dashboard fallback** — if `role` is omitted, the server calls `getSetting("default_role")` and uses whatever role you configured in the **Mind Palace Dashboard ⚙️ Settings → Agent Identity**.
 3. **Final default** — if no dashboard setting exists, falls back to `"global"`.
 
-**This means hooks should NOT hardcode a role.** Change your role once in the dashboard, and it automatically applies to every session — CLI, extension, and all MCP clients.
+Change your role once in the dashboard, and it automatically applies to every session — CLI, extension, and all MCP clients.
 
 ### Verification
 
@@ -441,19 +453,18 @@ If the marker is missing, the hook did not fire or the MCP server is not connect
 
 ## Gemini / Antigravity Integration
 
-Gemini-based clients (like Antigravity) use `GEMINI.md` global rules or user rules for startup behavior. The same principle applies: **omit the role** and let the server resolve it from the dashboard.
+Gemini-based clients (like Antigravity) use `GEMINI.md` global rules or user rules for startup behavior. The server resolves the role from the dashboard automatically.
 
 ### Global Rules (`~/.gemini/GEMINI.md`)
 
 ```markdown
 ## Prism MCP Memory Auto-Load (CRITICAL)
-At the start of every new session, call `session_load_context`
-at the `standard` level for these projects:
-- `my-project`
-- `my-other-project`
+At the start of every new session, call `mcp__prism-mcp__session_load_context`
+for these projects:
+- `my-project` (level=standard)
+- `my-other-project` (level=standard)
 
-Do NOT pass a `role` parameter — the server reads the active role
-from the Prism dashboard settings automatically.
+After both succeed, print PRISM_CONTEXT_LOADED.
 ```
 
 ### User Rules (Antigravity Settings)
@@ -461,8 +472,7 @@ from the Prism dashboard settings automatically.
 If your Gemini client supports user rules, add the same instructions there. The key points:
 
 1. **Call `session_load_context` as a tool** — not `read_resource`. Only the tool returns the `[👤 AGENT IDENTITY]` block.
-2. **Omit `role`** — let the server resolve it from the dashboard.
-3. **Verify** — confirm the response includes `version` and `last_summary`.
+2. **Verify** — confirm the response includes `version` and `last_summary`.
 
 ### Session End
 
@@ -470,8 +480,8 @@ At the end of each session, save state:
 
 ```markdown
 ## Session End Protocol
-Before ending: call `session_save_ledger`, then `session_save_handoff`
-with `expected_version` from the loaded version. Omit `role`.
+1) Call `mcp__prism-mcp__session_save_ledger` with project and summary.
+2) Call `mcp__prism-mcp__session_save_handoff` with expected_version from the loaded version.
 ```
 
 ---
