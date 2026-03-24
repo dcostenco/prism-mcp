@@ -41,7 +41,7 @@ export const SESSION_SAVE_LEDGER_TOOL: Tool = {
       },
       role: {
         type: "string",
-        description: "v3.0: Agent role for Hivemind scoping (e.g., 'dev', 'qa', 'pm'). Defaults to 'global'.",
+        description: "Optional. Agent role for Hivemind scoping (e.g., 'dev', 'qa', 'pm'). Omit to let the server auto-resolve from dashboard settings.",
       },
     },
     required: ["project", "conversation_id", "summary"],
@@ -98,7 +98,7 @@ export const SESSION_SAVE_HANDOFF_TOOL: Tool = {
       },
       role: {
         type: "string",
-        description: "v3.0: Agent role for Hivemind scoping (e.g., 'dev', 'qa', 'pm'). Defaults to 'global'.",
+        description: "Optional. Agent role for Hivemind scoping (e.g., 'dev', 'qa', 'pm'). Omit to let the server auto-resolve from dashboard settings.",
       },
     },
     required: ["project"],
@@ -130,7 +130,7 @@ export const SESSION_LOAD_CONTEXT_TOOL: Tool = {
       },
       role: {
         type: "string",
-        description: "v3.0: Agent role for Hivemind scoping (e.g., 'dev', 'qa', 'pm'). Defaults to 'global'. When set, also injects active_team roster.",
+        description: "Optional. Agent role for Hivemind scoping (e.g., 'dev', 'qa', 'pm'). Omit to let the server auto-resolve from dashboard settings. When set, also injects active_team roster.",
       },
       // v4.0: Token Budget
       max_tokens: {
@@ -843,7 +843,7 @@ export const SESSION_SAVE_EXPERIENCE_TOOL: Tool = {
       },
       role: {
         type: "string",
-        description: "Agent role for Hivemind scoping. Defaults to 'global'.",
+        description: "Optional. Agent role for Hivemind scoping. Omit to let the server auto-resolve from dashboard settings.",
       },
     },
     required: ["project", "event_type", "context", "action", "outcome"],
