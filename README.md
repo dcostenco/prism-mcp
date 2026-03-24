@@ -1312,6 +1312,14 @@ See [`vertex-ai/`](vertex-ai/) for setup and benchmarks.
 
 > **[View the full project board →](https://github.com/users/dcostenco/projects/1/views/1)**
 
+### ✅ v4.1 — Auto-Migration & Multi-Instance (Shipped!)
+
+| Feature | Description |
+|---|---|
+| 🔄 **Supabase Auto-Migrations** | Zero-config DDL upgrades via `prism_apply_ddl` RPC — schema changes apply automatically on startup. |
+| 🔀 **Multi-Instance PID Locks** | `PRISM_INSTANCE` env var isolates PID files — run multiple Prism servers on the same machine without conflicts. |
+| 🛡️ **Server Lifecycle Management** | Singleton PID lock with graceful shutdown and stale PID recovery. |
+
 ### ✅ v4.0 — Behavioral Memory (Shipped!)
 
 See [What's New in v4.0.0](#whats-new-in-v400--behavioral-memory-) above.
