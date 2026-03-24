@@ -15,6 +15,7 @@
 ## Table of Contents
 
 - [What's New (v4.0.0)](#whats-new-in-v400--behavioral-memory-)
+- [Multi-Instance Support](#multi-instance-support)
 - [How Prism Compares](#how-prism-compares)
 - [Quick Start](#quick-start-zero-config--local-mode)
 - [Mind Palace Dashboard](#-the-mind-palace-dashboard)
@@ -50,6 +51,8 @@
 | 📏 **Token Budget** | `max_tokens` on `session_load_context` — intelligently truncates to fit your budget. |
 | 📉 **Importance Decay** | Stale corrections auto-fade over time to keep context fresh. |
 | 🔧 **Claude Code Hooks** | Simplified SessionStart/Stop hooks that reliably trigger MCP tool calls. |
+| 🔄 **Auto-Migrations (Supabase)** | Zero-config schema upgrades — pending DDL migrations run automatically on server startup via `prism_apply_ddl` RPC. |
+| 🔀 **Multi-Instance Support** | `PRISM_INSTANCE` env var enables instance-aware PID locks — run multiple Prism servers side-by-side without conflicts. |
 
 <details>
 <summary><strong>What's in v3.1.0 — Memory Lifecycle 🔄</strong></summary>
@@ -843,6 +846,7 @@ The retrievers use `_aget_relevant_documents` as the primary path with `asyncio.
 | `BRAVE_API_KEY` | No | Brave Search Pro API key (enables web/local search tools) |
 | `PRISM_STORAGE` | No | `"local"` (default) or `"supabase"` — **requires restart** |
 | `PRISM_ENABLE_HIVEMIND` | No | Set `"true"` to enable multi-agent Hivemind tools — **requires restart** |
+| `PRISM_INSTANCE` | No | Instance name for PID lock isolation (e.g. `"athena"`, `"prism-dev"`). Enables [multi-instance support](#multi-instance-support). Default: `"default"` |
 | `GOOGLE_API_KEY` | No | Google AI / Gemini — enables paper analysis, Morning Briefings, compaction |
 | `BRAVE_ANSWERS_API_KEY` | No | Separate Brave Answers key for AI-grounded answers |
 | `SUPABASE_URL` | If cloud mode | Supabase project URL |
@@ -1128,9 +1132,12 @@ Traces are returned as `content[1]` in MCP responses — a separate content bloc
 
 ### 2. Apply Migrations
 
-In the SQL Editor, run:
+In the SQL Editor, run the **bootstrap migration** first:
 1. [`supabase/migrations/015_session_memory.sql`](supabase/migrations/015_session_memory.sql)
 2. [`supabase/migrations/016_knowledge_accumulation.sql`](supabase/migrations/016_knowledge_accumulation.sql)
+3. [`supabase/migrations/027_auto_migration_infra.sql`](supabase/migrations/027_auto_migration_infra.sql) — **enables auto-migrations** (see below)
+
+> **After applying migration 027**, all future schema changes are applied automatically on server startup — no manual SQL required.
 
 ### 3. Get Credentials
 
@@ -1158,6 +1165,70 @@ export PRISM_STORAGE="supabase"
 
 </details>
 
+### Auto-Migrations (Supabase Cloud)
+
+Prism includes a zero-config auto-migration system for Supabase. Once the bootstrap migration (`027_auto_migration_infra.sql`) is applied, all future schema changes are applied automatically on server startup.
+
+**How it works:**
+
+1. On startup, the migration runner checks each entry in `MIGRATIONS[]` (defined in `supabaseMigrations.ts`)
+2. For each migration, it calls `prism_apply_ddl(version, name, sql)` — a `SECURITY DEFINER` RPC function
+3. The function checks `prism_schema_versions` — if the version is already recorded, it's silently skipped (idempotent)
+4. If not applied, it executes the DDL and records the version number
+
+**Graceful degradation:** If `prism_apply_ddl()` doesn't exist (you haven't applied migration 027 yet), the runner logs a warning and continues — the server still starts, but newer schema features may not be available.
+
+**Adding new migrations** — just append to the `MIGRATIONS[]` array in `src/storage/supabaseMigrations.ts`:
+
+```typescript
+{
+  version: 28,
+  name: "my_new_feature",
+  sql: `ALTER TABLE session_ledger ADD COLUMN IF NOT EXISTS my_col TEXT;`,
+}
+```
+
+All SQL must be idempotent (`IF NOT EXISTS` / `IF EXISTS` guards).
+
+---
+
+## Multi-Instance Support
+
+Run multiple Prism MCP servers side-by-side on the same machine without PID lock conflicts. This is useful when you have different MCP configurations (e.g., one for web search + memory, another for memory-only) running in different clients simultaneously.
+
+### Configuration
+
+Set `PRISM_INSTANCE` to a unique name per server instance:
+
+```json
+{
+  "mcpServers": {
+    "prism-search": {
+      "command": "node",
+      "args": ["/path/to/prism/dist/server.js"],
+      "env": {
+        "PRISM_INSTANCE": "prism-search",
+        "BRAVE_API_KEY": "your-key"
+      }
+    },
+    "prism-memory": {
+      "command": "node",
+      "args": ["/path/to/prism/dist/server.js"],
+      "env": {
+        "PRISM_INSTANCE": "prism-memory"
+      }
+    }
+  }
+}
+```
+
+### How it works
+
+- Each instance gets its own PID file: `/tmp/prism-{PRISM_INSTANCE}.pid`
+- Default instance name is `"default"` (backward compatible)
+- Instances share the same SQLite database and Supabase backend — only the process lock is isolated
+- Graceful shutdown cleans up the instance's PID file
+
 ---
 
 ## Hybrid Search Pipeline (Brave + Vertex AI)
@@ -1184,12 +1255,13 @@ See [`vertex-ai/`](vertex-ai/) for setup and benchmarks.
 
 ```
 ├── src/
-│   ├── server.ts                        # MCP server core + tool routing
+│   ├── server.ts                        # MCP server core + tool routing + lifecycle
 │   ├── config.ts                        # Environment management
 │   ├── storage/
 │   │   ├── interface.ts                 # StorageBackend abstraction (+ GDPR delete methods)
 │   │   ├── sqlite.ts                    # SQLite local storage (libSQL + F32_BLOB + deleted_at migration)
 │   │   ├── supabase.ts                  # Supabase cloud storage (+ soft/hard delete)
+│   │   ├── supabaseMigrations.ts        # Auto-migration runner for Supabase DDL
 │   │   ├── configStorage.ts             # Boot config micro-DB (~/.prism-mcp/prism-config.db)
 │   │   └── index.ts                     # Backend factory (auto-selects based on PRISM_STORAGE)
 │   ├── sync/
@@ -1227,7 +1299,8 @@ See [`vertex-ai/`](vertex-ai/) for setup and benchmarks.
 │   ├── prism_retriever.py               # PrismMemoryRetriever + PrismKnowledgeRetriever
 │   ├── tools.py                         # Agent tools + GDPR forget_memory
 │   └── demo_retriever.py                # Standalone retriever demo
-├── supabase/migrations/                 # Cloud mode SQL schemas
+├── supabase/migrations/                 # Cloud mode SQL schemas + auto-migration bootstrap
+│   └── 027_auto_migration_infra.sql     # prism_apply_ddl() RPC + schema version tracking
 ├── vertex-ai/                           # Vertex AI hybrid search pipeline
 ├── index.ts                             # Server entry point
 └── package.json
