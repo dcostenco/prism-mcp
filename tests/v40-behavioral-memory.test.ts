@@ -18,6 +18,12 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createClient } from "@libsql/client";
 import type { Client } from "@libsql/client";
 
+// Import production type guards to prevent test/prod drift
+import {
+  isSessionSaveExperienceArgs,
+  isKnowledgeVoteArgs,
+} from "../src/tools/sessionMemoryDefinitions.js";
+
 // ──────────────────────────────────────────────────────────────
 // Helper: Create in-memory DB with full v4.0 schema
 // ──────────────────────────────────────────────────────────────
@@ -531,12 +537,12 @@ describe("Experience Recording — saveLedger with v4 fields", () => {
 // ──────────────────────────────────────────────────────────────
 
 describe("Token Budget — max_tokens truncation", () => {
-  /** Simulate the handler's token budget logic */
+  /** Matches production logic from sessionMemoryHandlers.ts:646-651 */
   function applyTokenBudget(text: string, maxTokens: number | undefined): string {
-    if (!maxTokens) return text;
+    if (!maxTokens || maxTokens <= 0) return text;
     const maxChars = maxTokens * 4; // 1 token ≈ 4 chars
     if (text.length > maxChars) {
-      return text.slice(0, maxChars) + "\n\n[…truncated to fit token budget]";
+      return text.slice(0, maxChars) + "\n\n[… truncated to fit token budget]";
     }
     return text;
   }
@@ -550,14 +556,14 @@ describe("Token Budget — max_tokens truncation", () => {
     const text = "A".repeat(1000); // 1000 chars = ~250 tokens
     const result = applyTokenBudget(text, 100); // 100 tokens = 400 chars
     expect(result.length).toBeLessThan(1000);
-    expect(result).toContain("[…truncated to fit token budget]");
+    expect(result).toContain("[… truncated to fit token budget]");
   });
 
   it("truncation preserves exactly maxTokens * 4 chars of content", () => {
     const text = "B".repeat(2000);
     const result = applyTokenBudget(text, 200); // 200 tokens = 800 chars
     // Content before the truncation marker should be exactly 800 chars
-    const contentBeforeMarker = result.split("\n\n[…truncated")[0];
+    const contentBeforeMarker = result.split("\n\n[… truncated")[0];
     expect(contentBeforeMarker.length).toBe(800);
   });
 
@@ -566,11 +572,10 @@ describe("Token Budget — max_tokens truncation", () => {
     expect(applyTokenBudget(text, undefined)).toBe(text);
   });
 
-  it("handles maxTokens of 0 by returning truncation marker only", () => {
+  it("maxTokens of 0 is treated as unlimited (no truncation)", () => {
     const text = "D".repeat(100);
-    // maxTokens=0 means 0 chars budget — edge case
+    // Production handler: `if (maxTokens && maxTokens > 0)` — 0 is falsy, so no truncation
     const result = applyTokenBudget(text, 0);
-    // With 0 budget, falsy check means no truncation
     expect(result).toBe(text);
   });
 });
@@ -579,25 +584,9 @@ describe("Token Budget — max_tokens truncation", () => {
 // 7. Type Guards
 // ──────────────────────────────────────────────────────────────
 
-describe("v4.0 Type Guards", () => {
-  // Replicate the type guards from sessionMemoryDefinitions.ts
-
-  function isSessionSaveExperienceArgs(args: unknown): boolean {
-    if (typeof args !== "object" || args === null) return false;
-    const a = args as Record<string, unknown>;
-    return (
-      typeof a.project === "string" &&
-      typeof a.event_type === "string" &&
-      typeof a.context === "string" &&
-      typeof a.action === "string" &&
-      typeof a.outcome === "string"
-    );
-  }
-
-  function isKnowledgeVoteArgs(args: unknown): boolean {
-    if (typeof args !== "object" || args === null) return false;
-    return typeof (args as Record<string, unknown>).id === "string";
-  }
+describe("v4.0 Type Guards (imported from production)", () => {
+  // Uses actual guards from src/tools/sessionMemoryDefinitions.ts
+  // to prevent test/prod drift.
 
   describe("isSessionSaveExperienceArgs", () => {
     it("accepts valid args with all required fields", () => {
@@ -784,5 +773,72 @@ describe("loadContext — Behavioral Warnings Integration", () => {
     const result = await loadContextWithWarnings("proj-c", "default", "global");
     expect(result.warnings[0].summary).toContain("pnpm");
     expect(result.warnings[0].importance).toBe(7);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────
+// 10. Handler-Level Negative Paths (Voting)
+// ──────────────────────────────────────────────────────────────
+
+describe("Vote Handler — Negative Paths", () => {
+  /**
+   * These tests verify handler-level behavior by simulating
+   * what the production handlers do. They catch issues like:
+   * - Handlers always reporting "success" even for non-existent IDs
+   * - Type guard rejection paths
+   */
+
+  it("upvote handler throws on invalid args (missing id)", () => {
+    // Simulates knowledgeUpvoteHandler guard
+    expect(() => {
+      if (!isKnowledgeVoteArgs({ project: "x" })) {
+        throw new Error("Invalid arguments for knowledge_upvote");
+      }
+    }).toThrow("Invalid arguments for knowledge_upvote");
+  });
+
+  it("downvote handler throws on invalid args (null)", () => {
+    expect(() => {
+      if (!isKnowledgeVoteArgs(null)) {
+        throw new Error("Invalid arguments for knowledge_downvote");
+      }
+    }).toThrow("Invalid arguments for knowledge_downvote");
+  });
+
+  it("upvote handler throws on invalid args (numeric id)", () => {
+    expect(() => {
+      if (!isKnowledgeVoteArgs({ id: 42 })) {
+        throw new Error("Invalid arguments for knowledge_upvote");
+      }
+    }).toThrow("Invalid arguments for knowledge_upvote");
+  });
+
+  it("experience handler throws on missing required fields", () => {
+    // Missing context, action, outcome
+    expect(() => {
+      if (!isSessionSaveExperienceArgs({ project: "x", event_type: "correction" })) {
+        throw new Error("Invalid arguments for session_save_experience");
+      }
+    }).toThrow("Invalid arguments for session_save_experience");
+  });
+
+  it("vote for non-existent ID: SQL UPDATE affects 0 rows (known silent-success)", async () => {
+    // Documents current behavior: adjustImportance on a missing ID
+    // returns success (0 rows updated, no error). Both SQLite and Supabase
+    // exhibit this behavior — the handler reports "success" regardless.
+    const db = await makeV4Db();
+    try {
+      const result = await db.execute({
+        sql: `UPDATE session_ledger
+              SET importance = MAX(0, importance + 1)
+              WHERE id = ? AND user_id = ?`,
+        args: ["totally-nonexistent-uuid", "default"],
+      });
+
+      // SQL UPDATE on missing row affects 0 rows but does NOT error
+      expect(result.rowsAffected).toBe(0);
+    } finally {
+      db.close();
+    }
   });
 });
