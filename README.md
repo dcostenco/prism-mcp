@@ -175,6 +175,10 @@
 | **Pricing** | ✅ Free & open source (MIT) | ✅ Free & open source (MIT) | Freemium (free 10K memories; paid Pro) | ✅ Free & open source | Freemium (OSS core free; paid Pro) |
 | **Storage** | SQLite (local) + Supabase (cloud) | JSON file | Postgres + Qdrant (hosted or self-hosted) | Qdrant + S3/MinIO | Markdown files |
 | **Zero Config** | ✅ `npx -y prism-mcp-server` | ✅ | ❌ Requires Qdrant/Postgres | ✅ `uvx mnemory` | ✅ `pip install basic-memory` |
+| **Behavioral Memory** | ✅ `session_save_experience` with importance tracking | ❌ | ❌ | ❌ | ❌ |
+| **Dynamic Role Resolution** | ✅ Auto-resolves from dashboard settings | ❌ | ❌ | ❌ | ❌ |
+| **Token Budget** | ✅ `max_tokens` on context loading | ❌ | ❌ | ❌ | ❌ |
+| **Importance Decay** | ✅ Stale experiences auto-fade | ❌ | ❌ | ❌ | ❌ |
 | **Semantic Search** | ✅ F32_BLOB vectors + FTS5 | ❌ | ✅ pgvector | ✅ Qdrant vectors | ❌ Text search only |
 | **Knowledge Graph** | ✅ Neural Graph (Vis.js dashboard) | ✅ Entity/Relation model | ❌ | ✅ Relationship graph | ✅ Markdown links |
 | **Time Travel** | ✅ `memory_history` / `memory_checkout` | ❌ | ❌ | ❌ | ❌ |
