@@ -554,5 +554,56 @@ DO $$ BEGIN
 END $$;
 
 -- ==============================================================================
--- ALL MIGRATIONS (016–020) COMPLETE ✅
+-- AUTO-MIGRATION INFRASTRUCTURE (enables automatic schema updates)
+-- ==============================================================================
+
+-- Migration version tracking
+CREATE TABLE IF NOT EXISTS prism_schema_versions (
+  version    INTEGER PRIMARY KEY,
+  name       TEXT NOT NULL,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE prism_schema_versions ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Service role full access' AND tablename = 'prism_schema_versions') THEN
+    CREATE POLICY "Service role full access" ON prism_schema_versions FOR ALL TO service_role USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated read access' AND tablename = 'prism_schema_versions') THEN
+    CREATE POLICY "Authenticated read access" ON prism_schema_versions FOR SELECT TO authenticated, anon USING (true);
+  END IF;
+END $$;
+
+-- DDL execution function (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION prism_apply_ddl(
+  p_version  INTEGER,
+  p_name     TEXT,
+  p_sql      TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  SELECT count(*) INTO v_count FROM prism_schema_versions WHERE version = p_version;
+  IF v_count > 0 THEN
+    RETURN json_build_object('status', 'already_applied', 'version', p_version);
+  END IF;
+  EXECUTE p_sql;
+  INSERT INTO prism_schema_versions (version, name) VALUES (p_version, p_name);
+  RETURN json_build_object('status', 'applied', 'version', p_version);
+EXCEPTION WHEN OTHERS THEN
+  RAISE EXCEPTION 'prism_apply_ddl migration % (%) failed: %', p_version, p_name, SQLERRM;
+END;
+$$;
+
+-- ==============================================================================
+-- ALL MIGRATIONS (016–020) + AUTO-MIGRATION INFRA COMPLETE ✅
 -- ==============================================================================

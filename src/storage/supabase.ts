@@ -37,12 +37,23 @@ import {
 
 import { debugLog } from "../utils/logger.js";
 import { getSetting as cfgGet, setSetting as cfgSet, getAllSettings as cfgGetAll } from "./configStorage.js";
+import { runAutoMigrations } from "./supabaseMigrations.js";
 
 export class SupabaseStorage implements StorageBackend {
   // ─── Lifecycle ─────────────────────────────────────────────
 
   async initialize(): Promise<void> {
     debugLog("[SupabaseStorage] Initialized (REST API, stateless)");
+
+    // Auto-apply pending schema migrations (non-fatal)
+    try {
+      await runAutoMigrations();
+    } catch (err) {
+      console.error(
+        "[SupabaseStorage] Auto-migration failed. Server will continue, but some tools may be unstable.",
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   async close(): Promise<void> {
