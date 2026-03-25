@@ -658,6 +658,7 @@ export function renderDashboardHTML(version: string): string {
         <div class="settings-tabs">
           <button class="s-tab active" id="stab-settings" onclick="switchSettingsTab('settings')">⚙️ Settings</button>
           <button class="s-tab" id="stab-skills" onclick="switchSettingsTab('skills')">📜 Skills</button>
+          <button class="s-tab" id="stab-providers" onclick="switchSettingsTab('providers')">🤖 AI Providers</button>
         </div>
 
         <!-- Settings panel (existing content) -->
@@ -817,6 +818,100 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
             Use Markdown. Changes take effect immediately — no restart needed.
           </div>
         </div><!-- /spanel-skills -->
+
+        <!-- AI Providers panel (v4.4) -->
+        <div class="s-tab-panel" id="spanel-providers">
+
+          <div class="setting-section">AI Provider <span class="boot-badge">Restart Required</span></div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Active Provider</div>
+              <div class="setting-desc">LLM used for compaction, briefing, search &amp; security scan</div>
+            </div>
+            <select id="select-llm-provider"
+              style="padding: 0.2rem 0.4rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); cursor: pointer;"
+              onchange="onProviderChange(this.value)">
+              <option value="gemini">🔵 Gemini (Google)</option>
+              <option value="openai">🟢 OpenAI / Ollama</option>
+            </select>
+          </div>
+
+          <!-- Gemini fields — shown when provider = gemini -->
+          <div id="provider-fields-gemini">
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Google API Key</div>
+                <div class="setting-desc">GOOGLE_API_KEY — required for Gemini text &amp; embeddings</div>
+              </div>
+              <input type="password" id="input-google-api-key"
+                placeholder="AIza…"
+                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 180px;"
+                onchange="saveBootSetting('GOOGLE_API_KEY', this.value)"
+                oninput="clearTimeout(this._pt); this._pt=setTimeout(()=>saveBootSetting('GOOGLE_API_KEY',this.value),800)" />
+            </div>
+          </div>
+
+          <!-- OpenAI / Ollama fields — shown when provider = openai -->
+          <div id="provider-fields-openai" style="display:none">
+
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">API Key</div>
+                <div class="setting-desc">Leave blank for Ollama / LM Studio (local endpoints)</div>
+              </div>
+              <input type="password" id="input-openai-api-key"
+                placeholder="sk-… (blank for Ollama)"
+                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 180px;"
+                onchange="saveBootSetting('openai_api_key', this.value)"
+                oninput="clearTimeout(this._pt); this._pt=setTimeout(()=>saveBootSetting('openai_api_key',this.value),800)" />
+            </div>
+
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Base URL</div>
+                <div class="setting-desc">Ollama: http://localhost:11434/v1 · LM Studio: http://localhost:1234/v1</div>
+              </div>
+              <input type="text" id="input-openai-base-url"
+                placeholder="https://api.openai.com/v1"
+                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 220px;"
+                onchange="saveBootSetting('openai_base_url', this.value)"
+                oninput="clearTimeout(this._pu); this._pu=setTimeout(()=>saveBootSetting('openai_base_url',this.value),800)" />
+            </div>
+
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Chat Model</div>
+                <div class="setting-desc">Used for compaction, briefing, security scan</div>
+              </div>
+              <input type="text" id="input-openai-model"
+                placeholder="gpt-4o-mini"
+                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 160px;"
+                onchange="saveBootSetting('openai_model', this.value)"
+                oninput="clearTimeout(this._pm); this._pm=setTimeout(()=>saveBootSetting('openai_model',this.value),800)" />
+            </div>
+
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Embedding Model</div>
+                <div class="setting-desc">Must produce 768-dim vectors. Ollama: nomic-embed-text</div>
+              </div>
+              <input type="text" id="input-openai-embedding-model"
+                placeholder="text-embedding-3-small"
+                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 200px;"
+                onchange="saveBootSetting('openai_embedding_model', this.value)"
+                oninput="clearTimeout(this._pe); this._pe=setTimeout(()=>saveBootSetting('openai_embedding_model',this.value),800)" />
+            </div>
+
+          </div><!-- /provider-fields-openai -->
+
+          <div style="margin-top:1rem;padding:0.6rem 0.8rem;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:6px;font-size:0.78rem;color:var(--text-secondary);line-height:1.5">
+            💡 <strong>Ollama quick-start:</strong> Set Base URL to <code>http://localhost:11434/v1</code>, leave API Key blank,<br>
+            set Chat Model to your pulled model (e.g. <code>llama3.2</code>), Embedding Model to <code>nomic-embed-text</code>.
+          </div>
+
+          <span class="setting-saved" id="savedToastProviders">Saved ✓</span>
+        </div><!-- /spanel-providers -->
 
       </div>
     </div>
@@ -1247,14 +1342,16 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
     var _skillsCache = {};  // role → content cache
 
     function switchSettingsTab(tab) {
-      ['settings','skills'].forEach(function(t) {
+      ['settings','skills','providers'].forEach(function(t) {
         document.getElementById('stab-' + t).classList.toggle('active', t === tab);
         document.getElementById('spanel-' + t).classList.toggle('active', t === tab);
       });
       if (tab === 'skills') {
-        // Load skill for whichever role is currently selected
         var role = document.getElementById('skillRoleSelect').value;
         loadSkillForRole(role);
+      }
+      if (tab === 'providers') {
+        loadAiProviderSettings();
       }
     }
 
@@ -1309,6 +1406,55 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       };
       reader.readAsText(file);
       input.value = '';  // reset so same file can be re-uploaded
+    }
+
+    // ─── AI Providers Settings (v4.4) ────────────────────────────────────
+
+    // Show/hide the correct provider fieldset when the dropdown changes.
+    // Also persists the selection as a boot setting (restart required).
+    function onProviderChange(value) {
+      document.getElementById('provider-fields-gemini').style.display = value === 'gemini' ? '' : 'none';
+      document.getElementById('provider-fields-openai').style.display = value === 'openai' ? '' : 'none';
+      saveBootSetting('llm_provider', value);
+    }
+
+    // Load all AI provider settings from the API and populate fields.
+    // Called when the tab is first opened (lazy — avoids a fetch on every modal open).
+    async function loadAiProviderSettings() {
+      try {
+        var res = await fetch('/api/settings');
+        var data = await res.json();
+        var s = data.settings || {};
+
+        // Provider dropdown
+        var provider = s.llm_provider || 'gemini';
+        var sel = document.getElementById('select-llm-provider');
+        if (sel) sel.value = provider;
+
+        // Show correct fieldset
+        document.getElementById('provider-fields-gemini').style.display = provider === 'gemini' ? '' : 'none';
+        document.getElementById('provider-fields-openai').style.display = provider === 'openai' ? '' : 'none';
+
+        // Gemini fields
+        var gKey = document.getElementById('input-google-api-key');
+        // Never pre-fill password fields with real values for security —
+        // show a placeholder indicating a key is set without exposing it.
+        if (gKey) gKey.placeholder = s.GOOGLE_API_KEY ? '(key saved — paste to update)' : 'AIza…';
+
+        // OpenAI fields
+        var oKey = document.getElementById('input-openai-api-key');
+        if (oKey) oKey.placeholder = s.openai_api_key ? '(key saved — paste to update)' : 'sk-… (blank for Ollama)';
+
+        var oUrl = document.getElementById('input-openai-base-url');
+        if (oUrl && s.openai_base_url) oUrl.value = s.openai_base_url;
+
+        var oMod = document.getElementById('input-openai-model');
+        if (oMod && s.openai_model) oMod.value = s.openai_model;
+
+        var oEmb = document.getElementById('input-openai-embedding-model');
+        if (oEmb && s.openai_embedding_model) oEmb.value = s.openai_embedding_model;
+
+      } catch(e) { console.warn('AI provider settings load failed:', e); }
     }
 
 
