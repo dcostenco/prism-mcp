@@ -1391,14 +1391,17 @@ See [`vertex-ai/`](vertex-ai/) for setup and benchmarks.
 
 > **[View the full project board →](https://github.com/users/dcostenco/projects/1/views/1)**
 
-### ✅ v4.2 — Project Repo Registry + Knowledge Sync Rules (Shipped!)
+### ✅ v4.3 — The Bridge: Knowledge Sync Rules (Shipped!)
+
+See [What's in v4.3.0](#whats-new-in-v430--the-bridge-) above for details on syncing dynamic behavioral insights to static IDE rules files.
+
+### ✅ v4.2 — Project Repo Registry (Shipped!)
 
 | Feature | Description |
 |---|---|
 | 🗂️ **Project Repo Paths** | Dashboard UI to map projects to repo directories + `session_save_ledger` path validation. |
 | 🔄 **Universal Auto-Load** | Dynamic tool descriptions replace env var — dashboard is sole source of truth. |
 | 🏠 **Dashboard-First Config** | Removed `PRISM_AUTOLOAD_PROJECTS` env var override. |
-| 🌉 **Knowledge Sync Rules** | `knowledge_sync_rules` — auto-sync graduated insights to `.cursorrules` / `.clauderules` with idempotent sentinel markers. |
 
 ### ✅ v4.1 — Auto-Migration & Multi-Instance (Shipped!)
 
