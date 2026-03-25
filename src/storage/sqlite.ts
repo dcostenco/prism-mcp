@@ -1648,5 +1648,32 @@ export class SqliteStorage implements StorageBackend {
     }));
   }
 
+  // ─── v4.3: Standalone Importance Decay ────────────────────
+  //
+  // Extracted from expireByTTL so decay can be triggered independently
+  // (e.g. fire-and-forget from session_save_ledger) without needing
+  // an active TTL retention policy.
+
+  async decayImportance(
+    project: string,
+    userId: string,
+    decayDays: number
+  ): Promise<void> {
+    const result = await this.db.execute({
+      sql: `UPDATE session_ledger
+            SET importance = MAX(0, importance - 1)
+            WHERE project = ? AND user_id = ?
+              AND importance > 0
+              AND event_type != 'session'
+              AND created_at < datetime('now', '-' || ? || ' days')
+              AND deleted_at IS NULL`,
+      args: [project, userId, decayDays],
+    });
+    const decayed = result.rowsAffected || 0;
+    if (decayed > 0) {
+      debugLog(`[SqliteStorage] decayImportance: reduced ${decayed} entries for "${project}" (>${decayDays}d old)`);
+    }
+  }
+
 }
 

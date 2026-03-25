@@ -171,6 +171,14 @@ export async function sessionSaveLedgerHandler(args: unknown) {
     }
   }).catch(() => {/* getSetting non-fatal */});
 
+  // ─── Fire-and-forget importance decay (v4.3) ──────────────
+  // Decays stale behavioral insights (>30d old) by -1 importance.
+  // Matches SQLite's automatic decay behavior on every save.
+  // Non-fatal: errors are logged but never surfaced to the caller.
+  storage.decayImportance(project, PRISM_USER_ID, 30).catch((err) => {
+    debugLog(`[session_save_ledger] Background decay failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  });
+
   return {
     content: [{
       type: "text",

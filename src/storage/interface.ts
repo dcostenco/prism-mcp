@@ -453,6 +453,22 @@ export interface StorageBackend {
    * @param minImportance - Minimum importance threshold (default: 7)
    */
   getGraduatedInsights(project: string, userId: string, minImportance?: number): Promise<LedgerEntry[]>;
+
+  /**
+   * Decay importance scores for stale behavioral memory entries.
+   * Entries older than decayDays whose importance > 0 are decremented by 1
+   * (clamped at 0). Session-type entries are excluded — only behavioral
+   * experience events (corrections, learnings, etc.) decay.
+   *
+   * Called fire-and-forget from session_save_ledger to achieve the same
+   * automatic decay behavior as the SQLite health sweep, without requiring
+   * a TTL retention policy to be configured.
+   *
+   * @param project  - Project identifier
+   * @param userId   - Owner verification
+   * @param decayDays - Entries older than this many days are eligible for decay
+   */
+  decayImportance(project: string, userId: string, decayDays: number): Promise<void>;
 }
 
 // ─── v3.1 Types ────────────────────────────────────────────────

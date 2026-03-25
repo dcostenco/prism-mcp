@@ -562,4 +562,29 @@ export class SupabaseStorage implements StorageBackend {
     }));
   }
 
+  // ─── v4.3: Standalone Importance Decay ─────────────────────
+  //
+  // Calls the prism_decay_importance RPC (migration 028) directly,
+  // decoupled from expireByTTL so it can be triggered fire-and-forget
+  // from session_save_ledger without a TTL policy being active.
+
+  async decayImportance(
+    project: string,
+    userId: string,
+    decayDays: number
+  ): Promise<void> {
+    try {
+      await supabaseRpc("prism_decay_importance", {
+        p_project: project,
+        p_user_id: userId,
+        p_days: decayDays,
+      });
+      debugLog(`[SupabaseStorage] decayImportance: sweep completed for "${project}" (>${decayDays}d old)`);
+    } catch (e) {
+      // Non-fatal: decay is best-effort — log and rethrow so fire-and-forget caller can see it
+      debugLog("[SupabaseStorage] decayImportance failed: " + (e instanceof Error ? e.message : String(e)));
+      throw e;
+    }
+  }
+
 }
