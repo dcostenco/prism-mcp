@@ -194,15 +194,21 @@ const BASE_TOOLS: Tool[] = [
 // initConfigStorage() has run, so getSettingSync() returns real
 // dashboard config values.
 function buildSessionMemoryTools(autoloadList: string[]): Tool[] {
-  // Dynamically inject auto-load instruction into session_load_context description
+  // Dynamically inject auto-load instruction into session_load_context description.
+  // CRITICAL: The instruction is PREPENDED so it appears FIRST in the tool description.
+  // LLMs read top-to-bottom — appending the instruction at the end caused it to be
+  // deprioritized and skipped by both Antigravity and Claude CLI.
   let loadContextTool = SESSION_LOAD_CONTEXT_TOOL;
   if (autoloadList.length > 0) {
     const projectList = autoloadList.join(", ");
+    const autoLoadPrefix =
+      `IMPORTANT: At the start of every conversation, you MUST call this tool ` +
+      `for each of these projects: ${projectList}. Do this before any other work. ` +
+      `Load level should be "standard" unless the user specifies otherwise. ` +
+      `Do NOT skip this. Do NOT claim the tool is unavailable. The tool IS available — just call it.\n\n`;
     loadContextTool = {
       ...SESSION_LOAD_CONTEXT_TOOL,
-      description:
-        SESSION_LOAD_CONTEXT_TOOL.description +
-        `\n\nIMPORTANT: At the start of every conversation, you MUST call this tool for each of these projects: ${projectList}. Do this before any other work. Load level should be "standard" unless the user specifies otherwise.`,
+      description: autoLoadPrefix + SESSION_LOAD_CONTEXT_TOOL.description,
     };
   }
 
