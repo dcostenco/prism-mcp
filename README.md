@@ -14,31 +14,31 @@
 
 ## Table of Contents
 
-- [What's New (v4.6.0)](#whats-new-in-v460-opentelemetry-observability)
+- [What's New (v4.6.0)](#whats-new-in-v460--opentelemetry-observability-)
 - [Multi-Instance Support](#multi-instance-support)
 - [How Prism Compares](#how-prism-compares)
-- [Quick Start](#quick-start-zero-config-local-mode)
-- [Mind Palace Dashboard](#the-mind-palace-dashboard)
+- [Quick Start](#quick-start-zero-config--local-mode)
+- [Mind Palace Dashboard](#-the-mind-palace-dashboard)
 - [Integration Examples](#integration-examples)
 - [Claude Code Integration (Hooks)](#claude-code-integration-hooks)
-- [Gemini / Antigravity Integration](#gemini-antigravity-integration)
+- [Gemini / Antigravity Integration](#gemini--antigravity-integration)
 - [Use Cases](#use-cases)
 - [Architecture](#architecture)
 - [Tool Reference](#tool-reference)
-- [Agent Hivemind — Role Usage](#agent-hivemind-role-usage)
-- [LangChain / LangGraph Integration](#langchain-langgraph-integration)
+- [Agent Hivemind — Role Usage](#agent-hivemind--role-usage)
+- [LangChain / LangGraph Integration](#langchain--langgraph-integration)
 - [Environment Variables](#environment-variables)
-- [Boot Settings (Restart Required)](#boot-settings-restart-required)
+- [Boot Settings (Restart Required)](#-boot-settings-restart-required)
 - [Progressive Context Loading](#progressive-context-loading)
 - [Time Travel](#time-travel-version-history)
 - [Agent Telepathy](#agent-telepathy-multi-client-sync)
 - [Knowledge Accumulation](#knowledge-accumulation)
 - [GDPR Compliance](#gdpr-compliance)
-- [Observability & Tracing](#observability-tracing)
+- [Observability & Tracing](#observability--tracing)
 - [Supabase Setup](#supabase-setup-cloud-mode)
 - [Project Structure](#project-structure)
-- [Hybrid Search Pipeline](#hybrid-search-pipeline-brave-vertex-ai)
-- [🚀 Roadmap](#roadmap)
+- [Hybrid Search Pipeline](#hybrid-search-pipeline-brave--vertex-ai)
+- [🚀 Roadmap](#-roadmap)
 
 ---
 
@@ -1043,11 +1043,11 @@ That's it. Restart your AI client and Prism auto-pushes context for each listed 
 For clients that support lifecycle hooks or startup rules, instruct the AI to **call `session_load_context` as a tool** at session start:
 
 - **[Claude Code Integration (Hooks)](#claude-code-integration-hooks)** — `SessionStart` and `Stop` hook JSON samples for `~/.claude/settings.json`
-- **[Gemini / Antigravity Integration](#gemini-antigravity-integration)** — global rules for `~/.gemini/GEMINI.md` or user rules
+- **[Gemini / Antigravity Integration](#gemini--antigravity-integration)** — global rules for `~/.gemini/GEMINI.md` or user rules
 
 > **You can use both approaches together.** The dashboard auto-load (A) injects project names into the `session_load_context` tool description — works universally across all MCP clients. Client-side hooks (B) give the AI full structured access to the context response (including version numbers for OCC).
 
-> **Key principle:** Never hardcode a `role` in your hooks or rules. Set your role once in the **Mind Palace Dashboard ⚙️ Settings → Agent Identity**, and Prism automatically resolves it for every tool call across all clients. See [Role Resolution](#role-resolution-no-hardcoding-needed).
+> **Key principle:** Never hardcode a `role` in your hooks or rules. Set your role once in the **Mind Palace Dashboard ⚙️ Settings → Agent Identity**, and Prism automatically resolves it for every tool call across all clients. See [Role Resolution](#role-resolution--no-hardcoding-needed).
 
 > **Tip:** Replace `my-project` with your actual project identifiers. You can list as many projects as you need — each one gets its own independent memory timeline.
 
