@@ -740,6 +740,16 @@ export function renderDashboardHTML(version: string): string {
           </div>
         </div>
 
+        <div class="setting-row" style="align-items:flex-start">
+          <div>
+            <div class="setting-label">Project Repo Paths</div>
+            <div class="setting-desc">Map each project to its repo directory for save validation</div>
+          </div>
+          <div id="repopath-inputs" style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;max-height:160px;overflow-y:auto;">
+            <span style="color:var(--text-muted);font-size:0.8rem">Loading…</span>
+          </div>
+        </div>
+
         <div class="setting-section">Agent Identity</div>
 
         <div class="setting-row">
@@ -1345,6 +1355,45 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       saveBootSetting('autoload_projects', selected.join(','));
     }
 
+    // ─── Project Repo Paths (v4.2) ─────────────────────────────────
+    async function loadRepoPathInputs() {
+      var container = document.getElementById('repopath-inputs');
+      if (!container) return;
+      try {
+        var projRes = await fetch('/api/projects');
+        var projData = await projRes.json();
+        var projects = projData.projects || [];
+
+        var settRes = await fetch('/api/settings');
+        var settData = await settRes.json();
+        var settings = settData.settings || {};
+
+        if (projects.length === 0) {
+          container.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">No projects found</span>';
+          return;
+        }
+
+        container.innerHTML = projects.map(function(p) {
+          var savedPath = settings['repo_path:' + p] || '';
+          return '<div style="display:flex;align-items:center;gap:6px">' +
+            '<span style="min-width:100px;color:var(--text-secondary);font-family:var(--font-mono);font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escapeHtml(p) + '">' + escapeHtml(p) + '</span>' +
+            '<input type="text" value="' + escapeHtml(savedPath) + '"' +
+            ' placeholder="/path/to/repo"' +
+            ' data-project="' + escapeHtml(p) + '"' +
+            ' style="flex:1;min-width:140px;padding:0.2rem 0.4rem;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border-glass);border-radius:4px;font-size:0.8rem;font-family:var(--font-mono)"' +
+            ' onchange="saveRepoPath(this.dataset.project, this.value)"' +
+            ' oninput="clearTimeout(this._t); var self=this; this._t=setTimeout(function(){saveRepoPath(self.dataset.project, self.value)},1200)" />' +
+            '</div>';
+        }).join('');
+      } catch(e) {
+        container.innerHTML = '<span style="color:var(--accent-rose);font-size:0.8rem">Failed to load</span>';
+      }
+    }
+
+    async function saveRepoPath(project, path) {
+      await saveSetting('repo_path:' + project, path.trim());
+    }
+
       async function loadSettings() {
       try {
         var res = await fetch('/api/settings');
@@ -1374,6 +1423,8 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
         if (s.max_tokens) document.getElementById('input-max-tokens').value = s.max_tokens;
         // Autoload checkboxes are loaded dynamically
         loadAutoloadCheckboxes();
+        // Repo path inputs are loaded dynamically
+        loadRepoPathInputs();
       } catch(e) { console.warn('Settings load failed:', e); }
     }
 

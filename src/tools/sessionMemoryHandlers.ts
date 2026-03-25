@@ -78,6 +78,23 @@ export async function sessionSaveLedgerHandler(args: unknown) {
   const { project, conversation_id, summary, todos, files_changed, decisions, role } = args;
   const storage = await getStorage();
 
+  // ─── Repo path mismatch validation (v4.2) ───
+  let repoPathWarning = "";
+  if (files_changed && files_changed.length > 0) {
+    try {
+      const configuredPath = await getSetting(`repo_path:${project}`, "");
+      if (configuredPath && configuredPath.trim()) {
+        const normalizedPath = configuredPath.trim().replace(/\\/g, "/").replace(/\/+$/, "");  // normalize + strip trailing slash
+        const mismatched = files_changed.filter((f: string) => !f.replace(/\\/g, "/").startsWith(normalizedPath));
+        if (mismatched.length === files_changed.length) {
+          repoPathWarning = `\n\n⚠️ Project mismatch: none of the files_changed paths match repo_path "${normalizedPath}" ` +
+            `configured for project "${project}". Consider saving under the correct project.`;
+          debugLog(`[session_save_ledger] Repo path mismatch for "${project}": expected prefix "${normalizedPath}"`);
+        }
+      }
+    } catch { /* getSetting non-fatal */ }
+  }
+
   debugLog(`[session_save_ledger] Saving ledger entry for project="${project}"`);
 
   // Auto-extract keywords from summary + decisions for knowledge accumulation
@@ -156,6 +173,7 @@ export async function sessionSaveLedgerHandler(args: unknown) {
         (files_changed?.length ? `Files changed: ${files_changed.length}\n` : "") +
         (decisions?.length ? `Decisions: ${decisions.length}\n` : "") +
         (GOOGLE_API_KEY ? `📊 Embedding generation queued for semantic search.\n` : "") +
+        repoPathWarning +
         `\nRaw response: ${JSON.stringify(result)}`,
     }],
     isError: false,
