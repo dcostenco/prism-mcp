@@ -82,6 +82,8 @@ import { acquireLock, registerShutdownHandlers } from "./lifecycle.js";
 // correct backend (Supabase or SQLite) with proper error handling.
 import { getStorage } from "./storage/index.js";
 import { getSettingSync, initConfigStorage } from "./storage/configStorage.js";
+import { getTracer, initTelemetry } from "./utils/telemetry.js";
+import { context as otelContext, trace, SpanStatusCode } from "@opentelemetry/api";
 
 // ─── Import Tool Definitions (schemas) and Handlers (implementations) ─────
 
@@ -122,6 +124,8 @@ import {
   SESSION_HEALTH_CHECK_TOOL,
   // ─── Phase 2: GDPR Memory Deletion tool definition ───
   SESSION_FORGET_MEMORY_TOOL,
+  // ─── Phase 2: GDPR Export tool definition ───
+  SESSION_EXPORT_MEMORY_TOOL,
   // ─── v3.1: TTL Retention tool ───
   KNOWLEDGE_SET_RETENTION_TOOL,
   // v4.0: Active Behavioral Memory tools
@@ -148,6 +152,8 @@ import {
   sessionHealthCheckHandler,
   // ─── Phase 2: GDPR Memory Deletion handler ───
   sessionForgetMemoryHandler,
+  // ─── Phase 2: GDPR Export handler ───
+  sessionExportMemoryHandler,
   // ─── v3.1: TTL Retention handler ───
   knowledgeSetRetentionHandler,
   // v4.0: Active Behavioral Memory handlers
@@ -225,6 +231,8 @@ function buildSessionMemoryTools(autoloadList: string[]): Tool[] {
     KNOWLEDGE_DOWNVOTE_TOOL,       // knowledge_downvote — decrease entry importance
     // ─── v4.2: Knowledge Sync Rules tool ───
     KNOWLEDGE_SYNC_RULES_TOOL,     // knowledge_sync_rules — sync graduated insights to IDE rules files
+    // ─── Phase 2: GDPR Export tool ───
+    SESSION_EXPORT_MEMORY_TOOL,    // session_export_memory — full portability export (Article 20)
   ];
 }
 
@@ -641,170 +649,211 @@ export function createServer() {
   //   - session_search_memory (Enhancement #4)
   // The server reference is passed to sessionSaveHandoffHandler so it
   // can trigger resource update notifications on successful saves.
+  //
+  // v4.6.0: Every tool call is wrapped in a root OTel span (mcp.call_tool).
+  // The span is parented via AsyncLocalStorage context propagation — all
+  // child spans from LLM adapters and background workers are automatically
+  // nested under this root span in Jaeger/Zipkin without explicit ref-passing.
+  // When otel_enabled=false, getTracer() returns a no-op tracer — zero overhead.
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    try {
-      const { name, arguments: args } = request.params;
+    const { name, arguments: args } = request.params;
 
-      if (!args) {
-        throw new Error("No arguments provided");
+    // Start the root span for this MCP tool invocation.
+    // All child spans (llm.generate_text, worker.vlm_caption, etc.) are
+    // automatically parented to this span via the propagated context.
+    const rootSpan = getTracer().startSpan("mcp.call_tool", {
+      attributes: {
+        "tool.name": name,
+        // Capture the project attribute if present (most memory tools have it)
+        "project": (args as Record<string, unknown>)?.project as string ?? "unknown",
+      },
+    });
+
+    // context.with() sets the root span as the active span for the duration
+    // of this async operation. AsyncLocalStorage ensures the context flows
+    // through await chains — including fire-and-forget workers launched
+    // within the handler body (e.g. imageCaptioner, embeddings backfill).
+    return otelContext.with(trace.setSpan(otelContext.active(), rootSpan), async () => {
+      try {
+        if (!args) {
+          throw new Error("No arguments provided");
+        }
+
+        let result: any;
+
+        switch (name) {
+          // ── Search & Analysis Tools (always available) ──
+
+          case "brave_web_search":
+            result = await webSearchHandler(args); break;
+
+          case "brave_web_search_code_mode":
+            result = await braveWebSearchCodeModeHandler(args); break;
+
+          case "brave_local_search":
+            result = await localSearchHandler(args); break;
+
+          case "brave_local_search_code_mode":
+            result = await braveLocalSearchCodeModeHandler(args); break;
+
+          case "code_mode_transform":
+            result = await codeModeTransformHandler(args); break;
+
+          case "brave_answers":
+            result = await braveAnswersHandler(args); break;
+
+          case "gemini_research_paper_analysis":
+            result = await researchPaperAnalysisHandler(args); break;
+
+          // ── Session Memory Tools (only callable when Supabase is configured) ──
+          // REVIEWER NOTE: Even though these tools won't appear in the
+          // tool list without Supabase, we still guard each handler call
+          // in case of direct invocation.
+
+          case "session_save_ledger":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionSaveLedgerHandler(args); break;
+
+          case "session_save_handoff":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            // REVIEWER NOTE: v0.4.0 passes the server reference so the
+            // handler can trigger resource update notifications after
+            // a successful save. See notifyResourceUpdate() above.
+            result = await sessionSaveHandoffHandler(args, server); break;
+
+          case "session_load_context":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionLoadContextHandler(args); break;
+
+          case "knowledge_search":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await knowledgeSearchHandler(args); break;
+
+          case "knowledge_forget":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await knowledgeForgetHandler(args); break;
+
+          // ─── v0.4.0: New Session Memory Tools ───
+
+          case "session_compact_ledger":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await compactLedgerHandler(args); break;
+
+          case "session_search_memory":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionSearchMemoryHandler(args); break;
+
+          // ─── v2.0: Time Travel Tools ───
+
+          case "memory_history":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await memoryHistoryHandler(args); break;
+
+          case "memory_checkout":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await memoryCheckoutHandler(args); break;
+
+          // ─── v2.0: Visual Memory Tools ───
+
+          case "session_save_image":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionSaveImageHandler(args); break;
+
+          case "session_view_image":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionViewImageHandler(args); break;
+
+          // ─── v2.2.0: Health Check Tool ───
+
+          case "session_health_check":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionHealthCheckHandler(args); break;
+
+          // ─── Phase 2: GDPR Memory Deletion Tool ───
+
+          case "session_forget_memory":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionForgetMemoryHandler(args); break;
+
+          // ─── Phase 2: GDPR Export Tool ───
+
+          case "session_export_memory":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionExportMemoryHandler(args); break;
+
+          case "knowledge_set_retention":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await knowledgeSetRetentionHandler(args); break;
+
+          // ─── v4.0: Active Behavioral Memory Tools ───
+
+          case "session_save_experience":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionSaveExperienceHandler(args); break;
+
+          case "knowledge_upvote":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await knowledgeUpvoteHandler(args); break;
+
+          case "knowledge_downvote":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await knowledgeDownvoteHandler(args); break;
+
+          // ─── v4.2: Knowledge Sync Rules Tool ───
+
+          case "knowledge_sync_rules":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await knowledgeSyncRulesHandler(args); break;
+
+          // ─── v3.0: Agent Hivemind Tools ───
+
+          case "agent_register":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured.");
+            if (!PRISM_ENABLE_HIVEMIND) throw new Error("Hivemind not enabled. Set PRISM_ENABLE_HIVEMIND=true.");
+            result = await agentRegisterHandler(args); break;
+
+          case "agent_heartbeat":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured.");
+            if (!PRISM_ENABLE_HIVEMIND) throw new Error("Hivemind not enabled. Set PRISM_ENABLE_HIVEMIND=true.");
+            result = await agentHeartbeatHandler(args); break;
+
+          case "agent_list_team":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured.");
+            if (!PRISM_ENABLE_HIVEMIND) throw new Error("Hivemind not enabled. Set PRISM_ENABLE_HIVEMIND=true.");
+            result = await agentListTeamHandler(args); break;
+
+          default:
+            result = {
+              content: [{ type: "text", text: `Unknown tool: ${name}` }],
+              isError: true,
+            };
+        }
+
+        rootSpan.setStatus({ code: SpanStatusCode.OK });
+        return result;
+
+      } catch (error) {
+        console.error(`Error in tool handler: ${error instanceof Error ? error.message : String(error)}`);
+        rootSpan.recordException(error instanceof Error ? error : new Error(String(error)));
+        rootSpan.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      } finally {
+        // Always end the root span — even on error — to avoid span leaks
+        // in the BatchSpanProcessor's in-memory queue.
+        rootSpan.end();
       }
-
-      switch (name) {
-        // ── Search & Analysis Tools (always available) ──
-
-        case "brave_web_search":
-          return await webSearchHandler(args);
-
-        case "brave_web_search_code_mode":
-          return await braveWebSearchCodeModeHandler(args);
-
-        case "brave_local_search":
-          return await localSearchHandler(args);
-
-        case "brave_local_search_code_mode":
-          return await braveLocalSearchCodeModeHandler(args);
-
-        case "code_mode_transform":
-          return await codeModeTransformHandler(args);
-
-        case "brave_answers":
-          return await braveAnswersHandler(args);
-
-        case "gemini_research_paper_analysis":
-          return await researchPaperAnalysisHandler(args);
-
-        // ── Session Memory Tools (only callable when Supabase is configured) ──
-        // REVIEWER NOTE: Even though these tools won't appear in the
-        // tool list without Supabase, we still guard each handler call
-        // in case of direct invocation.
-
-        case "session_save_ledger":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await sessionSaveLedgerHandler(args);
-
-        case "session_save_handoff":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          // REVIEWER NOTE: v0.4.0 passes the server reference so the
-          // handler can trigger resource update notifications after
-          // a successful save. See notifyResourceUpdate() above.
-          return await sessionSaveHandoffHandler(args, server);
-
-        case "session_load_context":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await sessionLoadContextHandler(args);
-
-        case "knowledge_search":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await knowledgeSearchHandler(args);
-
-        case "knowledge_forget":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await knowledgeForgetHandler(args);
-
-        // ─── v0.4.0: New Session Memory Tools ───
-
-        case "session_compact_ledger":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await compactLedgerHandler(args);
-
-        case "session_search_memory":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await sessionSearchMemoryHandler(args);
-
-        // ─── v2.0: Time Travel Tools ───
-
-        case "memory_history":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await memoryHistoryHandler(args);
-
-        case "memory_checkout":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await memoryCheckoutHandler(args);
-
-        // ─── v2.0: Visual Memory Tools ───
-
-        case "session_save_image":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await sessionSaveImageHandler(args);
-
-        case "session_view_image":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await sessionViewImageHandler(args);
-
-        // ─── v2.2.0: Health Check Tool ───
-
-        case "session_health_check":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await sessionHealthCheckHandler(args);
-
-        // ─── Phase 2: GDPR Memory Deletion Tool ───
-
-        case "session_forget_memory":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await sessionForgetMemoryHandler(args);
-
-        // ─── v3.1: TTL Retention Tool ───
-
-        case "knowledge_set_retention":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await knowledgeSetRetentionHandler(args);
-
-        // ─── v4.0: Active Behavioral Memory Tools ───
-
-        case "session_save_experience":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await sessionSaveExperienceHandler(args);
-
-        case "knowledge_upvote":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await knowledgeUpvoteHandler(args);
-
-        case "knowledge_downvote":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await knowledgeDownvoteHandler(args);
-
-        // ─── v4.2: Knowledge Sync Rules Tool ───
-
-        case "knowledge_sync_rules":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
-          return await knowledgeSyncRulesHandler(args);
-
-        // ─── v3.0: Agent Hivemind Tools ───
-
-        case "agent_register":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured.");
-          if (!PRISM_ENABLE_HIVEMIND) throw new Error("Hivemind not enabled. Set PRISM_ENABLE_HIVEMIND=true.");
-          return await agentRegisterHandler(args);
-
-        case "agent_heartbeat":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured.");
-          if (!PRISM_ENABLE_HIVEMIND) throw new Error("Hivemind not enabled. Set PRISM_ENABLE_HIVEMIND=true.");
-          return await agentHeartbeatHandler(args);
-
-        case "agent_list_team":
-          if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured.");
-          if (!PRISM_ENABLE_HIVEMIND) throw new Error("Hivemind not enabled. Set PRISM_ENABLE_HIVEMIND=true.");
-          return await agentListTeamHandler(args);
-
-        default:
-          return {
-            content: [{ type: "text", text: `Unknown tool: ${name}` }],
-            isError: true,
-          };
-      }
-    } catch (error) {
-      console.error(`Error in tool handler: ${error instanceof Error ? error.message : String(error)}`);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-        isError: true,
-      };
-    }
+    });
   });
 
   return server;
@@ -899,6 +948,12 @@ export async function startServer() {
   // during the Initialize handshake — zero extra latency for resource reads.
   // initConfigStorage() is local SQLite only (~5ms), safe to await.
   await initConfigStorage();
+
+  // v4.6.0: Initialize OTel AFTER the settings cache is warm so that
+  // initTelemetry() can read otel_enabled/otel_endpoint from getSettingSync()
+  // synchronously. This is a synchronous call — no await needed.
+  // No-op when otel_enabled=false (the default).
+  initTelemetry();
 
   const server = createServer();
   const transport = new StdioServerTransport();

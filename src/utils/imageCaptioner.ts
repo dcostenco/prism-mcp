@@ -33,6 +33,8 @@ import { getLLMProvider } from "./llm/factory.js";
 import { getStorage } from "../storage/index.js";
 import { debugLog } from "./logger.js";
 import { PRISM_USER_ID } from "../config.js";
+import { getTracer } from "./telemetry.js";
+import { SpanStatusCode, context as otelContext, trace } from "@opentelemetry/api";
 
 // ─── Size Caps ────────────────────────────────────────────────────────────────
 
@@ -75,8 +77,43 @@ export function fireCaptionAsync(
   vaultPath: string,
   userContext: string,
 ): void {
-  captionImageAsync(project, imageId, vaultPath, userContext).catch(err => {
-    console.error(`[ImageCaptioner] Failed for [${imageId}]: ${err}`);
+  // ── v4.6.0: OTel worker span ──────────────────────────────────────────────
+  // We start the span here (not inside captionImageAsync) so it runs within
+  // the active OTel context that was propagated from the mcp.call_tool root
+  // span in server.ts. AsyncLocalStorage carries the context across the
+  // async boundary, making this a child of session_save_image in Jaeger.
+  //
+  // The parent (mcp.call_tool) typically ends at ~50ms when the MCP response
+  // is sent. This worker span continues until captioning completes (2–5s).
+  // In Jaeger, you will see the parent end first, then its child outlive it —
+  // this is the correct, expected representation of fire-and-forget async work.
+  const span = getTracer().startSpan("worker.vlm_caption", {
+    attributes: {
+      "worker.image_id": imageId,
+      "worker.project":  project,
+    },
+  });
+
+  // context.with() propagates the OTel span into the async chain so any further
+  // nested spans (e.g. llm.generate_image_description inside TracingLLMProvider)
+  // are correctly parented as grandchildren of mcp.call_tool.
+  otelContext.with(trace.setSpan(otelContext.active(), span), () => {
+    captionImageAsync(project, imageId, vaultPath, userContext)
+      .then(() => {
+        span.setStatus({ code: SpanStatusCode.OK });
+      })
+      .catch(err => {
+        span.recordException(err instanceof Error ? err : new Error(String(err)));
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: err instanceof Error ? err.message : String(err),
+        });
+        console.error(`[ImageCaptioner] Failed for [${imageId}]: ${err}`);
+      })
+      .finally(() => {
+        // Always end the span — even on VLM failure — to flush the BatchSpanProcessor.
+        span.end();
+      });
   });
 }
 

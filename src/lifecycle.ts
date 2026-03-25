@@ -12,6 +12,7 @@ import * as os from "os";
 import { execSync } from "child_process";
 import { closeConfigStorage } from "./storage/configStorage.js";
 import { getStorage } from "./storage/index.js";
+import { shutdownTelemetry } from "./utils/telemetry.js";
 
 const PRISM_DIR = path.join(os.homedir(), ".prism-mcp");
 
@@ -131,6 +132,12 @@ export function registerShutdownHandlers() {
     log(`Shutting down gracefully (${reason})...`);
 
     try {
+      // 0. Flush OTel span buffer FIRST — before any DBs are closed.
+      //    BatchSpanProcessor holds spans in memory (up to 5s). If we close
+      //    DBs first, spans that reference DB operations lose their context.
+      //    shutdownTelemetry() is a no-op when otel_enabled=false.
+      await shutdownTelemetry();
+
       // 1. Close system settings DB
       closeConfigStorage();
 

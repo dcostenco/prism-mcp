@@ -21,7 +21,7 @@ import { getStorage } from "../storage/index.js";
 import { toKeywordArray } from "../utils/keywordExtractor.js";
 import { getLLMProvider } from "../utils/llm/factory.js";
 import { getCurrentGitState, getGitDrift } from "../utils/git.js";
-import { getSetting } from "../storage/configStorage.js";
+import { getSetting, getAllSettings } from "../storage/configStorage.js";
 
 // ─── Phase 1: Explainability & Memory Lineage ────────────────
 // These utilities provide structured tracing metadata for search operations.
@@ -2185,4 +2185,246 @@ export async function knowledgeSyncRulesHandler(args: unknown) {
     }],
     isError: false,
   };
+}
+
+// ────────────────────────────────────────────────────────
+// GDPR Export Handler (v4.5.1)
+// Implements session_export_memory.
+// Article 20: Right to Data Portability — fully local, no network calls.
+// ────────────────────────────────────────────────────────
+
+import {
+  isSessionExportMemoryArgs,
+} from "./sessionMemoryDefinitions.js";
+
+// Keys whose values must be redacted from the export.
+// Matches any setting key ending with "_api_key" or "_secret".
+const REDACT_PATTERNS = [/_api_key$/i, /_secret$/i, /^password$/i];
+
+function redactSettings(settings: Record<string, string>): Record<string, string> {
+  const redacted: Record<string, string> = {};
+  for (const [k, v] of Object.entries(settings)) {
+    redacted[k] = REDACT_PATTERNS.some(p => p.test(k)) ? "**REDACTED**" : v;
+  }
+  return redacted;
+}
+
+function toMarkdown(exportData: object): string {
+  const data = exportData as {
+    prism_export: {
+      version: string;
+      exported_at: string;
+      project: string;
+      settings: Record<string, string>;
+      handoff: unknown;
+      ledger: Array<{
+        id?: string;
+        created_at?: string;
+        event_type?: string;
+        summary: string;
+        todos?: string[];
+        decisions?: string[];
+        files_changed?: string[];
+      }>;
+      visual_memory: unknown[];
+    };
+  };
+  const d = data.prism_export;
+  const lines: string[] = [];
+
+  lines.push(`# Prism Memory Export: \`${d.project}\``);
+  lines.push(``);
+  lines.push(`> Exported: ${d.exported_at}  |  Version: ${d.version}`);
+  lines.push(``);
+
+  // ── Settings
+  lines.push(`## ⚙️ Settings`);
+  lines.push(``);
+  lines.push(`| Key | Value |`);
+  lines.push(`|-----|-------|`);
+  for (const [k, v] of Object.entries(d.settings)) {
+    lines.push(`| \`${k}\` | ${v} |`);
+  }
+  lines.push(``);
+
+  // ── Handoff State
+  lines.push(`## 🎯 Live Project State (Handoff)`);
+  lines.push(``);
+  lines.push(`\`\`\`json`);
+  lines.push(JSON.stringify(d.handoff, null, 2));
+  lines.push(`\`\`\``);
+  lines.push(``);
+
+  // ── Visual Memory
+  if (Array.isArray(d.visual_memory) && d.visual_memory.length > 0) {
+    lines.push(`## 🖼️ Visual Memory (${d.visual_memory.length} images)`);
+    lines.push(``);
+    for (const img of d.visual_memory as Array<Record<string, unknown>>) {
+      lines.push(`### ${img.id ?? "??"}`);
+      lines.push(`- **Description:** ${img.description ?? "-"}`);
+      lines.push(`- **Saved:** ${String(img.timestamp ?? "-").split("T")[0]}`);
+      if (img.caption) lines.push(`- **VLM Caption:** ${img.caption}`);
+    }
+    lines.push(``);
+  }
+
+  // ── Ledger
+  lines.push(`## 📚 Session Ledger (${d.ledger.length} entries)`);
+  lines.push(``);
+  for (const entry of d.ledger) {
+    const date = entry.created_at?.split("T")[0] ?? "unknown";
+    const type = entry.event_type ?? "session";
+    lines.push(`---`);
+    lines.push(``);
+    lines.push(`### ${date} \u00b7 \`${type}\` ${entry.id ? `\`${entry.id.slice(0, 8)}\`` : ""}`);
+    lines.push(``);
+    lines.push(entry.summary);
+    if (entry.decisions?.length) {
+      lines.push(``);
+      lines.push(`**Decisions:**`);
+      entry.decisions.forEach(d => lines.push(`- ${d}`));
+    }
+    if (entry.todos?.length) {
+      lines.push(``);
+      lines.push(`**TODOs:**`);
+      entry.todos.forEach(t => lines.push(`- [ ] ${t}`));
+    }
+    if (entry.files_changed?.length) {
+      lines.push(``);
+      lines.push(`**Files:** ${entry.files_changed.join(", ")}`);
+    }
+    lines.push(``);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Export a project's full memory (ledger + handoff + settings + visual memory)
+ * to a local file. No network calls. API keys always redacted.
+ */
+export async function sessionExportMemoryHandler(args: unknown) {
+  if (!isSessionExportMemoryArgs(args)) {
+    return {
+      content: [{ type: "text", text: "Error: output_dir (string) is required." }],
+      isError: true,
+    };
+  }
+
+  const { output_dir, format = "json" } = args;
+  const requestedProject = (args as { project?: string }).project;
+
+  // Validate output directory
+  if (!existsSync(output_dir)) {
+    return {
+      content: [{
+        type: "text",
+        text: `Error: output_dir does not exist: "${output_dir}". Please create it first.`,
+      }],
+      isError: true,
+    };
+  }
+
+  const storage = await getStorage();
+  const exportedFiles: string[] = [];
+
+  try {
+    // Determine which projects to export
+    let projects: string[];
+    if (requestedProject) {
+      projects = [requestedProject];
+    } else {
+      projects = await storage.listProjects();
+      if (projects.length === 0) {
+        return {
+          content: [{ type: "text", text: "No projects found in memory — nothing to export." }],
+          isError: false,
+        };
+      }
+    }
+
+    // Fetch settings once (shared across all projects)
+    const rawSettings = await getAllSettings();
+    const safeSettings = redactSettings(rawSettings);
+    const exportedAt = new Date().toISOString();
+    const dateSuffix = exportedAt.split("T")[0]; // YYYY-MM-DD
+
+    for (const project of projects) {
+      debugLog(`[session_export_memory] Exporting project "${project}" as ${format}`);
+
+      // Fetch handoff (live context)
+      const ctx = await storage.loadContext(project, "deep", PRISM_USER_ID) as {
+        metadata?: { visual_memory?: unknown[] };
+        [key: string]: unknown;
+      } | null;
+
+      // Fetch full ledger (all non-deleted entries)
+      const ledger = await storage.getLedgerEntries({ project }) as Array<{
+        id?: string;
+        created_at?: string;
+        event_type?: string;
+        summary: string;
+        todos?: string[];
+        decisions?: string[];
+        files_changed?: string[];
+        embedding?: string | null; // strip from export (large + not human-useful)
+        [key: string]: unknown;
+      }>;
+
+      // Strip raw embedding vectors from the export (large binary data)
+      const cleanLedger = ledger.map(({ embedding: _emb, ...rest }) => rest);
+
+      const visualMemory = (ctx?.metadata?.visual_memory as unknown[] | undefined) ?? [];
+
+      const exportPayload = {
+        prism_export: {
+          version: "4.5",
+          exported_at: exportedAt,
+          project,
+          settings: safeSettings,
+          handoff: ctx ?? null,
+          visual_memory: visualMemory,
+          ledger: cleanLedger,
+        },
+      };
+
+      // Serialize
+      const ext = format === "markdown" ? "md" : "json";
+      const filename = `prism-export-${project}-${dateSuffix}.${ext}`;
+      const outputPath = join(output_dir, filename);
+
+      let content: string;
+      if (format === "markdown") {
+        content = toMarkdown(exportPayload);
+      } else {
+        content = JSON.stringify(exportPayload, null, 2);
+      }
+
+      await writeFile(outputPath, content, "utf-8");
+      exportedFiles.push(outputPath);
+      debugLog(`[session_export_memory] Wrote ${content.length} bytes to ${outputPath}`);
+    }
+
+    const plural = exportedFiles.length > 1 ? "files" : "file";
+    return {
+      content: [{
+        type: "text",
+        text:
+          `✅ Memory exported successfully (${format.toUpperCase()})\n\n` +
+          `**Project(s):** ${projects.join(", ")}\n` +
+          `**${exportedFiles.length} ${plural} written:**\n` +
+          exportedFiles.map(f => `  \u2022 \`${f}\``).join("\n") +
+          `\n\n⚠️ API keys have been redacted. Vault image files are NOT included — ` +
+          `only metadata and captions. Re-run \`session_save_image\` to re-attach images.`,
+      }],
+      isError: false,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[session_export_memory] Error: ${msg}`);
+    return {
+      content: [{ type: "text", text: `Export failed: ${msg}` }],
+      isError: true,
+    };
+  }
 }

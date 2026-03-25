@@ -43,6 +43,7 @@ import type { LLMProvider } from "./provider.js";
 import { GeminiAdapter } from "./adapters/gemini.js";
 import { OpenAIAdapter } from "./adapters/openai.js";
 import { AnthropicAdapter } from "./adapters/anthropic.js";
+import { TracingLLMProvider } from "./adapters/traced.js";
 
 // Module-level singleton — one composed provider per MCP server process.
 let providerInstance: LLMProvider | null = null;
@@ -113,10 +114,22 @@ export function getLLMProvider(): LLMProvider {
     // Compose into a single LLMProvider-compatible object.
     // Methods are bound to their respective adapter instances so `this`
     // resolves correctly inside the adapter methods.
-    providerInstance = {
+    const composed: LLMProvider = {
       generateText:      textAdapter.generateText.bind(textAdapter),
       generateEmbedding: embedAdapter.generateEmbedding.bind(embedAdapter),
     };
+
+    // Pass VLM support through from the text adapter if it exists.
+    // generateImageDescription is a text-generation concern (it calls the
+    // text/vision model, not the embedding model). The text adapter owns it.
+    if (textAdapter.generateImageDescription) {
+      composed.generateImageDescription = textAdapter.generateImageDescription.bind(textAdapter);
+    }
+
+    // ── v4.6.0: Wrap with OTel tracing decorator ─────────────────────────
+    // TracingLLMProvider is a zero-overhead no-op when otel_enabled=false.
+    // The text provider name is used as the primary span attribute label.
+    providerInstance = new TracingLLMProvider(composed, textType);
 
     if (textType !== embedType) {
       console.info(
@@ -131,10 +144,14 @@ export function getLLMProvider(): LLMProvider {
       `Falling back to GeminiAdapter for both.`
     );
     const fallback = new GeminiAdapter();
-    providerInstance = {
+    const fallbackComposed: LLMProvider = {
       generateText:      fallback.generateText.bind(fallback),
       generateEmbedding: fallback.generateEmbedding.bind(fallback),
     };
+    if (fallback.generateImageDescription) {
+      fallbackComposed.generateImageDescription = fallback.generateImageDescription.bind(fallback);
+    }
+    providerInstance = new TracingLLMProvider(fallbackComposed, "gemini");
   }
 
   return providerInstance;

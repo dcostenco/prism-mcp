@@ -751,6 +751,69 @@ export function isSessionForgetMemoryArgs(
   );
 }
 
+// ─── Phase 2: GDPR Export Tool ─────────────────────────────────────────
+//
+// Complements session_forget_memory (surgical deletion) with a full data
+// portability export. Fulfills GDPR Article 20 (Right to Data Portability).
+// API keys are always redacted from the exported settings object.
+
+export const SESSION_EXPORT_MEMORY_TOOL: Tool = {
+  name: "session_export_memory",
+  description:
+    "Export all of a project's memory to a local file. " +
+    "Fulfills GDPR Article 20 (Right to Data Portability) and the " +
+    "'local-first' portability promise.\n\n" +
+    "**What is exported:**\n" +
+    "- All session ledger entries (summaries, decisions, TODOs, file changes)\n" +
+    "- Current handoff state (live project context)\n" +
+    "- System settings (API keys are \"**REDACTED**\" for security)\n" +
+    "- Visual memory index (descriptions, captions, timestamps; not the raw files)\n\n" +
+    "**Formats:**\n" +
+    "- `json` — machine-readable, suitable for import into another Prism instance\n" +
+    "- `markdown` — human-readable, ideal for Obsidian, Notion, or archiving\n\n" +
+    "⚠️ Output directory must exist and be writable. " +
+    "Filenames are auto-generated: `prism-export-<project>-<date>.(json|md)`",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project: {
+        type: "string",
+        description:
+          "Project to export. If omitted, exports ALL projects into separate files.",
+      },
+      format: {
+        type: "string",
+        enum: ["json", "markdown"],
+        description: "Export format: 'json' (machine-readable) or 'markdown' (human-readable). Default: json.",
+        default: "json",
+      },
+      output_dir: {
+        type: "string",
+        description:
+          "Absolute path to the directory where the export file(s) will be written. " +
+          "Must exist and be writable. Example: '/Users/admin/Desktop'.",
+      },
+    },
+    required: ["output_dir"],
+  },
+};
+
+/**
+ * Type guard for session_export_memory arguments.
+ * output_dir is required (must be an absolute path).
+ * project and format are optional.
+ */
+export function isSessionExportMemoryArgs(
+  args: unknown
+): args is { project?: string; format?: "json" | "markdown"; output_dir: string } {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "output_dir" in args &&
+    typeof (args as { output_dir: string }).output_dir === "string"
+  );
+}
+
 // ─── v3.1: Knowledge Set Retention (TTL) ─────────────────────
 
 export const KNOWLEDGE_SET_RETENTION_TOOL: Tool = {
