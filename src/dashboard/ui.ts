@@ -659,6 +659,7 @@ export function renderDashboardHTML(version: string): string {
           <button class="s-tab active" id="stab-settings" onclick="switchSettingsTab('settings')">⚙️ Settings</button>
           <button class="s-tab" id="stab-skills" onclick="switchSettingsTab('skills')">📜 Skills</button>
           <button class="s-tab" id="stab-providers" onclick="switchSettingsTab('providers')">🤖 AI Providers</button>
+          <button class="s-tab" id="stab-observability" onclick="switchSettingsTab('observability')">🔭 Observability</button>
         </div>
 
         <!-- Settings panel (existing content) -->
@@ -963,6 +964,80 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
 
           <span class="setting-saved" id="savedToastProviders">Saved ✓</span>
         </div><!-- /spanel-providers -->
+
+        <!-- ─── Observability panel (v4.6.0 — OTel) ───────────────────────── -->
+        <div class="s-tab-panel" id="spanel-observability">
+
+          <div class="setting-section">OpenTelemetry (OTel)</div>
+
+          <div class="setting-row" style="align-items: flex-start; margin-bottom: 1rem;">
+            <div class="setting-desc" style="margin: 0;">
+              Export distributed traces to
+              <a href="https://www.jaegertracing.io" target="_blank" rel="noopener" style="color: var(--accent);">Jaeger</a>,
+              <a href="https://grafana.com/oss/tempo/" target="_blank" rel="noopener" style="color: var(--accent);">Grafana Tempo</a>, or
+              <a href="https://zipkin.io" target="_blank" rel="noopener" style="color: var(--accent);">Zipkin</a>.
+              Provides a full latency waterfall for every MCP tool call, LLM provider hop, and background worker task.
+              <br><br>
+              <code style="font-size: 0.8rem; background: var(--bg-hover); padding: 2px 6px; border-radius: 4px;">
+                docker run -d -p 4318:4318 -p 16686:16686 jaegertracing/all-in-one
+              </code>
+              &nbsp;→ open <a href="http://localhost:16686" target="_blank" rel="noopener" style="color: var(--accent);">localhost:16686</a>
+            </div>
+          </div>
+
+          <!-- Enable toggle -->
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Enable OpenTelemetry</div>
+              <div class="setting-desc">Activates the W3C tracing pipeline. <strong>Requires server restart.</strong></div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="input-otel-enabled"
+                onchange="saveBootSetting('otel_enabled', this.checked ? 'true' : 'false')">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- OTLP endpoint -->
+          <div class="setting-row">
+            <div style="flex: 0 0 auto; min-width: 160px;">
+              <div class="setting-label">OTLP HTTP Endpoint</div>
+              <div class="setting-desc">Where spans are exported.</div>
+            </div>
+            <input type="text" id="input-otel-endpoint"
+              class="setting-input"
+              placeholder="http://localhost:4318/v1/traces"
+              style="flex: 1;"
+              onchange="saveBootSetting('otel_endpoint', this.value)"
+              oninput="clearTimeout(this._pt); this._pt=setTimeout(()=>saveBootSetting('otel_endpoint',this.value),800)" />
+          </div>
+
+          <!-- Service name -->
+          <div class="setting-row">
+            <div style="flex: 0 0 auto; min-width: 160px;">
+              <div class="setting-label">Service Name</div>
+              <div class="setting-desc">Label shown in the trace UI.</div>
+            </div>
+            <input type="text" id="input-otel-service"
+              class="setting-input"
+              placeholder="prism-mcp-server"
+              style="flex: 1;"
+              onchange="saveBootSetting('otel_service_name', this.value)"
+              oninput="clearTimeout(this._ps); this._ps=setTimeout(()=>saveBootSetting('otel_service_name',this.value),800)" />
+          </div>
+
+          <!-- Expected trace waterfall diagram -->
+          <div class="setting-row" style="flex-direction: column; align-items: flex-start; margin-top: 0.5rem;">
+            <div class="setting-label" style="margin-bottom: 0.5rem;">Expected Trace Waterfall</div>
+            <pre style="font-size: 0.78rem; background: var(--bg-hover); padding: 0.8rem 1rem; border-radius: 6px; color: var(--text-secondary); line-height: 1.6; width: 100%; box-sizing: border-box; overflow-x: auto;">mcp.call_tool  [e.g. session_save_image, ~50 ms]
+  └─ worker.vlm_caption          [~2–5 s, outlives parent ✓]
+       └─ llm.generate_image_description  [~1–4 s]
+       └─ llm.generate_embedding          [~200 ms]</pre>
+          </div>
+
+          <span class="setting-saved" id="savedToastOtel">Saved ✓</span>
+        </div><!-- /spanel-observability -->
+
 
       </div>
     </div>
@@ -1393,7 +1468,7 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
     var _skillsCache = {};  // role → content cache
 
     function switchSettingsTab(tab) {
-      ['settings','skills','providers'].forEach(function(t) {
+      ['settings','skills','providers','observability'].forEach(function(t) {
         document.getElementById('stab-' + t).classList.toggle('active', t === tab);
         document.getElementById('spanel-' + t).classList.toggle('active', t === tab);
       });
@@ -1403,6 +1478,9 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       }
       if (tab === 'providers') {
         loadAiProviderSettings();
+      }
+      if (tab === 'observability') {
+        loadOtelSettings();
       }
     }
 
@@ -1651,7 +1729,34 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
         loadAutoloadCheckboxes();
         // Repo path inputs are loaded dynamically
         loadRepoPathInputs();
+        // OTel settings are loaded dynamically when the tab is first opened,
+        // but also pre-load here so values are ready if user lands on that tab.
+        loadOtelSettings();
       } catch(e) { console.warn('Settings load failed:', e); }
+    }
+
+    // ─── OTel Settings Hydration (v4.6.0) ────────────────────────────────
+    // Separate loader function so it can be called from both loadSettings()
+    // (pre-warm on modal open) and switchSettingsTab('observability')
+    // (refresh on tab focus, in case settings changed elsewhere).
+    async function loadOtelSettings() {
+      try {
+        var res = await fetch('/api/settings');
+        var data = await res.json();
+        var s = data.settings || {};
+
+        // Toggle: checked when otel_enabled === 'true'
+        var enabledEl = document.getElementById('input-otel-enabled');
+        if (enabledEl) enabledEl.checked = s.otel_enabled === 'true';
+
+        // OTLP endpoint: fall back to Jaeger default so the field is never blank
+        var endpointEl = document.getElementById('input-otel-endpoint');
+        if (endpointEl) endpointEl.value = s.otel_endpoint || 'http://localhost:4318/v1/traces';
+
+        // Service name: fall back to canonical default
+        var serviceEl = document.getElementById('input-otel-service');
+        if (serviceEl) serviceEl.value = s.otel_service_name || 'prism-mcp-server';
+      } catch(e) { console.warn('OTel settings load failed:', e); }
     }
 
     function toggleSetting(key, el) {
