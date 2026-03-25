@@ -822,22 +822,24 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
         <!-- AI Providers panel (v4.4) -->
         <div class="s-tab-panel" id="spanel-providers">
 
-          <div class="setting-section">AI Provider <span class="boot-badge">Restart Required</span></div>
+          <div class="setting-section">Text Provider <span class="boot-badge">Restart Required</span></div>
 
+          <!-- ── Text Provider ──────────────────────────────── -->
           <div class="setting-row">
             <div>
-              <div class="setting-label">Active Provider</div>
-              <div class="setting-desc">LLM used for compaction, briefing, search &amp; security scan</div>
+              <div class="setting-label">Text Provider</div>
+              <div class="setting-desc">LLM used for compaction, briefing, security scan &amp; fact merging</div>
             </div>
-            <select id="select-llm-provider"
+            <select id="select-text-provider"
               style="padding: 0.2rem 0.4rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); cursor: pointer;"
-              onchange="onProviderChange(this.value)">
+              onchange="onTextProviderChange(this.value)">
               <option value="gemini">🔵 Gemini (Google)</option>
               <option value="openai">🟢 OpenAI / Ollama</option>
+              <option value="anthropic">🟣 Anthropic (Claude)</option>
             </select>
           </div>
 
-          <!-- Gemini fields — shown when provider = gemini -->
+          <!-- Gemini text fields -->
           <div id="provider-fields-gemini">
             <div class="setting-row">
               <div>
@@ -852,9 +854,8 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
             </div>
           </div>
 
-          <!-- OpenAI / Ollama fields — shown when provider = openai -->
+          <!-- OpenAI / Ollama text fields -->
           <div id="provider-fields-openai" style="display:none">
-
             <div class="setting-row">
               <div>
                 <div class="setting-label">API Key</div>
@@ -866,7 +867,6 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
                 onchange="saveBootSetting('openai_api_key', this.value)"
                 oninput="clearTimeout(this._pt); this._pt=setTimeout(()=>saveBootSetting('openai_api_key',this.value),800)" />
             </div>
-
             <div class="setting-row">
               <div>
                 <div class="setting-label">Base URL</div>
@@ -878,7 +878,6 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
                 onchange="saveBootSetting('openai_base_url', this.value)"
                 oninput="clearTimeout(this._pu); this._pu=setTimeout(()=>saveBootSetting('openai_base_url',this.value),800)" />
             </div>
-
             <div class="setting-row">
               <div>
                 <div class="setting-label">Chat Model</div>
@@ -890,24 +889,76 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
                 onchange="saveBootSetting('openai_model', this.value)"
                 oninput="clearTimeout(this._pm); this._pm=setTimeout(()=>saveBootSetting('openai_model',this.value),800)" />
             </div>
+          </div>
 
+          <!-- Anthropic / Claude text fields -->
+          <div id="provider-fields-anthropic" style="display:none">
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Anthropic API Key</div>
+                <div class="setting-desc">Required. Get yours at console.anthropic.com</div>
+              </div>
+              <input type="password" id="input-anthropic-api-key"
+                placeholder="sk-ant-…"
+                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 200px;"
+                onchange="saveBootSetting('anthropic_api_key', this.value)"
+                oninput="clearTimeout(this._pa); this._pa=setTimeout(()=>saveBootSetting('anthropic_api_key',this.value),800)" />
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Claude Model</div>
+                <div class="setting-desc">claude-3-5-sonnet for quality · claude-3-haiku for speed &amp; cost</div>
+              </div>
+              <input type="text" id="input-anthropic-model"
+                placeholder="claude-3-5-sonnet-20241022"
+                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 220px;"
+                onchange="saveBootSetting('anthropic_model', this.value)"
+                oninput="clearTimeout(this._pam); this._pam=setTimeout(()=>saveBootSetting('anthropic_model',this.value),800)" />
+            </div>
+          </div>
+
+          <!-- ── Embedding Provider (always visible) ─────────── -->
+          <div class="setting-section" style="margin-top:1.2rem">Embedding Provider <span class="boot-badge">Restart Required</span></div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Embedding Provider</div>
+              <div class="setting-desc">Source for vector embeddings used by semantic memory search</div>
+            </div>
+            <select id="select-embedding-provider"
+              style="padding: 0.2rem 0.4rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); cursor: pointer;"
+              onchange="onEmbeddingProviderChange(this.value)">
+              <option value="auto">🔄 Auto (same as Text Provider)</option>
+              <option value="gemini">🔵 Gemini</option>
+              <option value="openai">🟢 OpenAI / Ollama</option>
+            </select>
+          </div>
+
+          <!-- Anthropic + auto warning: shown when text=anthropic AND embed=auto -->
+          <div id="anthropic-embed-warning" style="display:none;margin-top:0.5rem;padding:0.5rem 0.75rem;background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.3);border-radius:6px;font-size:0.78rem;color:#fb923c;line-height:1.5">
+            ⚠️ <strong>Anthropic has no native embedding API.</strong>
+            Auto mode will route embeddings to <strong>Gemini</strong>.
+            Set Embedding Provider to <strong>OpenAI / Ollama</strong> to use a local model (e.g. <code>nomic-embed-text</code>).
+          </div>
+
+          <!-- OpenAI embedding model field (shown when embedding_provider = openai) -->
+          <div id="embed-fields-openai" style="display:none">
             <div class="setting-row">
               <div>
                 <div class="setting-label">Embedding Model</div>
-                <div class="setting-desc">Must produce 768-dim vectors. Ollama: nomic-embed-text</div>
+                <div class="setting-desc">Must output 768 dims. Ollama: nomic-embed-text · OpenAI: text-embedding-3-small</div>
               </div>
               <input type="text" id="input-openai-embedding-model"
                 placeholder="text-embedding-3-small"
-                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 200px;"
+                style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 210px;"
                 onchange="saveBootSetting('openai_embedding_model', this.value)"
                 oninput="clearTimeout(this._pe); this._pe=setTimeout(()=>saveBootSetting('openai_embedding_model',this.value),800)" />
             </div>
-
-          </div><!-- /provider-fields-openai -->
+          </div>
 
           <div style="margin-top:1rem;padding:0.6rem 0.8rem;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:6px;font-size:0.78rem;color:var(--text-secondary);line-height:1.5">
-            💡 <strong>Ollama quick-start:</strong> Set Base URL to <code>http://localhost:11434/v1</code>, leave API Key blank,<br>
-            set Chat Model to your pulled model (e.g. <code>llama3.2</code>), Embedding Model to <code>nomic-embed-text</code>.
+            💡 <strong>Cost-optimized setup:</strong> Text Provider → <code>Anthropic</code>, Embedding Provider → <code>OpenAI / Ollama</code>.<br>
+            Use Claude 3.5 Sonnet for reasoning &amp; <code>nomic-embed-text</code> (free, local) for embeddings.
           </div>
 
           <span class="setting-saved" id="savedToastProviders">Saved ✓</span>
@@ -1409,53 +1460,82 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
     }
 
     // ─── AI Providers Settings (v4.4) ────────────────────────────────────
+    // text_provider  → governs generateText()  (gemini | openai | anthropic)
+    // embedding_provider → governs generateEmbedding() (auto | gemini | openai)
 
-    // Show/hide the correct provider fieldset when the dropdown changes.
-    // Also persists the selection as a boot setting (restart required).
-    function onProviderChange(value) {
-      document.getElementById('provider-fields-gemini').style.display = value === 'gemini' ? '' : 'none';
-      document.getElementById('provider-fields-openai').style.display = value === 'openai' ? '' : 'none';
-      saveBootSetting('llm_provider', value);
+    // Called when the TEXT provider dropdown changes.
+    function onTextProviderChange(value) {
+      document.getElementById('provider-fields-gemini').style.display    = value === 'gemini'    ? '' : 'none';
+      document.getElementById('provider-fields-openai').style.display    = value === 'openai'    ? '' : 'none';
+      document.getElementById('provider-fields-anthropic').style.display = value === 'anthropic' ? '' : 'none';
+      // Refresh the Anthropic warning — its visibility depends on both dropdowns
+      refreshAnthropicWarning(value, document.getElementById('select-embedding-provider').value);
+      saveBootSetting('text_provider', value);
+    }
+
+    // Called when the EMBEDDING provider dropdown changes.
+    function onEmbeddingProviderChange(value) {
+      var textVal = document.getElementById('select-text-provider').value;
+      // Show the OpenAI embedding model field only when embedding=openai
+      document.getElementById('embed-fields-openai').style.display = value === 'openai' ? '' : 'none';
+      refreshAnthropicWarning(textVal, value);
+      saveBootSetting('embedding_provider', value);
+    }
+
+    // Shows/hides the Anthropic+auto warning.
+    // Warning appears when: text=anthropic AND embedding=auto (auto-bridges to Gemini).
+    function refreshAnthropicWarning(textVal, embedVal) {
+      var show = textVal === 'anthropic' && embedVal === 'auto';
+      document.getElementById('anthropic-embed-warning').style.display = show ? '' : 'none';
     }
 
     // Load all AI provider settings from the API and populate fields.
-    // Called when the tab is first opened (lazy — avoids a fetch on every modal open).
+    // Called lazily when the tab is first activated (not on every modal open).
     async function loadAiProviderSettings() {
       try {
         var res = await fetch('/api/settings');
         var data = await res.json();
         var s = data.settings || {};
 
-        // Provider dropdown
-        var provider = s.llm_provider || 'gemini';
-        var sel = document.getElementById('select-llm-provider');
-        if (sel) sel.value = provider;
+        // ── Text provider dropdown ────────────────────────────────────────
+        var textProvider = s.text_provider || 'gemini';
+        var textSel = document.getElementById('select-text-provider');
+        if (textSel) textSel.value = textProvider;
+        document.getElementById('provider-fields-gemini').style.display    = textProvider === 'gemini'    ? '' : 'none';
+        document.getElementById('provider-fields-openai').style.display    = textProvider === 'openai'    ? '' : 'none';
+        document.getElementById('provider-fields-anthropic').style.display = textProvider === 'anthropic' ? '' : 'none';
 
-        // Show correct fieldset
-        document.getElementById('provider-fields-gemini').style.display = provider === 'gemini' ? '' : 'none';
-        document.getElementById('provider-fields-openai').style.display = provider === 'openai' ? '' : 'none';
+        // ── Embedding provider dropdown ───────────────────────────────────
+        var embedProvider = s.embedding_provider || 'auto';
+        var embedSel = document.getElementById('select-embedding-provider');
+        if (embedSel) embedSel.value = embedProvider;
+        document.getElementById('embed-fields-openai').style.display = embedProvider === 'openai' ? '' : 'none';
+        refreshAnthropicWarning(textProvider, embedProvider);
 
-        // Gemini fields
+        // ── Gemini fields ─────────────────────────────────────────────────
+        // Never pre-fill API key values for security — use placeholder hint instead.
         var gKey = document.getElementById('input-google-api-key');
-        // Never pre-fill password fields with real values for security —
-        // show a placeholder indicating a key is set without exposing it.
         if (gKey) gKey.placeholder = s.GOOGLE_API_KEY ? '(key saved — paste to update)' : 'AIza…';
 
-        // OpenAI fields
+        // ── Anthropic fields ──────────────────────────────────────────────
+        var aKey = document.getElementById('input-anthropic-api-key');
+        if (aKey) aKey.placeholder = s.anthropic_api_key ? '(key saved — paste to update)' : 'sk-ant-…';
+        var aMod = document.getElementById('input-anthropic-model');
+        if (aMod && s.anthropic_model) aMod.value = s.anthropic_model;
+
+        // ── OpenAI / Ollama fields ────────────────────────────────────────
         var oKey = document.getElementById('input-openai-api-key');
         if (oKey) oKey.placeholder = s.openai_api_key ? '(key saved — paste to update)' : 'sk-… (blank for Ollama)';
-
         var oUrl = document.getElementById('input-openai-base-url');
         if (oUrl && s.openai_base_url) oUrl.value = s.openai_base_url;
-
         var oMod = document.getElementById('input-openai-model');
         if (oMod && s.openai_model) oMod.value = s.openai_model;
-
         var oEmb = document.getElementById('input-openai-embedding-model');
         if (oEmb && s.openai_embedding_model) oEmb.value = s.openai_embedding_model;
 
       } catch(e) { console.warn('AI provider settings load failed:', e); }
     }
+
 
 
     // ─── Auto-Load Checkboxes (v4.1) ─────────────────────────────────

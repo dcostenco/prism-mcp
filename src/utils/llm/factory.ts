@@ -1,87 +1,140 @@
 /**
- * LLM Provider Factory (v4.4)
+ * LLM Provider Factory (v4.4 — Split Provider Architecture)
  * ─────────────────────────────────────────────────────────────────────────────
  * PURPOSE:
- *   Single point of resolution for the active LLMProvider adapter.
- *   All internal Prism tooling calls `getLLMProvider()` rather than
- *   importing or constructing SDK clients directly. This is the only
- *   file that needs to change when a new provider is added.
+ *   Single point of resolution for the active LLMProvider.
+ *   Composes a TEXT adapter and an EMBEDDING adapter independently, returning
+ *   a single object that satisfies the LLMProvider interface. Consumers never
+ *   know the difference — getLLMProvider() behavior is unchanged.
  *
- * SINGLETON PATTERN:
- *   The provider instance is cached for the lifetime of the MCP server process.
- *   This avoids repeated constructor overhead (SDK client init, config reads)
- *   on every tool call. If the user switches providers in the dashboard, they
- *   must restart the MCP server to pick up the change.
+ * SPLIT PROVIDER ARCHITECTURE:
+ *   Two independent settings control text and embedding routing:
  *
- * PROVIDER SELECTION:
- *   Reads `llm_provider` from configStorage (Prism Mind Palace dashboard).
- *   Dashboard setting → "gemini" (default) or "openai"
+ *   text_provider      — "gemini" (default) | "openai" | "anthropic"
+ *   embedding_provider — "auto" (default)   | "gemini" | "openai"
  *
- *   llm_provider = "gemini"  → GeminiAdapter  (requires GOOGLE_API_KEY)
- *   llm_provider = "openai"  → OpenAIAdapter  (cloud: requires OPENAI_API_KEY,
- *                                               local: Ollama / LM Studio / vLLM)
+ *   When embedding_provider = "auto":
+ *     * If text_provider is gemini or openai → use same provider for embeddings
+ *     * If text_provider is anthropic → auto-fallback to gemini for embeddings
+ *       (Anthropic has no native embedding API)
  *
- * GRACEFUL DEGRADATION:
- *   If the chosen provider fails to initialize (e.g. missing API key),
- *   the factory logs the error and falls back to GeminiAdapter rather than
- *   crashing the MCP server process. An MCP server that throws on startup
- *   would become invisible to the client with no diagnostic output.
+ * EXAMPLE CONFIGURATIONS:
+ *   text_provider=gemini,    embedding_provider=auto   → Gemini+Gemini (default)
+ *   text_provider=openai,    embedding_provider=auto   → OpenAI+OpenAI
+ *   text_provider=anthropic, embedding_provider=auto   → Claude+Gemini (auto-bridge)
+ *   text_provider=anthropic, embedding_provider=openai → Claude+Ollama (cost-optimized)
+ *   text_provider=gemini,    embedding_provider=openai → Gemini+Ollama (mixed)
+ *
+ * SINGLETON + GRACEFUL DEGRADATION:
+ *   Same as before — instance cached per process, errors fall back to Gemini.
+ *   Provider switches require an MCP server restart.
  *
  * TESTING:
- *   `_resetLLMProvider()` clears the singleton so unit tests can inject
- *   mock providers via vi.mock() without cross-test contamination.
+ *   _resetLLMProvider() clears the singleton for test injection.
  *
- * PHASE 3 ROADMAP:
- *   To add a new provider (e.g. Anthropic, Azure):
- *     1. Implement LLMProvider in src/utils/llm/adapters/<provider>.ts
- *     2. Add a case to the switch statement below
- *     3. Add the provider name to the dashboard "AI Providers" dropdown
+ * ADDING NEW PROVIDERS:
+ *   1. Implement LLMProvider in src/utils/llm/adapters/<name>.ts
+ *   2. Add a case to buildTextAdapter() and/or buildEmbeddingAdapter() below
+ *   3. Add the option to the dashboard "AI Providers" tab
  */
 
 import { getSettingSync } from "../../storage/configStorage.js";
 import type { LLMProvider } from "./provider.js";
 import { GeminiAdapter } from "./adapters/gemini.js";
 import { OpenAIAdapter } from "./adapters/openai.js";
+import { AnthropicAdapter } from "./adapters/anthropic.js";
 
-// Module-level singleton — one adapter per MCP server process lifetime.
+// Module-level singleton — one composed provider per MCP server process.
 let providerInstance: LLMProvider | null = null;
+
+// ─── Adapter Builders ─────────────────────────────────────────────────────────
+// Separated from getLLMProvider() so they can be called independently for the
+// text and embedding halves of the composite provider.
+
+function buildTextAdapter(type: string): LLMProvider {
+  switch (type) {
+    case "anthropic": return new AnthropicAdapter();
+    case "openai":    return new OpenAIAdapter();
+    case "gemini":
+    default:          return new GeminiAdapter();
+  }
+}
+
+function buildEmbeddingAdapter(type: string): LLMProvider {
+  // Note: "anthropic" is intentionally absent from this switch.
+  // Anthropic has no embedding API, so it can never be an embedding provider.
+  // The factory resolves "auto" away from "anthropic" before calling this.
+  switch (type) {
+    case "openai": return new OpenAIAdapter();
+    case "gemini":
+    default:       return new GeminiAdapter();
+  }
+}
+
+// ─── Factory ─────────────────────────────────────────────────────────────────
 
 /**
  * Returns the singleton LLM provider, initializing it on first call.
  *
- * Selection order:
- *   1. Read `llm_provider` from configStorage (dashboard setting, default: "gemini")
- *   2. Instantiate the matching adapter (GeminiAdapter or OpenAIAdapter)
- *   3. On any init error (e.g. missing API key), fall back to GeminiAdapter
+ * The returned object composes two independent adapters:
+ *   - generateText()      → text adapter (text_provider setting)
+ *   - generateEmbedding() → embedding adapter (embedding_provider setting)
+ *
+ * Consumers see no difference — the interface is identical to before.
  */
 export function getLLMProvider(): LLMProvider {
-  // Fast path: return cached instance (hot path for every tool call)
+  // Fast path: return cached composite instance
   if (providerInstance) return providerInstance;
 
-  // Read from dashboard settings — default "gemini" if never configured.
-  // getSettingSync() is synchronous (reads from in-memory cache backed by SQLite).
-  const providerType = getSettingSync("llm_provider", "gemini");
+  // ── Resolve text provider ─────────────────────────────────────────────
+  const textType = getSettingSync("text_provider", "gemini");
+
+  // ── Resolve embedding provider ────────────────────────────────────────
+  let embedType = getSettingSync("embedding_provider", "auto");
+
+  if (embedType === "auto") {
+    // Anthropic has no embedding API — auto-bridge to Gemini.
+    // For all other text providers, use the same provider for embeddings.
+    embedType = textType === "anthropic" ? "gemini" : textType;
+
+    if (textType === "anthropic") {
+      console.info(
+        "[LLMFactory] text_provider=anthropic with embedding_provider=auto: " +
+        "routing embeddings to GeminiAdapter (Anthropic has no native embedding API). " +
+        "Set embedding_provider=openai in dashboard to use Ollama/OpenAI instead."
+      );
+    }
+  }
 
   try {
-    switch (providerType) {
-      case "openai":
-        // Covers: OpenAI Cloud, Ollama, LM Studio, vLLM, any /v1-compatible server
-        providerInstance = new OpenAIAdapter();
-        break;
-      case "gemini":
-      default:
-        // Default path: existing behavior, zero behavioral regression
-        providerInstance = new GeminiAdapter();
-        break;
+    const textAdapter  = buildTextAdapter(textType);
+    const embedAdapter = buildEmbeddingAdapter(embedType);
+
+    // Compose into a single LLMProvider-compatible object.
+    // Methods are bound to their respective adapter instances so `this`
+    // resolves correctly inside the adapter methods.
+    providerInstance = {
+      generateText:      textAdapter.generateText.bind(textAdapter),
+      generateEmbedding: embedAdapter.generateEmbedding.bind(embedAdapter),
+    };
+
+    if (textType !== embedType) {
+      console.info(
+        `[LLMFactory] Split provider: text=${textType}, embedding=${embedType}`
+      );
     }
   } catch (err) {
-    // Init failure (e.g. user set provider to "openai" but forgot the API key).
-    // Falling back keeps the MCP server alive — a crash here would be silent.
+    // Init failure (e.g. missing API key) → fall back to full Gemini provider.
+    // A crash here would silently kill the MCP server.
     console.error(
-      `[LLMFactory] Failed to initialise "${providerType}" provider: ${err}. ` +
-      `Falling back to GeminiAdapter.`
+      `[LLMFactory] Failed to initialise providers (text=${textType}, embed=${embedType}): ${err}. ` +
+      `Falling back to GeminiAdapter for both.`
     );
-    providerInstance = new GeminiAdapter();
+    const fallback = new GeminiAdapter();
+    providerInstance = {
+      generateText:      fallback.generateText.bind(fallback),
+      generateEmbedding: fallback.generateEmbedding.bind(fallback),
+    };
   }
 
   return providerInstance;
@@ -89,13 +142,7 @@ export function getLLMProvider(): LLMProvider {
 
 /**
  * Reset the cached singleton.
- *
- * NEVER call this in production code — it forces a re-init on the next
- * getLLMProvider() call, which is expensive and not thread-safe.
- *
- * USE ONLY IN:
- *   - Unit tests (between test cases via beforeEach)
- *   - Future dashboard "switch provider without restart" flow
+ * ONLY for unit tests — never call in production code.
  */
 export function _resetLLMProvider(): void {
   providerInstance = null;

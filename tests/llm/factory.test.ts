@@ -1,27 +1,28 @@
 /**
- * LLM Provider Factory — Switching Tests (v4.4 Phase 2)
+ * LLM Provider Factory — Split Provider Tests (v4.4 Close-Out)
  *
- * Validates the factory's provider-selection logic without making real API calls.
- * Uses _resetLLMProvider() between tests to flush the singleton.
+ * Validates the factory's text_provider + embedding_provider composition logic
+ * without making real API calls. Uses _resetLLMProvider() between tests.
  *
- * NOTE: We don't test actual Gemini/OpenAI responses here — that's an integration
- * test concern. We only verify that the factory correctly reads `llm_provider` from
- * configStorage and instantiates the right class.
+ * v4.4 Split Architecture:
+ *   text_provider      → governs generateText()
+ *   embedding_provider → governs generateEmbedding() ("auto" follows text_provider,
+ *                        except anthropic→auto routes embeddings to Gemini)
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { _resetLLMProvider, getLLMProvider } from "../../src/utils/llm/factory.js";
 import { GeminiAdapter } from "../../src/utils/llm/adapters/gemini.js";
 import { OpenAIAdapter } from "../../src/utils/llm/adapters/openai.js";
+import { AnthropicAdapter } from "../../src/utils/llm/adapters/anthropic.js";
 
-// ─── Mock: configStorage ──────────────────────────────────────────
+// ─── Mocks ────────────────────────────────────────────────────────────────────
 // We mock getSettingSync so tests don't need a real SQLite DB.
 vi.mock("../../src/storage/configStorage.js", () => ({
-  getSettingSync: vi.fn((key: string, defaultValue: string) => defaultValue),
+  getSettingSync: vi.fn((key: string, defaultValue?: string) => defaultValue ?? ""),
 }));
 
-// ─── Mock: GeminiAdapter ──────────────────────────────────────────
-// Vitest requires class/function mocks (not arrow fns) for `new ClassName()` to work.
+// Vitest requires constructor-style mocks (not arrow fns) for `new Class()`.
 vi.mock("../../src/utils/llm/adapters/gemini.js", () => ({
   GeminiAdapter: vi.fn(function (this: any) {
     this.generateText = vi.fn();
@@ -29,7 +30,6 @@ vi.mock("../../src/utils/llm/adapters/gemini.js", () => ({
   }),
 }));
 
-// ─── Mock: OpenAIAdapter ──────────────────────────────────────────
 vi.mock("../../src/utils/llm/adapters/openai.js", () => ({
   OpenAIAdapter: vi.fn(function (this: any) {
     this.generateText = vi.fn();
@@ -37,77 +37,145 @@ vi.mock("../../src/utils/llm/adapters/openai.js", () => ({
   }),
 }));
 
+vi.mock("../../src/utils/llm/adapters/anthropic.js", () => ({
+  AnthropicAdapter: vi.fn(function (this: any) {
+    this.generateText = vi.fn();
+    // generateEmbedding intentionally throws in the real adapter;
+    // the mock just omits it to test the routing, not the error behavior.
+    this.generateEmbedding = vi.fn().mockRejectedValue(
+      new Error("Anthropic does not support embeddings")
+    );
+  }),
+}));
+
 import { getSettingSync } from "../../src/storage/configStorage.js";
 const mockGetSettingSync = vi.mocked(getSettingSync);
 
-// ─── Test Suite ───────────────────────────────────────────────────
+// Helper: mock both text_provider and embedding_provider together
+function mockProviders(text: string, embedding = "auto", extras: Record<string, string> = {}) {
+  mockGetSettingSync.mockImplementation((key: string, def?: string) => {
+    if (key === "text_provider") return text;
+    if (key === "embedding_provider") return embedding;
+    return extras[key] ?? def ?? "";
+  });
+}
 
-describe("LLM Provider Factory", () => {
+// ─── Test Suite ───────────────────────────────────────────────────────────────
+
+describe("LLM Provider Factory — Split Architecture", () => {
   beforeEach(() => {
     _resetLLMProvider();
     vi.clearAllMocks();
   });
 
-  it("defaults to GeminiAdapter when llm_provider is not set", () => {
-    mockGetSettingSync.mockReturnValue("gemini");
+  // ── Default behavior ──────────────────────────────────────────────────────
+
+  it("defaults to Gemini+Gemini when no settings are configured", () => {
+    // Both settings return their defaults ("gemini" and "auto")
+    mockGetSettingSync.mockImplementation((_k, def) => def ?? "");
     const provider = getLLMProvider();
-    expect(GeminiAdapter).toHaveBeenCalledOnce();
+    // Factory creates two GeminiAdapter instances: one for text, one for embeddings
+    expect(GeminiAdapter).toHaveBeenCalledTimes(2);
     expect(OpenAIAdapter).not.toHaveBeenCalled();
+    expect(AnthropicAdapter).not.toHaveBeenCalled();
     expect(provider).toBeDefined();
+    expect(typeof provider.generateText).toBe("function");
+    expect(typeof provider.generateEmbedding).toBe("function");
   });
 
-  it("uses GeminiAdapter when llm_provider = 'gemini'", () => {
-    mockGetSettingSync.mockImplementation((key) =>
-      key === "llm_provider" ? "gemini" : ""
-    );
+  // ── Matched providers ─────────────────────────────────────────────────────
+
+  it("Gemini + auto → both methods use GeminiAdapter", () => {
+    mockProviders("gemini", "auto");
     getLLMProvider();
-    expect(GeminiAdapter).toHaveBeenCalledOnce();
+    // Two GeminiAdapter instances: one for text, one for embeddings
+    expect(GeminiAdapter).toHaveBeenCalledTimes(2);
     expect(OpenAIAdapter).not.toHaveBeenCalled();
   });
 
-  it("uses OpenAIAdapter when llm_provider = 'openai'", () => {
-    mockGetSettingSync.mockImplementation((key) => {
-      if (key === "llm_provider") return "openai";
-      if (key === "openai_api_key") return "sk-test-key";
-      if (key === "openai_base_url") return "https://api.openai.com/v1";
-      return "";
-    });
+  it("OpenAI + auto → both methods use OpenAIAdapter", () => {
+    mockProviders("openai", "auto", { openai_api_key: "sk-test", openai_base_url: "https://api.openai.com/v1" });
     getLLMProvider();
-    expect(OpenAIAdapter).toHaveBeenCalledOnce();
+    // Two OpenAIAdapter instances: one for text, one for embeddings
+    expect(OpenAIAdapter).toHaveBeenCalledTimes(2);
     expect(GeminiAdapter).not.toHaveBeenCalled();
   });
 
+  // ── Anthropic split (auto-bridge) ─────────────────────────────────────────
+
+  it("Anthropic + auto → AnthropicAdapter for text, GeminiAdapter for embeddings", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    mockProviders("anthropic", "auto", { anthropic_api_key: "sk-ant-test" });
+    getLLMProvider();
+    expect(AnthropicAdapter).toHaveBeenCalledOnce(); // text
+    expect(GeminiAdapter).toHaveBeenCalledOnce();    // embedding fallback
+    expect(OpenAIAdapter).not.toHaveBeenCalled();
+    // Should log the auto-bridge info message
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("routing embeddings to GeminiAdapter"));
+    infoSpy.mockRestore();
+  });
+
+  // ── Explicit split provider ───────────────────────────────────────────────
+
+  it("Anthropic text + OpenAI embeddings → AnthropicAdapter + OpenAIAdapter", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    mockProviders("anthropic", "openai", {
+      anthropic_api_key: "sk-ant-test",
+      openai_base_url: "http://localhost:11434/v1", // Ollama
+    });
+    getLLMProvider();
+    expect(AnthropicAdapter).toHaveBeenCalledOnce(); // text
+    expect(OpenAIAdapter).toHaveBeenCalledOnce();    // embedding
+    expect(GeminiAdapter).not.toHaveBeenCalled();
+    // Should log the split info message
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("Split provider: text=anthropic, embedding=openai"));
+    infoSpy.mockRestore();
+  });
+
+  it("Gemini text + explicit OpenAI embeddings → split adapter", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    mockProviders("gemini", "openai", { openai_base_url: "http://localhost:11434/v1" });
+    getLLMProvider();
+    expect(GeminiAdapter).toHaveBeenCalledOnce();  // text
+    expect(OpenAIAdapter).toHaveBeenCalledOnce();  // embedding
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("Split provider: text=gemini, embedding=openai"));
+    infoSpy.mockRestore();
+  });
+
+  // ── Singleton ─────────────────────────────────────────────────────────────
+
   it("returns the same singleton on repeated calls", () => {
-    mockGetSettingSync.mockReturnValue("gemini");
+    mockProviders("gemini");
     const a = getLLMProvider();
     const b = getLLMProvider();
     expect(a).toBe(b);
-    expect(GeminiAdapter).toHaveBeenCalledOnce(); // only one init
+    expect(GeminiAdapter).toHaveBeenCalledTimes(2); // two inits (text + embed), but only once total across both getLLMProvider() calls
   });
 
-  it("falls back to Gemini when the chosen provider throws on init", () => {
-    // OpenAI selected but adapter throws (bad config)
-    mockGetSettingSync.mockImplementation((key) =>
-      key === "llm_provider" ? "openai" : ""
-    );
+  // ── Graceful fallback ─────────────────────────────────────────────────────
+
+  it("falls back to Gemini+Gemini when text adapter throws on init", () => {
+    mockProviders("openai", "auto", { openai_api_key: "" }); // missing key
     vi.mocked(OpenAIAdapter).mockImplementationOnce(() => {
       throw new Error("Missing API key");
     });
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const provider = getLLMProvider();
-
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Falling back to GeminiAdapter"));
-    expect(GeminiAdapter).toHaveBeenCalledOnce(); // fallback
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Falling back to GeminiAdapter for both"));
+    expect(GeminiAdapter).toHaveBeenCalledOnce();
     expect(provider).toBeDefined();
     consoleSpy.mockRestore();
   });
 
-  it("_resetLLMProvider() clears singleton so next call re-initialises", () => {
-    mockGetSettingSync.mockReturnValue("gemini");
+  // ── Reset ─────────────────────────────────────────────────────────────────
+
+  it("_resetLLMProvider() forces re-initialisation on next call", () => {
+    mockProviders("gemini");
     getLLMProvider();
     _resetLLMProvider();
     getLLMProvider();
-    expect(GeminiAdapter).toHaveBeenCalledTimes(2); // two inits
+    // Each call creates 2 GeminiAdapters (text + embed) ⇒ 4 total across two inits
+    expect(GeminiAdapter).toHaveBeenCalledTimes(4);
   });
 });
