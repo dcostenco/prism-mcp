@@ -1,8 +1,8 @@
 {
   "name": "prism-mcp-server",
-  "version": "4.6.0",
+  "version": "4.6.1",
   "mcpName": "io.github.dcostenco/prism-mcp",
-  "description": "The Mind Palace for AI Agents \u2014 persistent memory (SQLite/Supabase), behavioral learning & IDE rules sync, multimodal VLM image captioning, pluggable LLM providers (OpenAI/Anthropic/Gemini/Ollama), OpenTelemetry distributed tracing, GDPR export, multi-agent Hivemind sync, time travel, visual Mind Palace dashboard. Zero-config local mode.",
+  "description": "The Mind Palace for AI Agents — persistent memory (SQLite/Supabase), behavioral learning & IDE rules sync, multimodal VLM image captioning, pluggable LLM providers (OpenAI/Anthropic/Gemini/Ollama), OpenTelemetry distributed tracing, GDPR export, multi-agent Hivemind sync, time travel, visual Mind Palace dashboard. Zero-config local mode.",
   "module": "index.ts",
   "type": "module",
   "main": "dist/server.js",
