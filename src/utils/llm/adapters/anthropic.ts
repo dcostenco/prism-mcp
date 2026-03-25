@@ -1,5 +1,5 @@
 /**
- * Anthropic Adapter (v4.4)
+ * Anthropic Adapter (v4.5)
  * ─────────────────────────────────────────────────────────────────────────────
  * PURPOSE:
  *   Implements LLMProvider using Anthropic's official @anthropic-ai/sdk.
@@ -11,6 +11,12 @@
  *   `generateEmbedding()` throws an explicit, actionable error rather than
  *   silently returning garbage — the factory's auto-resolution logic means
  *   this should never be called in practice (see factory.ts).
+ *
+ * VLM CAPABILITY:
+ *   Claude 3.5 Sonnet, Opus, and Haiku all support vision natively via the
+ *   Messages API `image` content block. This adapter implements
+ *   `generateImageDescription` (5MB base64 payload limit enforced in
+ *   imageCaptioner.ts before the API call reaches this adapter).
  *
  * FACTORY RESOLUTION:
  *   When `text_provider = "anthropic"` and `embedding_provider = "auto"`,
@@ -104,5 +110,51 @@ export class AnthropicAdapter implements LLMProvider {
       "In the Mind Palace dashboard, set 'Embedding Provider' to Gemini or OpenAI/Ollama. " +
       "When using Ollama locally, 'nomic-embed-text' is a free, high-quality option."
     );
+  }
+
+  // ─── Image Description (VLM) ─────────────────────────────────────────────
+
+  /**
+   * Describe an image using the Anthropic Messages API vision capability.
+   * Claude 3.5 Sonnet (and Haiku/Opus) accept `image` content blocks with a
+   * base64 `source`. imageCaptioner.ts enforces the 5MB payload limit before
+   * this method is ever called.
+   */
+  async generateImageDescription(
+    imageBase64: string,
+    mimeType: string,
+    context?: string,
+  ): Promise<string> {
+    const model = getSettingSync("anthropic_model", DEFAULT_MODEL);
+    const prompt = context
+      ? `Describe this image in rich detail for a developer knowledge base. User context: "${context}"`
+      : "Describe this image in rich detail for a developer knowledge base. Include: UI elements, visible text, architectural components, and key observations.";
+
+    debugLog(`[AnthropicAdapter] generateImageDescription — model=${model}`);
+
+    const response = await this.client.messages.create({
+      model,
+      max_tokens: 1024,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              // Anthropic requires the media_type to be a specific union type;
+              // cast to `any` since mimeType is validated to be a supported
+              // image format by imageCaptioner.ts before reaching here.
+              media_type: mimeType as any,
+              data: imageBase64,
+            },
+          },
+          { type: "text", text: prompt },
+        ],
+      }],
+    });
+
+    const block = response.content[0];
+    return block?.type === "text" ? block.text : "";
   }
 }

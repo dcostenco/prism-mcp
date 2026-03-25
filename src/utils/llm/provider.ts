@@ -1,5 +1,5 @@
 /**
- * LLM Provider Interface (v4.4)
+ * LLM Provider Interface (v4.5)
  * ─────────────────────────────────────────────────────────────────────────────
  * PURPOSE:
  *   Defines the contract that ALL LLM adapters must satisfy.
@@ -13,8 +13,9 @@
  *   would force every future adapter to implement things it doesn't need.
  *
  * ADAPTER IMPLEMENTATIONS (src/utils/llm/adapters/):
- *   - gemini.ts   → Google Gemini (default)
- *   - openai.ts   → OpenAI Cloud + Ollama + LM Studio + vLLM
+ *   - gemini.ts    → Google Gemini (default; all methods including VLM)
+ *   - openai.ts    → OpenAI Cloud + Ollama + LM Studio + vLLM
+ *   - anthropic.ts → Anthropic Claude (VLM supported; embeddings unsupported)
  *
  * FACTORY RESOLUTION:
  *   Never instantiate adapters directly. Always call:
@@ -61,4 +62,31 @@ export interface LLMProvider {
    * @param text Raw text to embed. Adapters are responsible for truncation.
    */
   generateEmbedding(text: string): Promise<number[]>;
+
+  /**
+   * OPTIONAL — Generate a rich natural-language description of an image.
+   * Implemented by vision-capable adapters (Gemini, OpenAI gpt-4o+, Anthropic).
+   * Text-only adapters omit this method entirely.
+   *
+   * USED BY:
+   *   - src/utils/imageCaptioner.ts → auto-captions session_save_image uploads
+   *
+   * CALLER CONTRACT:
+   *   Always check `if (llm.generateImageDescription)` before calling.
+   *   The imageCaptioner skips captioning silently when the method is absent.
+   *
+   * SIZE LIMITS (enforced in imageCaptioner.ts, not here):
+   *   Anthropic: 5MB hard limit on base64 payload
+   *   Gemini / OpenAI: ~20MB soft limit
+   *
+   * @param imageBase64  Raw base64 image bytes — NO data-URI prefix
+   * @param mimeType     e.g. "image/png", "image/jpeg", "image/webp"
+   * @param context      Optional user-provided description used as a VLM hint
+   * @returns Rich caption suitable for semantic indexing
+   */
+  generateImageDescription?(
+    imageBase64: string,
+    mimeType: string,
+    context?: string,
+  ): Promise<string>;
 }

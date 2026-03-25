@@ -1,5 +1,5 @@
 /**
- * OpenAI Adapter (v4.4)
+ * OpenAI Adapter (v4.5)
  * ─────────────────────────────────────────────────────────────────────────────
  * PURPOSE:
  *   Implements LLMProvider using the official `openai` Node.js SDK.
@@ -181,5 +181,43 @@ export class OpenAIAdapter implements LLMProvider {
     }
 
     return embedding;
+  }
+
+  // ─── Image Description (VLM) ─────────────────────────────────────────────
+
+  /**
+   * Describe an image via the OpenAI Chat Completions vision API.
+   * Uses the chat model (gpt-4o-mini default) since OpenAI embeds vision
+   * into their chat API rather than a separate endpoint.
+   * Works with any OpenAI-compatible server that supports vision
+   * (Ollama with llava, LM Studio with vision models, etc.).
+   */
+  async generateImageDescription(
+    imageBase64: string,
+    mimeType: string,
+    context?: string,
+  ): Promise<string> {
+    const model = getSettingSync("openai_model", "gpt-4o-mini");
+    const prompt = context
+      ? `Describe this image in rich detail for a developer knowledge base. User context: "${context}"`
+      : "Describe this image in rich detail for a developer knowledge base. Include: UI elements, visible text, architectural components, and key observations.";
+
+    const response = await this.client.chat.completions.create({
+      model,
+      max_tokens: 1024,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            // OpenAI vision requires the data-URI prefix
+            image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+          },
+          { type: "text", text: prompt },
+        ],
+      }],
+    });
+
+    return response.choices[0]?.message?.content ?? "";
   }
 }

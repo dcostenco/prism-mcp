@@ -32,6 +32,7 @@ import { getSetting } from "../storage/configStorage.js";
 import { createMemoryTrace, traceToContentBlock } from "../utils/tracing.js";
 import { GOOGLE_API_KEY, PRISM_USER_ID, PRISM_AUTO_CAPTURE, PRISM_CAPTURE_PORTS } from "../config.js";
 import { captureLocalEnvironment } from "../utils/autoCapture.js";
+import { fireCaptionAsync } from "../utils/imageCaptioner.js";
 import {
   isSessionSaveLedgerArgs,
   isSessionSaveHandoffArgs,
@@ -1461,6 +1462,9 @@ export async function sessionSaveImageHandler(args: unknown) {
   const sizeKB = (fileSize / 1024).toFixed(1);
   debugLog(`[Visual Memory] Saved image [${imageId}] for "${project}" (${sizeKB}KB, ${ext})`);
 
+  // Fire-and-forget VLM captioning (2-5s — don’t block the MCP response)
+  fireCaptionAsync(project, imageId, vaultPath, description);
+
   return {
     content: [{
       type: "text",
@@ -1468,7 +1472,8 @@ export async function sessionSaveImageHandler(args: unknown) {
         `• ID: \`${imageId}\`\n` +
         `• Description: ${description}\n` +
         `• Format: ${ext} (${sizeKB}KB)\n` +
-        `• Vault: ${vaultPath}\n\n` +
+        `• Vault: ${vaultPath}\n` +
+        `• Captioning: ⏳ queued (will be searchable in ~5s)\n\n` +
         `Use \`session_view_image("${project}", "${imageId}")\` to retrieve it later.`,
     }],
     isError: false,
@@ -1547,7 +1552,8 @@ export async function sessionViewImageHandler(args: unknown) {
         type: "text",
         text: `🖼️ Visual Memory [${image_id}]: ${imgMeta.description}\n` +
           `Saved: ${imgMeta.timestamp?.split("T")[0] || "unknown"}\n` +
-          `Format: ${ext.replace(".", "").toUpperCase()} (${(fileSize / 1024).toFixed(1)}KB)`,
+          `Format: ${ext.replace(".", "").toUpperCase()} (${(fileSize / 1024).toFixed(1)}KB)` +
+          (imgMeta.caption ? `\n\n🤖 VLM Caption:\n${imgMeta.caption}` : "\n\n⏳ Caption: generating..."),
       },
       {
         type: "image",

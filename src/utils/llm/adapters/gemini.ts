@@ -1,5 +1,5 @@
 /**
- * Gemini Adapter (v4.4)
+ * Gemini Adapter (v4.5)
  * ─────────────────────────────────────────────────────────────────────────────
  * PURPOSE:
  *   Implements LLMProvider using Google's @google/generative-ai SDK.
@@ -166,5 +166,29 @@ export class GeminiAdapter implements LLMProvider {
     }
 
     return values;
+  }
+
+  // ─── Image Description (VLM) ─────────────────────────────────────────────
+
+  /**
+   * Describe an image using Gemini's native multimodal capability.
+   * gemini-2.0-flash handles images alongside text — the same model used for
+   * text generation, so no extra SDK initialization is needed.
+   */
+  async generateImageDescription(
+    imageBase64: string,
+    mimeType: string,
+    context?: string,
+  ): Promise<string> {
+    const model = this.ai.getGenerativeModel({ model: TEXT_MODEL });
+    const prompt = context
+      ? `Describe this image in rich detail for a developer knowledge base. User context: "${context}"`
+      : "Describe this image in rich detail for a developer knowledge base. Include: UI elements, visible text, architectural components, and key observations.";
+
+    const result = await model.generateContent([
+      { inlineData: { data: imageBase64, mimeType } },
+      prompt,
+    ]);
+    return result.response.text();
   }
 }
