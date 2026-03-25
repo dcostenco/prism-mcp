@@ -730,16 +730,14 @@ export function renderDashboardHTML(version: string): string {
           </select>
         </div>
 
-        <div class="setting-row">
+        <div class="setting-row" style="align-items:flex-start">
           <div>
             <div class="setting-label">Auto-Load Projects</div>
-            <div class="setting-desc">Comma-separated project names to auto-push on startup</div>
+            <div class="setting-desc">Select projects to auto-push context on startup</div>
           </div>
-          <input type="text" id="input-autoload-projects"
-            placeholder="e.g. prism-mcp,my-app"
-            style="padding: 0.2rem 0.5rem; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); width: 160px;"
-            onchange="saveBootSetting('autoload_projects', this.value)"
-            oninput="clearTimeout(this._t); this._t=setTimeout(()=>saveBootSetting('autoload_projects',this.value),800)" />
+          <div id="autoload-checkboxes" style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-family:var(--font-mono);max-height:120px;overflow-y:auto;">
+            <span style="color:var(--text-muted);font-size:0.8rem">Loading…</span>
+          </div>
         </div>
 
         <div class="setting-section">Agent Identity</div>
@@ -1304,6 +1302,49 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
     }
 
 
+    // ─── Auto-Load Checkboxes (v4.1) ─────────────────────────────────
+    async function loadAutoloadCheckboxes() {
+      var container = document.getElementById('autoload-checkboxes');
+      if (!container) return;
+      try {
+        var projRes = await fetch('/api/projects');
+        var projData = await projRes.json();
+        var projects = projData.projects || [];
+
+        var settRes = await fetch('/api/settings');
+        var settData = await settRes.json();
+        var saved = (settData.settings || {}).autoload_projects || '';
+        var selected = saved.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+
+        if (projects.length === 0) {
+          container.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">No projects found</span>';
+          return;
+        }
+
+        container.innerHTML = projects.map(function(p) {
+          var checked = selected.indexOf(p) !== -1 ? ' checked' : '';
+          return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-primary)">' +
+            '<input type="checkbox" value="' + escapeHtml(p) + '"' + checked +
+            ' onchange="onAutoloadToggle()"' +
+            ' style="accent-color:var(--accent-purple);cursor:pointer" />' +
+            escapeHtml(p) + '</label>';
+        }).join('');
+      } catch(e) {
+        container.innerHTML = '<span style="color:var(--accent-rose);font-size:0.8rem">Failed to load</span>';
+      }
+    }
+
+    function onAutoloadToggle() {
+      var container = document.getElementById('autoload-checkboxes');
+      if (!container) return;
+      var boxes = container.querySelectorAll('input[type=checkbox]');
+      var selected = [];
+      for (var i = 0; i < boxes.length; i++) {
+        if (boxes[i].checked) selected.push(boxes[i].value);
+      }
+      saveBootSetting('autoload_projects', selected.join(','));
+    }
+
       async function loadSettings() {
       try {
         var res = await fetch('/api/settings');
@@ -1331,7 +1372,8 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
         if (s.default_role) document.getElementById('select-default-role').value = s.default_role;
         if (s.agent_name) document.getElementById('input-agent-name').value = s.agent_name;
         if (s.max_tokens) document.getElementById('input-max-tokens').value = s.max_tokens;
-        if (s.autoload_projects) document.getElementById('input-autoload-projects').value = s.autoload_projects;
+        // Autoload checkboxes are loaded dynamically
+        loadAutoloadCheckboxes();
       } catch(e) { console.warn('Settings load failed:', e); }
     }
 

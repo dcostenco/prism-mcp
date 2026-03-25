@@ -174,45 +174,54 @@ const BASE_TOOLS: Tool[] = [
   RESEARCH_PAPER_ANALYSIS_TOOL,       // gemini_research_paper_analysis — paper analysis
 ];
 
-// Session memory tools: only added when SUPABASE_URL + SUPABASE_KEY are set
-// REVIEWER NOTE: v0.4.0 adds 2 new tools here:
-//   - session_compact_ledger (Enhancement #2): auto-rollup of old ledger entries
-//   - session_search_memory (Enhancement #4): semantic search via pgvector embeddings
-const SESSION_MEMORY_TOOLS: Tool[] = [
-  SESSION_SAVE_LEDGER_TOOL,    // session_save_ledger — append immutable session log
-  SESSION_SAVE_HANDOFF_TOOL,   // session_save_handoff — upsert latest project state (now with OCC)
-  SESSION_LOAD_CONTEXT_TOOL,   // session_load_context — progressive context loading
-  KNOWLEDGE_SEARCH_TOOL,       // knowledge_search — search accumulated knowledge
-  KNOWLEDGE_FORGET_TOOL,       // knowledge_forget — prune bad/old memories
-  SESSION_COMPACT_LEDGER_TOOL, // session_compact_ledger — auto-compact old ledger entries (v0.4.0)
-  SESSION_SEARCH_MEMORY_TOOL,  // session_search_memory — semantic search via embeddings (v0.4.0)
-  MEMORY_HISTORY_TOOL,         // memory_history — view version timeline (v2.0)
-  MEMORY_CHECKOUT_TOOL,        // memory_checkout — revert to past version (v2.0)
-  // ─── v2.0: Visual Memory tools ───
-  SESSION_SAVE_IMAGE_TOOL,     // session_save_image — save image to media vault (v2.0)
-  SESSION_VIEW_IMAGE_TOOL,     // session_view_image — retrieve image from vault (v2.0)
-  // ─── v2.2.0: Health Check tool ───
-  SESSION_HEALTH_CHECK_TOOL,   // session_health_check — brain integrity checker (v2.2.0)
-  // ─── Phase 2: GDPR Memory Deletion tool ───
-  SESSION_FORGET_MEMORY_TOOL,  // session_forget_memory — GDPR-compliant memory deletion (Phase 2)
-  // ─── v3.1: TTL Retention tool ───
-  KNOWLEDGE_SET_RETENTION_TOOL, // knowledge_set_retention — set auto-expiry TTL for a project
-  // ─── v4.0: Active Behavioral Memory tools ───
-  SESSION_SAVE_EXPERIENCE_TOOL,  // session_save_experience — record typed experience events
-  KNOWLEDGE_UPVOTE_TOOL,         // knowledge_upvote — increase entry importance
-  KNOWLEDGE_DOWNVOTE_TOOL,       // knowledge_downvote — decrease entry importance
-];
+// ─── v4.1 FIX: Build Session Memory Tools dynamically ────────
+// The session_load_context tool description is dynamically modified
+// to include auto-load project instructions. Tool descriptions are
+// the ONLY mechanism guaranteed by ALL MCP clients (Antigravity,
+// Claude Code, Claude CLI). The `instructions` field and
+// sendLoggingMessage are NOT reliably surfaced by any client.
+//
+// buildSessionMemoryTools() is called inside createServer() AFTER
+// initConfigStorage() has run, so getSettingSync() returns real
+// dashboard config values.
+function buildSessionMemoryTools(autoloadList: string[]): Tool[] {
+  // Dynamically inject auto-load instruction into session_load_context description
+  let loadContextTool = SESSION_LOAD_CONTEXT_TOOL;
+  if (autoloadList.length > 0) {
+    const projectList = autoloadList.join(", ");
+    loadContextTool = {
+      ...SESSION_LOAD_CONTEXT_TOOL,
+      description:
+        SESSION_LOAD_CONTEXT_TOOL.description +
+        `\n\nIMPORTANT: At the start of every conversation, you MUST call this tool for each of these projects: ${projectList}. Do this before any other work. Load level should be "standard" unless the user specifies otherwise.`,
+    };
+  }
 
-
-// Combine: always list ALL tools so scanners (Glama, Smithery, MCP Registry)
-// can enumerate the full capability set. Runtime guards in the CallTool handler
-// still prevent execution without valid Supabase credentials.
-const ALL_TOOLS: Tool[] = [
-  ...BASE_TOOLS,
-  ...SESSION_MEMORY_TOOLS,
-  // v3.0: Agent Hivemind tools — only when PRISM_ENABLE_HIVEMIND=true
-  ...(PRISM_ENABLE_HIVEMIND ? AGENT_REGISTRY_TOOLS : []),
-];
+  return [
+    SESSION_SAVE_LEDGER_TOOL,    // session_save_ledger — append immutable session log
+    SESSION_SAVE_HANDOFF_TOOL,   // session_save_handoff — upsert latest project state (now with OCC)
+    loadContextTool,             // session_load_context — progressive context loading (+ auto-load instruction)
+    KNOWLEDGE_SEARCH_TOOL,       // knowledge_search — search accumulated knowledge
+    KNOWLEDGE_FORGET_TOOL,       // knowledge_forget — prune bad/old memories
+    SESSION_COMPACT_LEDGER_TOOL, // session_compact_ledger — auto-compact old ledger entries (v0.4.0)
+    SESSION_SEARCH_MEMORY_TOOL,  // session_search_memory — semantic search via embeddings (v0.4.0)
+    MEMORY_HISTORY_TOOL,         // memory_history — view version timeline (v2.0)
+    MEMORY_CHECKOUT_TOOL,        // memory_checkout — revert to past version (v2.0)
+    // ─── v2.0: Visual Memory tools ───
+    SESSION_SAVE_IMAGE_TOOL,     // session_save_image — save image to media vault (v2.0)
+    SESSION_VIEW_IMAGE_TOOL,     // session_view_image — retrieve image from vault (v2.0)
+    // ─── v2.2.0: Health Check tool ───
+    SESSION_HEALTH_CHECK_TOOL,   // session_health_check — brain integrity checker (v2.2.0)
+    // ─── Phase 2: GDPR Memory Deletion tool ───
+    SESSION_FORGET_MEMORY_TOOL,  // session_forget_memory — GDPR-compliant memory deletion (Phase 2)
+    // ─── v3.1: TTL Retention tool ───
+    KNOWLEDGE_SET_RETENTION_TOOL, // knowledge_set_retention — set auto-expiry TTL for a project
+    // ─── v4.0: Active Behavioral Memory tools ───
+    SESSION_SAVE_EXPERIENCE_TOOL,  // session_save_experience — record typed experience events
+    KNOWLEDGE_UPVOTE_TOOL,         // knowledge_upvote — increase entry importance
+    KNOWLEDGE_DOWNVOTE_TOOL,       // knowledge_downvote — decrease entry importance
+  ];
+}
 
 // ─── v0.4.0: Resource Subscription Tracking ──────────────────────
 // REVIEWER NOTE: We track which project URIs clients have subscribed
@@ -261,6 +270,34 @@ export function notifyResourceUpdate(project: string, server: Server) {
  *                with subscribe support for live refresh
  */
 export function createServer() {
+  // ─── v4.1 FIX: Auto-Load via Dynamic Tool Descriptions ────────
+  // Read auto-load projects from dashboard config (available after
+  // initConfigStorage() in startServer) or fall back to env var.
+  //
+  // ARCHITECTURE DECISION: We inject the auto-load instruction into
+  // the session_load_context TOOL DESCRIPTION, not into `instructions`
+  // or `sendLoggingMessage`. Tool descriptions are the ONLY mechanism
+  // guaranteed by ALL MCP clients (Antigravity, Claude Code, Claude CLI).
+  // The `instructions` field is kept as a supplementary signal but is
+  // NOT the primary mechanism.
+  const dashboardAutoload = getSettingSync("autoload_projects", "");
+  const autoloadList = dashboardAutoload
+    ? dashboardAutoload.split(",").map(p => p.trim()).filter(Boolean)
+    : PRISM_AUTOLOAD_PROJECTS;
+
+  // Build the dynamic tool list with auto-load instruction injected
+  const SESSION_MEMORY_TOOLS = buildSessionMemoryTools(autoloadList);
+
+  // Combine: always list ALL tools so scanners (Glama, Smithery, MCP Registry)
+  // can enumerate the full capability set. Runtime guards in the CallTool handler
+  // still prevent execution without valid Supabase credentials.
+  const ALL_TOOLS: Tool[] = [
+    ...BASE_TOOLS,
+    ...SESSION_MEMORY_TOOLS,
+    // v3.0: Agent Hivemind tools — only when PRISM_ENABLE_HIVEMIND=true
+    ...(PRISM_ENABLE_HIVEMIND ? AGENT_REGISTRY_TOOLS : []),
+  ];
+
   const server = new Server(
     {
       name: SERVER_CONFIG.name,
@@ -271,21 +308,13 @@ export function createServer() {
         tools: {},
 
         // ─── v0.4.0: Prompt capability (Enhancement #1) ───
-        // REVIEWER NOTE: Declaring `prompts: {}` tells Claude Desktop
-        // that we support the prompts/list and prompts/get methods.
-        // This enables the /resume_session slash command in the UI.
-        // Only enabled when Supabase is configured (prompts need
-        // session data to be useful).
         ...(SESSION_MEMORY_ENABLED ? { prompts: {} } : {}),
         // ─── v0.4.0: Resource capability (Enhancement #3) ───
-        // REVIEWER NOTE: Setting subscribe: true tells Claude Desktop
-        // that we support resource subscriptions. When a user attaches
-        // memory://project/handoff and the LLM later updates it,
-        // we push an update notification so the attached context
-        // is silently refreshed. Without subscribe:true, the
-        // paperclipped context would become stale.
         ...(SESSION_MEMORY_ENABLED ? { resources: { subscribe: true } } : {}),
       },
+      // Supplementary signal — not all clients support this field.
+      // Primary mechanism is the dynamic tool description above.
+      instructions: `Prism MCP — The Mind Palace for AI Agents. This server provides persistent session memory, knowledge search, and context management tools. Use session_load_context to recover previous work state, session_save_ledger to log completed work, and session_save_handoff to preserve state for the next session.`,
     }
   );
 
@@ -788,7 +817,7 @@ export function createSandboxServer() {
 
   // Register all tool listings unconditionally
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [...BASE_TOOLS, ...SESSION_MEMORY_TOOLS, ...AGENT_REGISTRY_TOOLS],
+    tools: [...BASE_TOOLS, ...buildSessionMemoryTools([]), ...AGENT_REGISTRY_TOOLS],
   }));
 
   // Register prompts listing so scanners see resume_session
@@ -882,74 +911,18 @@ export async function startServer() {
       console.error(`[Prism] Storage pre-warm failed (non-fatal): ${err}`);
     });
 
-    // ─── v4.1: Auto-Push Session Context ───────────────────────────
-    // For clients without lifecycle hooks (Antigravity/Gemini), proactively
-    // push session context after storage is warm. This ensures the AI has
-    // context even if it doesn't call session_load_context.
+    // ─── v4.1: Auto-Load is handled via dynamic tool descriptions ──
+    // The session_load_context tool description is dynamically modified
+    // in createServer() → buildSessionMemoryTools() to include the
+    // auto-load projects list. This is the ONLY universally reliable
+    // mechanism — tool descriptions are surfaced by ALL MCP clients.
     //
-    // Priority: env var PRISM_AUTOLOAD_PROJECTS → dashboard setting → empty
-    // The dashboard setting is read here (after initConfigStorage) because
-    // config.ts constants are evaluated at module load time, too early for DB reads.
-    let autoloadProjects = PRISM_AUTOLOAD_PROJECTS;
-    if (autoloadProjects.length === 0) {
-      const dashboardVal = getSettingSync("autoload_projects", "");
-      if (dashboardVal) {
-        autoloadProjects = dashboardVal.split(",").map(p => p.trim()).filter(Boolean);
-      }
-    }
-
-    if (autoloadProjects.length > 0) {
-      storageReady!.then(async () => {
-        if (!storageIsReady) return; // Storage failed to warm — skip
-
-        try {
-          const storage = await getStorage();
-          const agentName = getSettingSync("agent_name", "");
-          const defaultRole = getSettingSync("default_role", "");
-
-          for (const project of autoloadProjects) {
-            try {
-              const data = await storage.loadContext(project, "standard", PRISM_USER_ID) as Record<string, any> | null;
-              if (!data || data.status === "no_previous_session") continue;
-
-              // Format context identically to sessionLoadContextHandler
-              let ctx = `📋 [AUTO-LOADED] Session context for "${project}":\n\n`;
-              if (data.last_summary) ctx += `📝 Last Summary: ${data.last_summary}\n`;
-              if (data.pending_todo?.length) {
-                ctx += `\n✅ Open TODOs:\n` + data.pending_todo.map((t: string) => `  - ${t}`).join("\n") + `\n`;
-              }
-              if (data.keywords?.length) {
-                ctx += `\n🔑 Keywords: ${data.keywords.join(", ")}\n`;
-              }
-
-              // Add identity block
-              if (agentName || (defaultRole && defaultRole !== "global")) {
-                const ROLE_ICONS: Record<string, string> = {
-                  dev: "🛠️", qa: "🔍", pm: "📋", lead: "🏗️",
-                  security: "🔒", ux: "🎨", global: "🌐",
-                };
-                const icon = ROLE_ICONS[defaultRole] || "🤖";
-                ctx += `\n[👤 AGENT IDENTITY] ${icon} ${agentName || "Agent"} · Role: ${defaultRole || "global"}`;
-              }
-
-              // Add version info
-              if (data.version) {
-                ctx += `\n🔑 Session version: ${data.version}`;
-              }
-
-              server.sendLoggingMessage({
-                level: "info",
-                data: ctx,
-              });
-            } catch (err) {
-              console.error(`[AutoLoad] Failed to push context for "${project}" (non-fatal): ${err}`);
-            }
-          }
-        } catch (err) {
-          console.error(`[AutoLoad] Failed to initialize (non-fatal): ${err}`);
-        }
-      });
-    }
+    // Previous approaches that FAILED:
+    //   - sendLoggingMessage: goes to debug logs, not AI conversation
+    //   - instructions field: not supported by Claude Code or Claude CLI
+    //
+    // No runtime code needed here — the instruction is baked into the
+    // tool schema returned by ListTools.
   }
 
   // ─── v2.0 Step 6: Initialize SyncBus (Telepathy) ───

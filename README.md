@@ -946,7 +946,7 @@ Set the `PRISM_AUTOLOAD_PROJECTS` environment variable in your MCP client config
 
 Both Options A and B use server-side auto-push — ideal for clients that **lack lifecycle hooks** (e.g. Gemini / Antigravity). The server formats and sends the same context that `session_load_context` returns, including the `[👤 AGENT IDENTITY]` block.
 
-> **Priority chain:** `PRISM_AUTOLOAD_PROJECTS` env var → Dashboard setting → empty (disabled).
+> **Priority chain:** Dashboard setting → `PRISM_AUTOLOAD_PROJECTS` env var → empty (disabled).
 
 #### Option C: Client-Side Hooks / Rules
 

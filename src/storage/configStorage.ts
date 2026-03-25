@@ -110,17 +110,37 @@ export async function getSetting(key: string, defaultValue = ""): Promise<string
 export async function setSetting(key: string, value: string): Promise<void> {
   await initConfigStorage();
   const client = getClient();
-  await client.execute({
-    sql: `
-      INSERT INTO system_settings (key, value, updated_at) 
-      VALUES (?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-    `,
-    args: [key, value],
-  });
-  // Keep the cache in sync so getSettingSync() reflects the new value immediately.
-  if (settingsCache) {
-    settingsCache[key] = value;
+
+  // Retry with exponential backoff for SQLITE_BUSY (concurrent writes).
+  // The dashboard and load tests can fire many parallel setting saves.
+  const MAX_RETRIES = 5;
+  const BASE_DELAY_MS = 20;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await client.execute({
+        sql: `
+          INSERT INTO system_settings (key, value, updated_at) 
+          VALUES (?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+        `,
+        args: [key, value],
+      });
+      // Keep the cache in sync so getSettingSync() reflects the new value immediately.
+      if (settingsCache) {
+        settingsCache[key] = value;
+      }
+      return; // Success — exit
+    } catch (err: any) {
+      const isBusy = err?.code === "SQLITE_BUSY" || err?.rawCode === 5;
+      if (isBusy && attempt < MAX_RETRIES) {
+        // Exponential backoff + jitter
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 10;
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw err; // Not SQLITE_BUSY or retries exhausted
+    }
   }
 }
 
