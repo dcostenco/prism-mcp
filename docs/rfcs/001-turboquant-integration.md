@@ -1,6 +1,6 @@
 # RFC-001: Quantized Agentic Memory (TurboQuant Integration)
 
-**Status:** In Progress (Phase 1 Complete)  
+**Status:** In Progress (Phases 1-3 Complete — Math Core, Storage Schema, Two-Tier Search)  
 **Author(s):** Prism Core Team  
 **Created:** 2026-03-26  
 **Target Version:** v5.0  
