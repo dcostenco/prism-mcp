@@ -204,10 +204,12 @@ function buildSessionMemoryTools(autoloadList: string[]): Tool[] {
   let loadContextTool = SESSION_LOAD_CONTEXT_TOOL;
   if (autoloadList.length > 0) {
     const projectList = autoloadList.join(", ");
+    // Read the preferred context depth from dashboard config (defaults to "standard")
+    const defaultLevel = getSettingSync("default_context_depth", "standard");
     const autoLoadPrefix =
       `IMPORTANT: At the start of every conversation, you MUST call this tool ` +
       `for each of these projects: ${projectList}. Do this before any other work. ` +
-      `Load level should be "standard" unless the user specifies otherwise. ` +
+      `Load level should be "${defaultLevel}" unless the user specifies otherwise. ` +
       `Do NOT skip this. Do NOT claim the tool is unavailable. The tool IS available — just call it.\n` +
       `Then display the agent identity from the response: \`🤖 Agent: <role> — <name>\`\n\n`;
     loadContextTool = {

@@ -581,7 +581,7 @@ Automatically saves session memory when a session ends:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import json; print(json.dumps({'continue': True, 'suppressOutput': False, 'systemMessage': 'MANDATORY END WORKFLOW: 1) Call mcp__prism-mcp__session_save_ledger with project and summary. 2) Call mcp__prism-mcp__session_save_handoff with expected_version set to the loaded version.'}))\"",
+            "command": "python3 -c \"import json; print(json.dumps({'continue': True, 'suppressOutput': True, 'systemMessage': 'MANDATORY END WORKFLOW: 1) Call mcp__prism-mcp__session_save_ledger with project and summary. 2) Call mcp__prism-mcp__session_save_handoff with expected_version set to the loaded version.'}))\"",
             "timeout": 10
           }
         ]
@@ -598,7 +598,7 @@ The hook `command` runs a Python one-liner that returns a JSON object to Claude 
 | Field | Purpose |
 |---|---|
 | `continue: true` | Tell Claude Code to proceed (don't abort the session) |
-| `suppressOutput: false` | Show the hook result to the agent |
+| `suppressOutput: true` | Silently inject the system message (recommended for Stop hooks) |
 | `systemMessage` | Instruction injected as a system message — the agent follows it |
 
 The agent receives the `systemMessage` as an instruction and executes the tool calls. The server resolves the agent's **role** and **name** automatically from the dashboard — no need to specify them in the hook.
