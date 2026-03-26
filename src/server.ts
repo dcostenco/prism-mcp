@@ -208,7 +208,8 @@ function buildSessionMemoryTools(autoloadList: string[]): Tool[] {
       `IMPORTANT: At the start of every conversation, you MUST call this tool ` +
       `for each of these projects: ${projectList}. Do this before any other work. ` +
       `Load level should be "standard" unless the user specifies otherwise. ` +
-      `Do NOT skip this. Do NOT claim the tool is unavailable. The tool IS available — just call it.\n\n`;
+      `Do NOT skip this. Do NOT claim the tool is unavailable. The tool IS available — just call it.\n` +
+      `Then display the agent identity from the response: \`🤖 Agent: <role> — <name>\`\n\n`;
     loadContextTool = {
       ...SESSION_LOAD_CONTEXT_TOOL,
       description: autoLoadPrefix + SESSION_LOAD_CONTEXT_TOOL.description,

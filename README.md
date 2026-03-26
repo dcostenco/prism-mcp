@@ -307,7 +307,7 @@ await searchMemory({ query: "auth flow" });
 | Feature | Description |
 |---|---|
 | 🏠 **Local-First SQLite** | Run Prism entirely locally with zero cloud dependencies. Full vector search (libSQL F32_BLOB) and FTS5 included. |
-| 🔮 **Mind Palace UI** | A beautiful glassmorphism dashboard at `localhost:3000` to inspect your agent's memory, visual vault, and Git drift. |
+| 🔮 **Mind Palace UI** | A beautiful glassmorphism dashboard at `localhost:3000` (configurable via `PRISM_DASHBOARD_PORT`) to inspect your agent's memory, visual vault, and Git drift. |
 | 🕰️ **Time Travel** | `memory_history` and `memory_checkout` act like `git revert` for your agent's brain — full version history with OCC. |
 | 🖼️ **Visual Memory** | Agents can save screenshots to a local media vault. Auto-capture mode snapshots your local dev server on every handoff save. |
 | 📡 **Agent Telepathy** | Multi-client sync: if your agent in Cursor saves state, Claude Desktop gets a live notification instantly. |
@@ -741,7 +741,7 @@ graph TB
     LangChain -- "JSON-RPC via MCP Bridge" --> MCP
     
     MCP --> Tracing["OTel Tracing<br/>v4.6 Observability"]
-    MCP --> Dashboard["Mind Palace Dashboard<br/>localhost:3000"]
+    MCP --> Dashboard["Mind Palace Dashboard<br/>localhost:3000<br/>(PRISM_DASHBOARD_PORT)"]
     MCP --> Brave["Brave Search API<br/>Web + Local + AI Answers"]
     MCP --> LLM["LLM Factory<br/>Gemini / OpenAI / Ollama"]
     MCP --> Sandbox["QuickJS Sandbox<br/>Code-Mode Templates"]
@@ -1106,6 +1106,7 @@ The retrievers use `_aget_relevant_documents` as the primary path with `asyncio.
 | `PRISM_AUTO_CAPTURE` | No | Set `"true"` to auto-capture HTML snapshots of dev servers |
 | `PRISM_CAPTURE_PORTS` | No | Comma-separated ports to scan (default: `3000,3001,5173,8080`) |
 | `PRISM_DEBUG_LOGGING` | No | Set `"true"` to enable verbose debug logs (default: quiet) |
+| `PRISM_DASHBOARD_PORT` | No | Configure the dashboard port (default: `3000`) |
 
 ---
 

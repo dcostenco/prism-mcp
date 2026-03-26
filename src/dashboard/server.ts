@@ -422,9 +422,9 @@ return false;}
         };
 
         if (!project && !days && !min_importance) {
-          params.limit = "100";
+          params.limit = "30";  // Keep default small to prevent Vis.js stack overflow (426 nodes @ 100 entries)
         } else {
-          params.limit = "500"; // Bump limit when exploring specific filters
+          params.limit = "200"; // Bump limit when exploring specific filters (capped by frontend maxNodes)
         }
 
         if (project) {

@@ -1458,6 +1458,18 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
           return;
         }
 
+        // Safety cap: Vis.js Barnes-Hut physics blows the call stack at ~400+ nodes.
+        // Truncate to 200 nodes max, keeping project and category nodes first.
+        var MAX_NODES = 200;
+        if (data.nodes.length > MAX_NODES) {
+          // Priority: project > category > keyword
+          var priority = { project: 0, category: 1, keyword: 2 };
+          data.nodes.sort(function(a, b) { return (priority[a.group] || 9) - (priority[b.group] || 9); });
+          var kept = new Set(data.nodes.slice(0, MAX_NODES).map(function(n) { return n.id; }));
+          data.nodes = data.nodes.slice(0, MAX_NODES);
+          data.edges = data.edges.filter(function(e) { return kept.has(e.from) && kept.has(e.to); });
+        }
+
         // Vis.js dark-theme config matching the glassmorphism palette
         var options = {
           nodes: {
@@ -1488,7 +1500,7 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
             }
           },
           physics: {
-            stabilization: false,
+            stabilization: { iterations: 50 },
             barnesHut: {
               gravitationalConstant: -3000,
               springConstant: 0.04,
