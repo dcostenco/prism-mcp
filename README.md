@@ -37,7 +37,17 @@ When you correct your agent, Prism tracks it. Corrections accumulate **importanc
 Every save creates a versioned snapshot. Made a mistake? `memory_checkout` reverts your agent's memory to any previous state — like `git revert` for your agent's brain. Full version history with optimistic concurrency control.
 
 ### 🔮 Mind Palace Dashboard
-A gorgeous glassmorphism UI at `localhost:3000` that lets you see exactly what your agent is thinking — current state, TODOs, session history, visual memory vault, interactive knowledge graph, and real-time multi-agent radar.
+A gorgeous glassmorphism UI at `localhost:3000` that lets you see exactly what your agent is thinking:
+
+- **Current State & TODOs** — the exact context injected into the LLM's prompt
+- **Interactive Knowledge Graph** — force-directed neural graph with click-to-filter, node renaming, and surgical keyword deletion *(v5.1)*
+- **Deep Storage Manager** — preview and execute vector purge operations with dry-run safety *(v5.1)*
+- **Session Ledger** — full audit trail of every decision your agent has made
+- **Time Travel Timeline** — browse and revert any historical handoff version
+- **Visual Memory Vault** — browse VLM-captioned screenshots and auto-captured HTML states
+- **Hivemind Radar** — real-time active agent roster with role, task, and heartbeat
+- **Morning Briefing** — AI-synthesized action plan after 4+ hours away
+- **Brain Health** — memory integrity scan with one-click auto-repair
 
 ![Mind Palace Dashboard](docs/mind-palace-dashboard.png)
 
