@@ -311,42 +311,47 @@ if __name__ == "__main__":
 </details>
 
 <details>
-<summary><strong>Gemini / Antigravity — Auto-Load Rules (Battle-Tested)</strong></summary>
+<summary><strong>Gemini / Antigravity — Auto-Load Rules (Battle-Tested ✅)</strong></summary>
 
-Gemini-based agents (including Google's Antigravity IDE) require a fundamentally different approach to auto-load. This guide was refined over **14 iterations** of real-world prompt engineering.
+Gemini-based agents (including Google's Antigravity IDE) use a different auto-load mechanism than Claude. After **14 iterations** of prompt engineering, the system is **working reliably** as of March 2026.
 
-### The Core Problem
+### How It Works
 
-When given verbose instructions with many constraints, Gemini models hallucinate that MCP tools "don't exist" or "aren't available" — even when they are. This is adversarial reasoning triggered by long rule lists, not a configuration issue.
-
-### The 2-Line Rule (Proven Fix)
+Antigravity has a **User Rules** feature (`~/.gemini/GEMINI.md`) that injects content verbatim into the system prompt. This is the most reliable enforcement point.
 
 Create `~/.gemini/GEMINI.md`:
 
 ```markdown
-## First Action
-Call `mcp_prism-mcp_session_load_context(project="my-project", level="deep")` before responding.
+# Startup — MANDATORY
+
+Your first action in every conversation is a tool call. Zero text before it.
+
+Tool: mcp_prism-mcp_session_load_context
+Args: project="my-project", level="deep"
+
+After success: echo agent identity, last summary, open TODOs, session version.
+If the call fails: say "Prism load failed — retrying" and try ONE more time.
 ```
 
 **Why this works:**
 - Gemini uses **single underscores** for MCP tools (`mcp_prism-mcp_...`) vs Claude's **double underscores** (`mcp__prism-mcp__...`)
-- Keeping the instruction to 2 lines avoids triggering the model's adversarial "tool not found" reasoning
+- Keeping the instruction to ~15 lines avoids triggering the model's adversarial "tool not found" reasoning
 - Framing as a positive "First Action" directive outperforms negative constraint lists
+- Antigravity injects GEMINI.md verbatim as User Rules — it's effectively a system prompt extension
+
+### Optional: Cross-Tool Reinforcement
+
+Create `~/.gemini/AGENTS.md` for additional reinforcement if using multiple MCP clients:
+
+```markdown
+# Session Memory
+Every conversation starts with: mcp_prism-mcp_session_load_context(project="my-project", level="deep")
+Echo result: agent identity, TODOs, session version.
+```
 
 ### Antigravity UI Caveat
 
-Antigravity **does not visually render MCP tool output blocks** in the chat UI. The tool executes successfully, but the user sees nothing. Fix this by adding an echo rule:
-
-```markdown
-## Echo Context
-After loading context, include in your text reply:
-- Agent identity (role + name)
-- Last session summary
-- Open TODOs
-- Session version number
-```
-
-This ensures the user sees their project context even though the raw MCP output is invisible.
+Antigravity **does not visually render MCP tool output blocks** in the chat UI. The tool executes successfully, but the user sees nothing. The GEMINI.md template above handles this by instructing the agent to echo context in its text reply.
 
 ### Session End Workflow
 
@@ -365,7 +370,7 @@ Tell the agent: *"Wrap up the session."* It should execute:
 | 7–9 | `always_on` trigger rules, multi-file configs | ❌ Redundant configs caused race conditions |
 | 10–11 | Emergency-style `🚨 MANDATORY` headers | ⚠️ Inconsistent — worked sometimes |
 | 12–13 | Positive-only framing, progressively shorter | ⚠️ Better but still intermittent |
-| 14 | **2-line "First Action" directive** | ✅ Reliable across sessions |
+| 14 | **Slim "First Action" directive via User Rules** | ✅ **Reliable across sessions** |
 
 ### Platform Gotchas
 
@@ -728,7 +733,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full details.
 ## ⚠️ Limitations
 
 - **LLM-dependent features require an API key.** Semantic search, Morning Briefings, auto-compaction, and VLM captioning need a `GOOGLE_API_KEY` (Gemini) or equivalent provider key. Without one, Prism falls back to keyword-only search (FTS5).
-- **Auto-load is model-dependent.** Session auto-loading relies on the LLM following system prompt instructions. Some models (especially Gemini) intermittently hallucinate that MCP tools are "unavailable." See the [Gemini/Antigravity setup guide](#gemini--antigravity--auto-load-rules-battle-tested) for workarounds.
+- **Auto-load is model-dependent.** Session auto-loading relies on the LLM following system prompt instructions. Gemini/Antigravity auto-load is now reliable via the User Rules mechanism (`~/.gemini/GEMINI.md`). See the [Gemini/Antigravity setup guide](#gemini--antigravity--auto-load-rules-battle-tested-) for the proven approach.
 - **No real-time sync without Supabase.** Local SQLite mode is single-machine only. Multi-device or team sync requires a Supabase backend.
 - **Embedding quality varies by provider.** Gemini `text-embedding-004` and OpenAI `text-embedding-3-small` produce high-quality 768-dim vectors. Ollama embeddings (e.g., `nomic-embed-text`) are usable but may reduce retrieval accuracy.
 - **Dashboard is HTTP-only.** The Mind Palace dashboard at `localhost:3000` does not support HTTPS. For remote access, use a reverse proxy (nginx/Caddy) or SSH tunnel. Basic auth is available via `PRISM_DASHBOARD_USER` / `PRISM_DASHBOARD_PASS`.
