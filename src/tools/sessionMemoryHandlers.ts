@@ -1103,7 +1103,6 @@ export async function sessionSearchMemoryHandler(args: unknown) {
 
     // Fire-and-forget: update last_accessed_at for all returned results
     if (resultIds.length > 0) {
-      const storage = await getStorage();
       const nowISO = now.toISOString();
       for (const id of resultIds) {
         storage.patchLedger(id, { last_accessed_at: nowISO }).catch(() => {});
