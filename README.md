@@ -49,12 +49,10 @@
 > **🗂️ Reclaim 90% of your vector storage and visually edit your agent's knowledge graph.**
 > [CHANGELOG](CHANGELOG.md)
 
-| Feature | Description |
-|---|---|
-| 🗑️ **Deep Storage Mode** | New `deep_storage_purge` tool NULLs out redundant float32 embeddings for entries with TurboQuant compressed blobs, reclaiming ~90% of vector storage. Safety guards: 7-day minimum age, dry-run preview, multi-tenant isolation. |
-| 🕸️ **Knowledge Graph Editor** | The Mind Palace Neural Graph is now fully interactive — click nodes to rename or delete keywords, filter by project/date/importance, and surgically groom your agent's semantic memory. |
-| 🔧 **Auto-Load Reliability** | Hardened hook-based integration patterns for Claude Code and Gemini/Antigravity to guarantee context loading on the absolute first turn without reasoning hallucinations. |
-| 🧪 **303 Tests** | 8 new deep-storage test cases covering dry run, execute, safety guards, and idempotency — zero regressions across 13 suites. |
+- 🗑️ **Deep Storage Mode** — New `deep_storage_purge` tool NULLs out redundant float32 embeddings for entries with TurboQuant compressed blobs, reclaiming ~90% of vector storage. Safety guards: 7-day minimum age, dry-run preview, multi-tenant isolation.
+- 🕸️ **Knowledge Graph Editor** — The Mind Palace neural graph is now fully interactive — click nodes to rename or delete keywords, filter by project/date/importance, and surgically groom your agent's semantic memory.
+- 🔧 **Auto-Load Reliability** — Hardened hook-based integration patterns for Claude Code and Gemini/Antigravity to guarantee context loading on the absolute first turn without reasoning hallucinations.
+- 🧪 **303 Tests** — 8 new deep-storage test cases covering dry run, execute, safety guards, and idempotency — zero regressions across 13 suites.
 
 ---
 
