@@ -395,7 +395,7 @@ Then add to your MCP config:
 
 </details>
 
-### ⚠️ Common Installation Pitfalls
+### Common Installation Pitfalls
 
 > **❌ Don't use `npm install -g`:**
 > Hardcoding the binary path (e.g. `/opt/homebrew/Cellar/node/23.x/bin/prism-mcp-server`) is tied to a specific Node.js version — when Node updates, the path silently breaks.
