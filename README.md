@@ -43,7 +43,7 @@ Every time you start a new conversation with an AI coding assistant, it starts f
 - [Architecture](#architecture)
 - [Research Roadmap](#research-roadmap)
 - [Roadmap](#-roadmap)
-- [Limitations](#%EF%B8%8F-limitations)
+- [Limitations](#-limitations)
 
 ---
 
