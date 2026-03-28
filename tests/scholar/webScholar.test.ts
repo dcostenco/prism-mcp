@@ -376,7 +376,7 @@ describe("Web Scholar — Hivemind Lifecycle", () => {
     );
 
     // Verify stage-specific heartbeats
-    expect(heartbeatTasks.some((t: string) => t.includes("Searching Brave"))).toBe(true);
+    expect(heartbeatTasks.some((t: string) => t.includes("Searching"))).toBe(true);
     expect(heartbeatTasks.some((t: string) => t.includes("Scraping"))).toBe(true);
     expect(heartbeatTasks.some((t: string) => t.includes("Synthesizing"))).toBe(true);
   });

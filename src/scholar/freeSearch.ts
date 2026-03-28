@@ -48,8 +48,8 @@ export async function searchYahooFree(query: string, limit: number = 5): Promise
         if (rawUrl.includes('/RU=')) {
             const afterRu = rawUrl.split('/RU=')[1];
             if (afterRu) {
-                const beforeSlash = afterRu.split('/')[0];
-                url = decodeURIComponent(beforeSlash);
+                const targetUrl = afterRu.split('/RK=')[0];
+                url = decodeURIComponent(targetUrl);
             }
         }
 
