@@ -311,13 +311,20 @@ if __name__ == "__main__":
 </details>
 
 <details>
-<summary><strong>Gemini / Antigravity — Auto-Load Rules (Battle-Tested ✅)</strong></summary>
+<summary><strong>Gemini / Antigravity — Three-Layer Auto-Load (Battle-Tested ✅)</strong></summary>
 
-Gemini-based agents (including Google's Antigravity IDE) use a different auto-load mechanism than Claude. After **14 iterations** of prompt engineering, the system is **working reliably** as of March 2026.
+Gemini-based agents (including Google's Antigravity IDE) use a **three-layer architecture** for reliable auto-load, proven over **14+ iterations** of prompt engineering (March 2026).
 
-### How It Works
+### Architecture
 
-Antigravity has a **User Rules** feature (`~/.gemini/GEMINI.md`) that injects content verbatim into the system prompt. This is the most reliable enforcement point.
+| Layer | File | Purpose |
+|-------|------|---------|
+| **1. User Rules** | `~/.gemini/GEMINI.md` | Slim ~10-line directive injected verbatim into system prompt |
+| **2. Cross-Tool Rules** | `~/.gemini/AGENTS.md` | Reinforcement for multi-client setups (Antigravity + Cursor) |
+| **3. Skill** | `.agent/skills/prism-startup/SKILL.md` | Full startup procedure with greeting detection and context echo |
+| **Server Fallback** | Built into `server.ts` (v5.2.1) | Deferred auto-push via `sendLoggingMessage` if model doesn't comply within 10s |
+
+### Layer 1: User Rules
 
 Create `~/.gemini/GEMINI.md`:
 
@@ -333,15 +340,9 @@ After success: echo agent identity, last summary, open TODOs, session version.
 If the call fails: say "Prism load failed — retrying" and try ONE more time.
 ```
 
-**Why this works:**
-- Gemini uses **single underscores** for MCP tools (`mcp_prism-mcp_...`) vs Claude's **double underscores** (`mcp__prism-mcp__...`)
-- Keeping the instruction to ~15 lines avoids triggering the model's adversarial "tool not found" reasoning
-- Framing as a positive "First Action" directive outperforms negative constraint lists
-- Antigravity injects GEMINI.md verbatim as User Rules — it's effectively a system prompt extension
+### Layer 2: Cross-Tool Reinforcement
 
-### Optional: Cross-Tool Reinforcement
-
-Create `~/.gemini/AGENTS.md` for additional reinforcement if using multiple MCP clients:
+Create `~/.gemini/AGENTS.md`:
 
 ```markdown
 # Session Memory
@@ -349,9 +350,36 @@ Every conversation starts with: mcp_prism-mcp_session_load_context(project="my-p
 Echo result: agent identity, TODOs, session version.
 ```
 
+### Layer 3: Prism Startup Skill
+
+Create `.agent/skills/prism-startup/SKILL.md` (or `.agents/skills/`) in your project or global config. This is a structured skill file that Antigravity loads with higher priority than plain rules. It includes:
+
+- Greeting detection (fires on "hi", "hello", etc.)
+- Full tool call instructions with error handling
+- Context echo template (agent identity, TODOs, version)
+- Startup block display
+
+### Server-Side Fallback (v5.2.1)
+
+If the model ignores all three layers, Prism's server pushes context automatically:
+
+1. After storage warmup, a 10-second timer starts
+2. If `session_load_context` hasn't been called by then, the server pushes context via `sendLoggingMessage`
+3. If the client already called the tool, the push is silently skipped (zero impact on Claude CLI)
+
+This ensures context is always available, even with non-compliant models.
+
+### Why This Architecture Works
+
+- **Gemini uses single underscores** for MCP tools (`mcp_prism-mcp_...`) vs Claude's double underscores
+- **Slim rules** (~10 lines) avoid triggering adversarial "tool not found" reasoning
+- **Skills have dedicated 3-level loading** in Antigravity — higher compliance than plain rules
+- **Server fallback** catches the remaining edge cases without affecting well-behaved clients
+- **Positive "First Action" framing** outperforms negative constraint lists
+
 ### Antigravity UI Caveat
 
-Antigravity **does not visually render MCP tool output blocks** in the chat UI. The tool executes successfully, but the user sees nothing. The GEMINI.md template above handles this by instructing the agent to echo context in its text reply.
+Antigravity **does not visually render MCP tool output blocks** in the chat UI. The tool executes successfully, but the user sees nothing. All three layers instruct the agent to **echo context in its text reply**.
 
 ### Session End Workflow
 
@@ -360,17 +388,7 @@ Tell the agent: *"Wrap up the session."* It should execute:
 1. `session_save_ledger` — append immutable work log (summary, decisions, files changed)
 2. `session_save_handoff` — upsert project state with `expected_version` for OCC
 
-> **Tip:** Include the session-end instructions in your `GEMINI.md` or ask the agent to save when you're done.
-
-### Key Findings from 14 Iterations
-
-| Iteration | What We Tried | Result |
-|-----------|---------------|--------|
-| 1–6 | Verbose "Banned Behaviors" blocks, negative constraints | ❌ Model hallucinated tools were unavailable |
-| 7–9 | `always_on` trigger rules, multi-file configs | ❌ Redundant configs caused race conditions |
-| 10–11 | Emergency-style `🚨 MANDATORY` headers | ⚠️ Inconsistent — worked sometimes |
-| 12–13 | Positive-only framing, progressively shorter | ⚠️ Better but still intermittent |
-| 14 | **Slim "First Action" directive via User Rules** | ✅ **Reliable across sessions** |
+> **Tip:** Include session-end instructions in your `GEMINI.md` or ask the agent to save when you're done.
 
 ### Platform Gotchas
 
@@ -733,7 +751,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full details.
 ## ⚠️ Limitations
 
 - **LLM-dependent features require an API key.** Semantic search, Morning Briefings, auto-compaction, and VLM captioning need a `GOOGLE_API_KEY` (Gemini) or equivalent provider key. Without one, Prism falls back to keyword-only search (FTS5).
-- **Auto-load is model-dependent.** Session auto-loading relies on the LLM following system prompt instructions. Gemini/Antigravity auto-load is now reliable via the User Rules mechanism (`~/.gemini/GEMINI.md`). See the [Gemini/Antigravity setup guide](#gemini--antigravity--auto-load-rules-battle-tested-) for the proven approach.
+- **Auto-load is model-dependent.** Session auto-loading relies on the LLM following system prompt instructions. Gemini/Antigravity uses a [three-layer architecture](#gemini--antigravity--three-layer-auto-load-battle-tested-) (User Rules + AGENTS.md + Startup Skill) with a v5.2.1 server-side fallback that auto-pushes context if the model doesn't comply within 10 seconds.
 - **No real-time sync without Supabase.** Local SQLite mode is single-machine only. Multi-device or team sync requires a Supabase backend.
 - **Embedding quality varies by provider.** Gemini `text-embedding-004` and OpenAI `text-embedding-3-small` produce high-quality 768-dim vectors. Ollama embeddings (e.g., `nomic-embed-text`) are usable but may reduce retrieval accuracy.
 - **Dashboard is HTTP-only.** The Mind Palace dashboard at `localhost:3000` does not support HTTPS. For remote access, use a reverse proxy (nginx/Caddy) or SSH tunnel. Basic auth is available via `PRISM_DASHBOARD_USER` / `PRISM_DASHBOARD_PASS`.
