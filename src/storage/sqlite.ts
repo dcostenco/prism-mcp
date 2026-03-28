@@ -1394,7 +1394,40 @@ export class SqliteStorage implements StorageBackend {
     }));
   }
 
-  // ─── v2.0 Dashboard ─────────────────────────────────────────
+  // ─── v2.0 Dashboard ─────────────────────────────────────────────
+
+  // ─── v5.4: CRDT Base State Retrieval ───────────────────────
+  //
+  // Reads a historical handoff snapshot by version number.
+  // Used by the CRDT merge engine to reconstruct the base state
+  // that both concurrent agents originally read.
+  //
+  // This leverages the EXISTING session_handoffs_history table
+  // (created by Time Travel v2.0) — no schema changes needed.
+
+  async getHandoffAtVersion(
+    project: string,
+    version: number,
+    userId: string = "default"
+  ): Promise<Record<string, unknown> | null> {
+    const result = await this.db.execute({
+      sql: `SELECT snapshot FROM session_handoffs_history
+            WHERE project = ? AND user_id = ? AND version = ?
+            LIMIT 1`,
+      args: [project, userId, version],
+    });
+
+    if (result.rows.length === 0 || !result.rows[0].snapshot) return null;
+
+    try {
+      const snapshot = result.rows[0].snapshot;
+      if (typeof snapshot === "string") return JSON.parse(snapshot) as Record<string, unknown>;
+      return snapshot as unknown as Record<string, unknown>;
+    } catch {
+      console.error(`[SqliteStorage] Failed to parse history snapshot for ${project} v${version}`);
+      return null;
+    }
+  }
 
   async listProjects(): Promise<string[]> {
     const result = await this.db.execute(
@@ -1518,6 +1551,16 @@ export class SqliteStorage implements StorageBackend {
     const totalHandoffs = Number(totalsResult.rows[0]?.handoffs ?? 0);
     const totalRollups = Number(totalsResult.rows[0]?.rollups ?? 0);
 
+    // ── v5.4: Aggregate CRDT merge counts from handoff metadata ───
+    // Each successful CRDT merge increments metadata.crdt_merge_count.
+    // We sum across all handoffs for the health report.
+    const mergesResult = await this.db.execute({
+      sql: `SELECT SUM(CAST(json_extract(metadata, '$.crdt_merge_count') AS INTEGER)) as total
+            FROM session_handoffs WHERE user_id = ?`,
+      args: [userId],
+    });
+    const totalCrdtMerges = Number(mergesResult.rows[0]?.total ?? 0);
+
     // ── Return the complete raw health stats ─────────────────────
     // healthCheck.ts engine will analyze this + produce HealthReport
     return {
@@ -1528,6 +1571,7 @@ export class SqliteStorage implements StorageBackend {
       totalActiveEntries,    // grand total of active entries
       totalHandoffs,         // grand total of handoff records
       totalRollups,          // grand total of rollup entries
+      totalCrdtMerges,       // v5.4: total CRDT auto-merges
     };
   }
 

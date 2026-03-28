@@ -154,6 +154,7 @@ export interface HealthReport {
     activeEntries: number;    // total active ledger entries
     handoffs: number;         // total handoff records
     rollups: number;          // total compaction rollups
+    crdtMerges: number;       // v5.4: total auto-merges performed
   };
   // all issues found by the 4 checks
   issues: HealthIssue[];
@@ -365,6 +366,21 @@ export function runHealthCheck(stats: HealthStats): HealthReport {
     });
   }
 
+  // ── Check 5 (v5.4): CRDT Merge Activity ───────────────────
+  // Report CRDT merge activity as informational. High counts may
+  // indicate heavy contention that needs operational attention.
+  if (stats.totalCrdtMerges > 0) {
+    issues.push({
+      check: "crdt_merge_activity",
+      severity: stats.totalCrdtMerges > 50 ? "warning" : "info",
+      message: `${stats.totalCrdtMerges} CRDT auto-merge(s) performed across all projects`,
+      count: stats.totalCrdtMerges,
+      suggestion: stats.totalCrdtMerges > 50
+        ? "High merge count may indicate excessive concurrent writes. Consider staggering agent schedules."
+        : "CRDT merges are working as expected — no action needed.",
+    });
+  }
+
   // ── Calculate severity counts ──────────────────────────────
   const errors = issues.filter(i => i.severity === "error").length;    // count errors
   const warnings = issues.filter(i => i.severity === "warning").length; // count warnings
@@ -397,6 +413,7 @@ export function runHealthCheck(stats: HealthStats): HealthReport {
       activeEntries: stats.totalActiveEntries,  // total active entries
       handoffs: stats.totalHandoffs,            // total handoff records
       rollups: stats.totalRollups,              // total rollup entries
+      crdtMerges: stats.totalCrdtMerges,        // v5.4: total CRDT auto-merges
     },
     issues,                              // all issues with details
     counts: {

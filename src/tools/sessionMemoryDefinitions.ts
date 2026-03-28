@@ -62,6 +62,9 @@ export const SESSION_SAVE_HANDOFF_TOOL: Tool = {
     "Upsert the latest project handoff state for the next session to consume on boot. " +
     "This is the 'live context' that gets loaded when a new session starts. " +
     "Calling this replaces the previous handoff for the same project (upsert on project).\n\n" +
+    "**v5.4 CRDT Merge**: On version conflict, a CRDT OR-Map engine automatically merges " +
+    "your changes with concurrent work (Add-Wins OR-Set for arrays, Last-Writer-Wins for scalars). " +
+    "Pass expected_version to enable concurrency control.\n\n" +
     "**v0.4.0 OCC**: If you received a version number from session_load_context, " +
     "/resume_session prompt, or memory resource attachment, you MUST pass it as " +
     "expected_version to prevent overwriting another session's changes.",
@@ -99,6 +102,10 @@ export const SESSION_SAVE_HANDOFF_TOOL: Tool = {
       role: {
         type: "string",
         description: "Optional. Agent role for Hivemind scoping (e.g., 'dev', 'qa', 'pm'). Omit to let the server auto-resolve from dashboard settings.",
+      },
+      disable_merge: {
+        type: "boolean",
+        description: "Set to true to disable automatic CRDT merging and fail strictly on version conflict (original OCC behavior). Default: false.",
       },
     },
     required: ["project"],
@@ -429,6 +436,7 @@ export function isSessionSaveLedgerArgs(
 
 // REVIEWER NOTE: v0.4.0 adds expected_version to the type guard
 // for optimistic concurrency control. It's optional for backward compat.
+// v5.4: Added disable_merge for CRDT bypass.
 export function isSessionSaveHandoffArgs(
   args: unknown
 ): args is {
@@ -439,6 +447,7 @@ export function isSessionSaveHandoffArgs(
   last_summary?: string;
   key_context?: string;
   role?: string;  // v3.0: Hivemind
+  disable_merge?: boolean;  // v5.4: CRDT bypass
 } {
   return (
     typeof args === "object" &&

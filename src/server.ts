@@ -72,8 +72,10 @@ import {
   SERVER_CONFIG, SESSION_MEMORY_ENABLED, PRISM_USER_ID, PRISM_ENABLE_HIVEMIND,
   WATCHDOG_INTERVAL_MS, WATCHDOG_STALE_MIN, WATCHDOG_FROZEN_MIN,
   WATCHDOG_OFFLINE_MIN, WATCHDOG_LOOP_THRESHOLD,
+  PRISM_SCHEDULER_ENABLED, PRISM_SCHEDULER_INTERVAL_MS,
 } from "./config.js";
 import { startWatchdog, drainAlerts } from "./hivemindWatchdog.js";
+import { startScheduler } from "./backgroundScheduler.js";
 import { getSyncBus } from "./sync/factory.js";
 import type { SyncBus, SyncEvent } from "./sync/index.js";
 import { startDashboardServer } from "./dashboard/server.js";
@@ -1026,6 +1028,8 @@ export async function startServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
+  console.error(`[Prism] MCP Server successfully started and listening on stdio...`);
+
   // Register graceful shutdown handlers (SIGTERM, SIGINT, SIGHUP, stdin close).
   // The stdin close handler is critical — when MCP clients disconnect, they
   // often just close the pipe without sending a signal, leaving zombie processes.
@@ -1200,6 +1204,20 @@ export async function startServer() {
       });
     }).catch(err => {
       console.error(`[Watchdog] Startup failed (non-fatal): ${err}`);
+    });
+  }
+
+  // ─── v5.4: Background Purge Scheduler ────────────────────
+  // Automated storage maintenance: TTL sweep, importance decay,
+  // compaction, and deep purge. Runs every PRISM_SCHEDULER_INTERVAL_MS
+  // (default: 12 hours). Independent from the Watchdog (60s cadence).
+  if (PRISM_SCHEDULER_ENABLED && SESSION_MEMORY_ENABLED) {
+    storageReady?.then(() => {
+      startScheduler({
+        intervalMs: PRISM_SCHEDULER_INTERVAL_MS,
+      });
+    }).catch(err => {
+      console.error(`[Scheduler] Startup failed (non-fatal): ${err}`);
     });
   }
 

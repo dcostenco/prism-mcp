@@ -22,6 +22,7 @@ import { toKeywordArray } from "../utils/keywordExtractor.js";
 import { getLLMProvider } from "../utils/llm/factory.js";
 import { getCurrentGitState, getGitDrift } from "../utils/git.js";
 import { getSetting, getAllSettings } from "../storage/configStorage.js";
+import { mergeHandoff, dbToHandoffSchema } from "../utils/crdtMerge.js";
 
 // ─── Phase 1: Explainability & Memory Lineage ────────────────
 // These utilities provide structured tracing metadata for search operations.
@@ -247,7 +248,7 @@ export async function sessionSaveHandoffHandler(args: unknown, server?: Server) 
 
   // Auto-extract keywords from summary + context for knowledge accumulation
   const combinedText = [last_summary || "", key_context || ""].filter(Boolean).join(" ");
-  const keywords = combinedText ? toKeywordArray(combinedText) : undefined;
+  let keywords = combinedText ? toKeywordArray(combinedText) : undefined;
   if (keywords) {
     debugLog(`[session_save_handoff] Extracted ${keywords.length} keywords: ${keywords.slice(0, 5).join(", ")}...`);
   }
@@ -265,7 +266,7 @@ export async function sessionSaveHandoffHandler(args: unknown, server?: Server) 
 
   // Save via storage backend (OCC-aware)
   const effectiveRole = role || await getSetting("default_role", "global");
-  const data = await storage.saveHandoff(
+  let data = await storage.saveHandoff(
     {
       project,
       user_id: PRISM_USER_ID,
@@ -281,35 +282,123 @@ export async function sessionSaveHandoffHandler(args: unknown, server?: Server) 
     expected_version ?? null
   );
 
-  // ─── Handle version conflict ───
-  if (data.status === "conflict") {
+  // ─── v5.4: CRDT Auto-Merge Resolution Loop ──────────────────
+  //
+  // Instead of returning a conflict error, we now:
+  //   1. Fetch the base state (the version the incoming agent read)
+  //   2. Fetch the current DB state (what beat the incoming agent)
+  //   3. Run a 3-way CRDT merge (OR-Set for arrays, LWW for scalars)
+  //   4. Retry the save with the merged state
+  //
+  // This converts what was previously an error into an automatic merge.
+  // The loop handles the rare case where ANOTHER save sneaks in during
+  // our merge (up to MAX_ATTEMPTS retries before giving up).
+
+  const MAX_MERGE_ATTEMPTS = 3;
+  let mergeAttempts = 0;
+  let isMerged = false;
+  let mergeStrategy: Record<string, string> | null = null;
+
+  while (data.status === "conflict" && mergeAttempts < MAX_MERGE_ATTEMPTS) {
+    // If the user explicitly disabled CRDT merging, return old OCC error
+    if (args.disable_merge) {
+      debugLog(
+        `[session_save_handoff] VERSION CONFLICT for "${project}": ` +
+        `expected=${expected_version}, current=${data.current_version} (merge disabled)`
+      );
+      return {
+        content: [{
+          type: "text",
+          text: `⚠️ Version conflict detected for project "${project}"!\n\n` +
+            `You sent version ${expected_version}, but the current version is ${data.current_version}.\n` +
+            `Auto-merge is disabled. Please call session_load_context to see the latest changes, ` +
+            `then manually merge your updates and try saving again.`,
+        }],
+        isError: true,
+      };
+    }
+
     debugLog(
-      `[session_save_handoff] VERSION CONFLICT for "${project}": ` +
-      `expected=${expected_version}, current=${data.current_version}`
+      `[session_save_handoff] CRDT merge attempt ${mergeAttempts + 1}/${MAX_MERGE_ATTEMPTS} ` +
+      `for "${project}" (expected=${expected_version}, current=${data.current_version})`
     );
 
+    // Step 1: Fetch the base state (what the incoming agent originally read)
+    const baseDbState = expected_version
+      ? await storage.getHandoffAtVersion(project, expected_version, PRISM_USER_ID)
+      : null;
+    const baseState = dbToHandoffSchema(baseDbState);
+
+    // Step 2: Fetch current DB state (what beat us to the save)
+    const currentDbState = await storage.loadContext(project, "standard", PRISM_USER_ID);
+    const currentState = dbToHandoffSchema(currentDbState);
+
+    if (!currentState || !currentDbState) {
+      debugLog("[session_save_handoff] CRDT merge failed: could not load current state");
+      break; // Safety fallback — can't merge without both sides
+    }
+
+    // Step 3: Build the incoming state from the original args
+    const incomingState = {
+      summary: last_summary || "",
+      active_branch: active_branch,
+      key_context: key_context,
+      pending_todo: open_todos,
+      active_decisions: undefined as string[] | undefined,
+      keywords: keywords,
+    };
+
+    // Step 4: Run 3-way CRDT merge
+    const crdt = mergeHandoff(baseState, incomingState, currentState);
+    mergeStrategy = crdt.strategy;
+    isMerged = true;
+
+    debugLog(
+      `[session_save_handoff] CRDT merge strategy: ${JSON.stringify(crdt.strategy)}`
+    );
+
+    // Step 5: Build merged handoff and retry save
+    const mergedExpectedVersion = (currentDbState as Record<string, unknown>).version as number;
+    data = await storage.saveHandoff(
+      {
+        project,
+        user_id: PRISM_USER_ID,
+        last_summary: crdt.merged.summary ?? null,
+        pending_todo: crdt.merged.pending_todo ?? null,
+        active_decisions: crdt.merged.active_decisions ?? null,
+        keywords: crdt.merged.keywords ?? null,
+        key_context: crdt.merged.key_context ?? null,
+        active_branch: crdt.merged.active_branch ?? null,
+        metadata: {
+          ...metadata,
+          crdt_merge_count: (((currentDbState as Record<string, unknown>).metadata as Record<string, unknown>)?.crdt_merge_count as number || 0) + 1,
+          last_merge_strategy: crdt.strategy,
+        },
+        role: effectiveRole,
+      },
+      mergedExpectedVersion ?? null
+    );
+
+    // Update these for the snapshot/notification blocks below
+    if (data.status !== "conflict") {
+      // Merge succeeded — update local vars for the success path
+      keywords = crdt.merged.keywords ?? keywords;
+    }
+
+    mergeAttempts++;
+  }
+
+  // After all merge attempts exhausted, still a conflict → give up
+  if (data.status === "conflict") {
+    debugLog(
+      `[session_save_handoff] CRDT merge exhausted after ${MAX_MERGE_ATTEMPTS} attempts for "${project}"`
+    );
     return {
       content: [{
         type: "text",
-        text: `⚠️ Version conflict detected for project "${project}"!\n\n` +
-          `You sent version ${expected_version}, but the current version is ${data.current_version}.\n` +
-          `Another session has updated this project since you loaded context.\n\n` +
-          `Please call session_load_context to see what changed, then merge ` +
-          `it with your attempted updates:\n` +
-          (last_summary
-            ? `  Your attempted summary: ${last_summary}\n`
-            : "") +
-          (open_todos?.length
-            ? `  Your attempted TODOs: ${JSON.stringify(open_todos)}\n`
-            : "") +
-          (key_context
-            ? `  Your attempted key_context: ${key_context}\n`
-            : "") +
-          (active_branch
-            ? `  Your attempted active_branch: ${active_branch}\n`
-            : "") +
-          `\nAfter reviewing the latest state, call session_save_handoff again ` +
-          `with the updated expected_version.`,
+        text: `⚠️ CRDT auto-merge failed for "${project}" after ${MAX_MERGE_ATTEMPTS} attempts ` +
+          `due to high contention. Please run session_load_context to see the latest state ` +
+          `and try saving again.`,
       }],
       isError: true,
     };
@@ -459,16 +548,25 @@ export async function sessionSaveHandoffHandler(args: unknown, server?: Server) 
     );
   }
 
+  // Build response text based on whether a CRDT merge occurred
+  const responseText = isMerged
+    ? `🔄 Auto-merged conflict for "${project}" (v${expected_version} → v${newVersion})\n` +
+      `Strategy: ${JSON.stringify(mergeStrategy)}\n` +
+      (last_summary ? `Summary: ${last_summary}\n` : "") +
+      `\n🔑 Remember: pass expected_version: ${newVersion} on your next save ` +
+      `to maintain concurrency control.`
+    : `✅ Handoff ${data.status || "saved"} for project "${project}" ` +
+      `(version: ${newVersion})\n` +
+      (last_summary ? `Last summary: ${last_summary}\n` : "") +
+      (open_todos?.length ? `Open TODOs: ${open_todos.length} items\n` : "") +
+      (active_branch ? `Active branch: ${active_branch}\n` : "") +
+      `\n🔑 Remember: pass expected_version: ${newVersion} on your next save ` +
+      `to maintain concurrency control.`;
+
   return {
     content: [{
       type: "text",
-      text: `✅ Handoff ${data.status || "saved"} for project "${project}" ` +
-        `(version: ${newVersion})\n` +
-        (last_summary ? `Last summary: ${last_summary}\n` : "") +
-        (open_todos?.length ? `Open TODOs: ${open_todos.length} items\n` : "") +
-        (active_branch ? `Active branch: ${active_branch}\n` : "") +
-        `\n🔑 Remember: pass expected_version: ${newVersion} on your next save ` +
-        `to maintain concurrency control.`,
+      text: responseText,
     }],
     isError: false,
   };

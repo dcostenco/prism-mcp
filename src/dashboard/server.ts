@@ -880,6 +880,22 @@ return false;}
         }
       }
 
+      // ─── API: Background Scheduler Status (v5.4) ────────────
+      if (url.pathname === "/api/scheduler" && req.method === "GET") {
+        try {
+          const { getSchedulerStatus } = await import("../backgroundScheduler.js");
+          const status = getSchedulerStatus();
+          res.writeHead(200, { "Content-Type": "application/json" });
+          return res.end(JSON.stringify(status));
+        } catch (err) {
+          console.error("[Dashboard] Scheduler status error:", err);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          return res.end(JSON.stringify({
+            running: false, startedAt: null, intervalMs: 0, lastSweep: null,
+          }));
+        }
+      }
+
       // ─── 404 ───
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Not found");
@@ -954,6 +970,9 @@ return false;}
   console.error(`[Prism] 🧠 Mind Palace Dashboard → http://localhost:${boundPort}`);
 
   // ─── v3.1: TTL Sweep — runs at startup + every 12 hours ───────────
+  // NOTE (v5.4): The Background Scheduler in server.ts now also handles
+  // TTL sweeps. This dashboard sweep is kept as a legacy fallback for
+  // deployments where the scheduler is disabled. Both are idempotent.
   async function runTtlSweep() {
     try {
       const allSettings = await getAllSettings();

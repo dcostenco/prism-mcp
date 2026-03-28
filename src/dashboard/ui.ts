@@ -741,6 +741,18 @@ export function renderDashboardHTML(version: string): string {
             </li>
           </ul>
         </div>
+
+        <!-- Background Scheduler Status (v5.4) -->
+        <div class="card" id="schedulerCard">
+          <div class="card-title">
+            <span class="dot" style="background:var(--accent-amber, #f59e0b)"></span>
+            Background Scheduler ⏰
+            <button onclick="loadSchedulerStatus()" class="refresh-btn">↻</button>
+          </div>
+          <div id="schedulerContent" style="font-size:0.8rem;color:var(--text-muted)">
+            Loading scheduler status...
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1307,7 +1319,8 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
           var t = healthData.totals || {};
           healthSummary.textContent = (t.activeEntries || 0) + ' entries · ' +
             (t.handoffs || 0) + ' handoffs · ' +
-            (t.rollups || 0) + ' rollups';
+            (t.rollups || 0) + ' rollups' +
+            (t.crdtMerges ? ' · 🔄 ' + t.crdtMerges + ' merges' : '');
 
           // Issue rows
           var issues = healthData.issues || [];
@@ -2222,6 +2235,67 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       startHivemindRefresh();
     }
 
+    // ─── Background Scheduler Status (v5.4) ───
+    async function loadSchedulerStatus() {
+      var el = document.getElementById('schedulerContent');
+      if (!el) return;
+      try {
+        var res = await fetch('/api/scheduler');
+        var data = await res.json();
+        if (!data.running) {
+          el.innerHTML = '<div style="color:var(--text-muted)">⏸ Scheduler not running. Set <code style="font-family:var(--font-mono);font-size:0.75rem">PRISM_SCHEDULER_ENABLED=true</code> to enable.</div>';
+          return;
+        }
+        var intervalH = Math.round(data.intervalMs / 3600000);
+        var parts = ['<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem">'];
+        parts.push('<span style="color:var(--accent-green)">🟢 Running</span>');
+        parts.push('<span>Interval: <strong>' + intervalH + 'h</strong></span>');
+        if (data.startedAt) {
+          parts.push('<span>Started: ' + formatDate(data.startedAt) + '</span>');
+        }
+        parts.push('</div>');
+
+        if (data.lastSweep) {
+          var ls = data.lastSweep;
+          parts.push('<div style="border-top:1px solid var(--border-glass);padding-top:0.5rem;margin-top:0.25rem">');
+          parts.push('<div style="margin-bottom:0.3rem;color:var(--text-secondary)">Last sweep: ' + formatDate(ls.completedAt) + ' (' + ls.durationMs + 'ms)</div>');
+          parts.push('<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.3rem;font-size:0.75rem">');
+          var t = ls.tasks;
+          if (t.ttlSweep.ran) {
+            parts.push('<div>🗓️ TTL: ' + t.ttlSweep.totalExpired + ' expired (' + t.ttlSweep.projectsSwept + ' projects)</div>');
+          }
+          if (t.importanceDecay.ran) {
+            parts.push('<div>📉 Decay: ' + t.importanceDecay.projectsDecayed + ' projects</div>');
+          }
+          if (t.compaction.ran) {
+            parts.push('<div>🧹 Compact: ' + t.compaction.projectsCompacted + ' compacted</div>');
+          }
+          if (t.deepPurge.ran) {
+            var bytes = t.deepPurge.reclaimedBytes;
+            var bytesStr = bytes > 1048576 ? (bytes / 1048576).toFixed(1) + 'MB' : bytes > 1024 ? (bytes / 1024).toFixed(1) + 'KB' : bytes + 'B';
+            parts.push('<div>💾 Purge: ' + t.deepPurge.purged + ' entries (' + bytesStr + ' freed)</div>');
+          }
+          parts.push('</div>');
+          // Show errors if any
+          var errors = [t.ttlSweep.error, t.importanceDecay.error, t.compaction.error, t.deepPurge.error].filter(Boolean);
+          if (errors.length > 0) {
+            parts.push('<div style="color:var(--accent-rose);margin-top:0.3rem;font-size:0.7rem">⚠️ ' + errors.join(' | ') + '</div>');
+          }
+          parts.push('</div>');
+        } else {
+          parts.push('<div style="color:var(--text-muted)">No sweep completed yet. First sweep runs 5s after start.</div>');
+        }
+        el.innerHTML = parts.join('');
+      } catch(e) {
+        el.innerHTML = '<div style="color:var(--text-muted)">Scheduler status unavailable</div>';
+      }
+    }
+
+    // Load scheduler status on page load
+    loadSchedulerStatus();
+    // Auto-refresh scheduler status every 60s
+    setInterval(loadSchedulerStatus, 60000);
+
     function timeAgo(iso) {
       var diff = Date.now() - new Date(iso).getTime();
       var mins = Math.floor(diff / 60000);
@@ -2252,7 +2326,7 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
             healthDot.className = 'health-dot ' + (healthData.status || 'unknown');
             healthLabel.textContent = statusMap[healthData.status] || '❓ Unknown';
             var t = healthData.totals || {};
-            healthSummary.textContent = (t.activeEntries || 0) + ' entries · ' + (t.handoffs || 0) + ' handoffs · ' + (t.rollups || 0) + ' rollups';
+            healthSummary.textContent = (t.activeEntries || 0) + ' entries · ' + (t.handoffs || 0) + ' handoffs · ' + (t.rollups || 0) + ' rollups' + (t.crdtMerges ? ' · 🔄 ' + t.crdtMerges + ' merges' : '');
             var issues = healthData.issues || [];
             if (issues.length > 0) {
               var sevIcons = { error: '🔴', warning: '🟡', info: '🔵' };

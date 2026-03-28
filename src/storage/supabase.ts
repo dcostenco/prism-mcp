@@ -275,6 +275,33 @@ export class SupabaseStorage implements StorageBackend {
     return (Array.isArray(data) ? data : []) as HistorySnapshot[];
   }
 
+  // ─── v5.4: CRDT Base State Retrieval ───────────────────────
+  //
+  // Reads a historical handoff snapshot by version number via
+  // Supabase REST API. Used by the CRDT merge engine.
+
+  async getHandoffAtVersion(
+    project: string,
+    version: number,
+    userId: string = "default"
+  ): Promise<Record<string, unknown> | null> {
+    try {
+      const data = await supabaseGet("session_handoffs_history", {
+        select: "snapshot",
+        project: `eq.${project}`,
+        user_id: `eq.${userId}`,
+        version: `eq.${version}`,
+        limit: "1",
+      });
+      const rows = Array.isArray(data) ? data : [];
+      if (rows.length === 0) return null;
+      return rows[0].snapshot as Record<string, unknown> || null;
+    } catch (err) {
+      console.error(`[SupabaseStorage] Failed to get handoff at version ${version}: ${err}`);
+      return null;
+    }
+  }
+
   // ─── v2.0 Dashboard ─────────────────────────────────────────
 
   async listProjects(): Promise<string[]> {
@@ -355,6 +382,16 @@ export class SupabaseStorage implements StorageBackend {
     const totalHandoffs = handoffProjects.size;
     const totalRollups = rollups.length;
 
+    // v5.4: Aggregate CRDT merge counts from handoff metadata
+    const handoffFullData = await supabaseGet("session_handoffs", {
+      select: "metadata",
+      user_id: `eq.${userId}`,
+    });
+    const handoffRows = Array.isArray(handoffFullData) ? handoffFullData : [];
+    const totalCrdtMerges = handoffRows.reduce(
+      (sum: number, h: any) => sum + ((h.metadata?.crdt_merge_count as number) || 0), 0
+    );
+
     return {
       missingEmbeddings,
       activeLedgerSummaries,
@@ -363,6 +400,7 @@ export class SupabaseStorage implements StorageBackend {
       totalActiveEntries,
       totalHandoffs,
       totalRollups,
+      totalCrdtMerges,
     };
   }
 

@@ -248,6 +248,9 @@ export interface HealthStats {
   totalActiveEntries: number;
   totalHandoffs: number;
   totalRollups: number;
+
+  // v5.4: CRDT auto-merge counter (aggregated from handoff metadata)
+  totalCrdtMerges: number;
 }
 
 // ─── Storage Backend Interface ────────────────────────────────
@@ -336,6 +339,18 @@ export interface StorageBackend {
    * Returns status (created/updated/conflict) + new version.
    */
   saveHandoff(handoff: HandoffEntry, expectedVersion?: number | null): Promise<SaveHandoffResult>;
+
+  /**
+   * Retrieve a historical handoff snapshot by version number.
+   * Used by the CRDT merge engine to reconstruct the base state
+   * that both agents originally read before their concurrent saves.
+   *
+   * @param project - Project identifier
+   * @param version - The version number to retrieve (from history)
+   * @param userId - User who owns the handoff (default: 'default')
+   * @returns The snapshot at that version, or null if not found
+   */
+  getHandoffAtVersion(project: string, version: number, userId?: string): Promise<Record<string, unknown> | null>;
 
   /**
    * Delete handoff state for a project (used by knowledge_forget with clear_handoff).

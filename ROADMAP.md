@@ -138,7 +138,16 @@ With v5.2 shipped, Prism has crossed from retrieval into **cognition**:
 
 ---
 
-## 🗺️ Next on the Horizon — v5.3
+### ✅ v5.3.0 — Stability & Observability
+
+| Feature | Detail |
+|---------|--------|
+| 🖥️ **MCP Stdio Confirmation** | Fixed "hanging" terminal UX by injecting an explicit `console.error` startup confirmation when listening on stdio transport. |
+| 📦 **Repomix Support** | Supported repository bundles for documentation and context tracking. |
+
+---
+
+## 🗺️ Next on the Horizon — v5.4
 
 The next major frontier: **Concurrency, Automation & Mobile**.
 

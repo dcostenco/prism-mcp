@@ -172,3 +172,13 @@ export const WATCHDOG_LOOP_THRESHOLD = parseInt(
   process.env.PRISM_WATCHDOG_LOOP_THRESHOLD || "5", 10
 );
 
+// ─── v5.4: Background Purge Scheduler ────────────────────────
+// Automated background maintenance: TTL sweep, importance decay,
+// compaction, and deep storage purge. Runs independently from
+// the Watchdog (different cadence: 12h vs 60s).
+export const PRISM_SCHEDULER_ENABLED =
+  process.env.PRISM_SCHEDULER_ENABLED !== "false"; // Default: true
+export const PRISM_SCHEDULER_INTERVAL_MS = parseInt(
+  process.env.PRISM_SCHEDULER_INTERVAL_MS || "43200000", 10  // 12 hours
+);
+
