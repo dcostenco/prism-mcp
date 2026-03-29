@@ -21,19 +21,19 @@ Works with **Claude Desktop · Claude Code · Cursor · Windsurf · Cline · Gem
 ## 📖 Table of Contents
 
 - [Why Prism?](#why-prism)
-- [Quick Start](#quick-start)
-- [Setup Guides](#setup-guides)
-- [What Makes Prism Different](#what-makes-prism-different)
-- [Use Cases](#use-cases)
-- [What's New](#whats-new)
-- [Autonomous Web Scholar](#autonomous-web-scholar)
+- [Quick Start](#-quick-start)
+- [Setup Guides](#-setup-guides)
+- [What Makes Prism Different](#-what-makes-prism-different)
+- [Use Cases](#-use-cases)
+- [What's New](#-whats-new)
+- [Autonomous Web Scholar](#-autonomous-web-scholar)
 - [How Prism Compares](#how-prism-compares)
-- [Tool Reference](#tool-reference)
+- [Tool Reference](#-tool-reference)
 - [Environment Variables](#environment-variables)
-- [Architecture](#architecture)
+- [Architecture](#architecture-1)
 - [Research Roadmap](#research-roadmap)
-- [Roadmap](#roadmap)
-- [Limitations](#limitations)
+- [Roadmap](#-roadmap)
+- [Limitations](#%EF%B8%8F-limitations)
 
 ---
 
@@ -150,7 +150,7 @@ Add to your Continue `config.json` or Cline MCP settings:
 <details>
 <summary><strong>Migrating Existing History (Claude, Gemini, OpenAI)</strong></summary>
 
-Prism can ingest months of historical sessions from other tools to give your Mind Palace a massive head start. Import via the **CLI** or directly from the [Mind Palace Dashboard](#mind-palace-dashboard) Import tab (file picker + manual path + dry-run toggle).
+Prism can ingest months of historical sessions from other tools to give your Mind Palace a massive head start. Import via the **CLI** or directly from the [Mind Palace Dashboard](#-mind-palace-dashboard) Import tab (file picker + manual path + dry-run toggle).
 
 ### Supported Formats
 * **Claude Code** (`.jsonl` logs) — Automatically handles streaming chunk deduplication and `requestId` normalization.
@@ -169,7 +169,7 @@ npx -y prism-mcp-server universal-import --format claude --path ~/path/to/claude
 npx -y prism-mcp-server universal-import --format gemini --path ./gemini_history.json --dry-run
 ```
 
-**Option 2 — Dashboard:** Open `localhost:3000`, navigate to the **Import** tab, select the format and file, and click Import. Supports dry-run preview. See the [dashboard screenshot](#mind-palace-dashboard) above.
+**Option 2 — Dashboard:** Open `localhost:3000`, navigate to the **Import** tab, select the format and file, and click Import. Supports dry-run preview. See the [dashboard screenshot](#-mind-palace-dashboard) above.
 
 ### Key Features
 * **OOM-Safe Streaming:** Processes massive log files line-by-line using `stream-json`.
@@ -455,7 +455,7 @@ Save UI screenshots, architecture diagrams, and bug states to a searchable vault
 OpenTelemetry spans for every MCP tool call, LLM hop, and background worker. Route to Jaeger, Grafana, or any OTLP collector. Configure in the dashboard — zero code changes.
 
 ## 🌐 Autonomous Web Scholar
-Prism researches while you sleep. A background pipeline searches the web, scrapes articles, synthesizes findings via LLM, and injects results directly into your semantic memory — fully searchable on your next session. [Details below →](#autonomous-web-scholar)
+Prism researches while you sleep. A background pipeline searches the web, scrapes articles, synthesizes findings via LLM, and injects results directly into your semantic memory — fully searchable on your next session. [Details below →](#-autonomous-web-scholar)
 
 ### 🔒 GDPR Compliant
 Soft/hard delete (Art. 17), full ZIP export (Art. 20), API key redaction, per-project TTL retention, and audit trail. Enterprise-ready out of the box.
@@ -496,7 +496,7 @@ Soft/hard delete (Art. 17), full ZIP export (Art. 20), API key redaction, per-pr
 ### v5.4 — Convergent Intelligence
 - 🔄 **CRDT Handoff Merging** — Multi-agent saves no longer reject on version conflict. Custom OR-Map engine auto-merges concurrent edits (Add-Wins for arrays, LWW for scalars).
 - ⏰ **Background Purge Scheduler** — Fully automated storage maintenance: TTL sweep, Ebbinghaus importance decay, auto-compaction, and deep storage purge on a configurable interval.
-- 🌐 **[Autonomous Web Scholar](#autonomous-web-scholar)** — Agent-driven research pipeline. Brave Search → Firecrawl scrape → LLM synthesis → Prism ledger. Task-aware and Hivemind-integrated.
+- 🌐 **[Autonomous Web Scholar](#-autonomous-web-scholar)** — Agent-driven research pipeline. Brave Search → Firecrawl scrape → LLM synthesis → Prism ledger. Task-aware and Hivemind-integrated.
 - 🐝 **Scholar ↔ Hivemind Integration** — Scholar registers on the Radar, emits heartbeats, and broadcasts Telepathy alerts on completion.
 
 <details>
@@ -701,7 +701,7 @@ Prism is a **stdio-based MCP server** that manages persistent agent memory. Here
 
 ### Auto-Load Architecture
 
-Each MCP client has its own mechanism for ensuring Prism context loads on session start. See the platform-specific [Setup Guides](#setup-guides) above for detailed instructions:
+Each MCP client has its own mechanism for ensuring Prism context loads on session start. See the platform-specific [Setup Guides](#-setup-guides) above for detailed instructions:
 
 - **Claude Code** — Lifecycle hooks (`SessionStart` / `Stop`)
 - **Gemini / Antigravity** — Three-layer architecture (User Rules + AGENTS.md + Startup Skill)
@@ -747,7 +747,7 @@ Prism is evolving from smart session logging toward a **cognitive memory archite
 ## ⚠️ Limitations
 
 - **LLM-dependent features require an API key.** Semantic search, Morning Briefings, auto-compaction, and VLM captioning need a `GOOGLE_API_KEY` (Gemini) or equivalent provider key. Without one, Prism falls back to keyword-only search (FTS5).
-- **Auto-load is model- and client-dependent.** Session auto-loading relies on both the LLM following system prompt instructions *and* the MCP client completing tool registration before the model's first turn. Prism provides platform-specific [Setup Guides](#setup-guides) and a server-side fallback (v5.2.1) that auto-pushes context after 10 seconds.
+- **Auto-load is model- and client-dependent.** Session auto-loading relies on both the LLM following system prompt instructions *and* the MCP client completing tool registration before the model's first turn. Prism provides platform-specific [Setup Guides](#-setup-guides) and a server-side fallback (v5.2.1) that auto-pushes context after 10 seconds.
 - **MCP client race conditions.** Some MCP clients may not finish tool enumeration before the model generates its first response, causing transient `unknown_tool` errors. This is a client-side timing issue — Prism's server completes the MCP handshake in ~60ms. Workaround: the server-side auto-push fallback and the startup skill's retry logic.
 - **No real-time sync without Supabase.** Local SQLite mode is single-machine only. Multi-device or team sync requires a Supabase backend.
 - **Embedding quality varies by provider.** Gemini `text-embedding-004` and OpenAI `text-embedding-3-small` produce high-quality 768-dim vectors. Ollama embeddings (e.g., `nomic-embed-text`) are usable but may reduce retrieval accuracy.
