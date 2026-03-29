@@ -656,31 +656,32 @@ Requires `PRISM_ENABLE_HIVEMIND=true`.
 Prism is a **stdio-based MCP server** that manages persistent agent memory. Here's how the pieces fit together:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  MCP Client (Claude Desktop / Cursor / Antigravity)     │
-│         ↕ stdio (JSON-RPC)                              │
-├─────────────────────────────────────────────────────────┤
-│  Prism MCP Server                                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐ │
-│  │  30+ Tools   │  │  Lifecycle   │  │  Dashboard    │ │
-│  │  (handlers)  │  │  (PID lock,  │  │  (HTTP :3000) │ │
-│  │              │  │   shutdown)  │  │               │ │
-│  └──────┬───────┘  └──────────────┘  └───────────────┘ │
-│         ↕                                               │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  Storage Engine                                   │   │
-│  │  Local: SQLite + FTS5 + TurboQuant vectors        │   │
-│  │  Cloud: Supabase + pgvector                       │   │
-│  └──────────────────────────────────────────────────┘   │
-│         ↕                                               │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  Background Workers                               │   │
-│  │  • Scheduler (TTL, decay, compaction, purge)      │   │
-│  │  • Web Scholar (Brave → Firecrawl → LLM → Ledger)│   │
-│  │  • Hivemind heartbeats & Telepathy broadcasts     │   │
-│  │  • OpenTelemetry span export                      │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  MCP Client (Claude Desktop / Cursor / Antigravity)      │
+│                    ↕ stdio (JSON-RPC)                    │
+├──────────────────────────────────────────────────────────┤
+│  Prism MCP Server                                        │
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐  │
+│  │  30+ Tools   │  │  Lifecycle   │  │   Dashboard    │  │
+│  │  (handlers)  │  │  (PID lock,  │  │  (HTTP :3000)  │  │
+│  │              │  │   shutdown)  │  │                │  │
+│  └──────┬───────┘  └──────────────┘  └────────────────┘  │
+│         ↕                                                │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  Storage Engine                                    │  │
+│  │  Local: SQLite + FTS5 + TurboQuant vectors         │  │
+│  │  Cloud: Supabase + pgvector                        │  │
+│  └────────────────────────────────────────────────────┘  │
+│         ↕                                                │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  Background Workers                                │  │
+│  │  • Scheduler (TTL, decay, compaction, purge)       │  │
+│  │  • Web Scholar (Brave → Firecrawl → LLM → Ledger) │  │
+│  │  • Hivemind heartbeats & Telepathy broadcasts      │  │
+│  │  • OpenTelemetry span export                       │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ### Startup Sequence
