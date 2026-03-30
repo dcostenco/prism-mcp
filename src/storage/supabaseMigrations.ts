@@ -252,7 +252,8 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE scheduler_locks ENABLE ROW LEVEL SECURITY;
 
       -- Allow all authenticated reads (for observability)
-      CREATE POLICY IF NOT EXISTS "scheduler_locks_select"
+      DROP POLICY IF EXISTS "scheduler_locks_select" ON scheduler_locks;
+      CREATE POLICY "scheduler_locks_select"
         ON scheduler_locks FOR SELECT
         USING (true);
 
