@@ -283,6 +283,27 @@ export const SESSION_COMPACT_LEDGER_TOOL: Tool = {
   },
 };
 
+// REVIEWER NOTE: Guard intentionally placed directly after the tool definition
+// it covers. All four optional fields (project, threshold, keep_recent, dry_run)
+// are validated — an LLM passing {threshold: "many"} now fails the guard instead
+// of reaching the handler as a string.
+export function isSessionCompactLedgerArgs(
+  args: unknown
+): args is {
+  project?: string;
+  threshold?: number;
+  keep_recent?: number;
+  dry_run?: boolean;
+} {
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (a.project !== undefined && typeof a.project !== "string") return false;
+  if (a.threshold !== undefined && typeof a.threshold !== "number") return false;
+  if (a.keep_recent !== undefined && typeof a.keep_recent !== "number") return false;
+  if (a.dry_run !== undefined && typeof a.dry_run !== "boolean") return false;
+  return true;
+}
+
 // ─── v0.4.0: Session Search Memory (Enhancement #4) ──────────
 // REVIEWER NOTE: This tool uses pgvector embeddings for semantic
 // (meaning-based) search. Unlike knowledge_search which uses keyword
@@ -463,16 +484,18 @@ export function isSessionSaveLedgerArgs(
   decisions?: string[];
   role?: string;  // v3.0: Hivemind
 } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project" in args &&
-    typeof (args as { project: string }).project === "string" &&
-    "conversation_id" in args &&
-    typeof (args as { conversation_id: string }).conversation_id === "string" &&
-    "summary" in args &&
-    typeof (args as { summary: string }).summary === "string"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  // Required fields
+  if (typeof a.project !== "string") return false;
+  if (typeof a.conversation_id !== "string") return false;
+  if (typeof a.summary !== "string") return false;
+  // Optional array fields — guard against LLM passing a string instead of string[]
+  if (a.todos !== undefined && !Array.isArray(a.todos)) return false;
+  if (a.files_changed !== undefined && !Array.isArray(a.files_changed)) return false;
+  if (a.decisions !== undefined && !Array.isArray(a.decisions)) return false;
+  if (a.role !== undefined && typeof a.role !== "string") return false;
+  return true;
 }
 
 // REVIEWER NOTE: v0.4.0 adds expected_version to the type guard
@@ -620,25 +643,21 @@ export const MEMORY_CHECKOUT_TOOL: Tool = {
 export function isMemoryHistoryArgs(
   args: unknown
 ): args is { project: string; limit?: number } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project" in args &&
-    typeof (args as { project: string }).project === "string"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.project !== "string") return false;
+  if (a.limit !== undefined && typeof a.limit !== "number") return false;
+  return true;
 }
 
 export function isMemoryCheckoutArgs(
   args: unknown
 ): args is { project: string; target_version: number } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project" in args &&
-    typeof (args as { project: string }).project === "string" &&
-    "target_version" in args &&
-    typeof (args as { target_version: number }).target_version === "number"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.project !== "string") return false;
+  if (typeof a.target_version !== "number") return false;
+  return true;
 }
 
 // ─── v2.0: Visual Memory Tool Definitions ────────────────────
@@ -697,16 +716,12 @@ export const SESSION_VIEW_IMAGE_TOOL: Tool = {
 export function isSessionSaveImageArgs(
   args: unknown
 ): args is { project: string; file_path: string; description: string } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project" in args &&
-    typeof (args as { project: string }).project === "string" &&
-    "file_path" in args &&
-    typeof (args as { file_path: string }).file_path === "string" &&
-    "description" in args &&
-    typeof (args as { description: string }).description === "string"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.project !== "string") return false;
+  if (typeof a.file_path !== "string") return false;
+  if (typeof a.description !== "string") return false;
+  return true;
 }
 
 export function isSessionViewImageArgs(
@@ -893,12 +908,19 @@ export const SESSION_EXPORT_MEMORY_TOOL: Tool = {
 export function isSessionExportMemoryArgs(
   args: unknown
 ): args is { project?: string; format?: "json" | "markdown" | "vault"; output_dir: string } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "output_dir" in args &&
-    typeof (args as { output_dir: string }).output_dir === "string"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  // Required
+  if (typeof a.output_dir !== "string") return false;
+  // Optional — validate types and enum membership
+  if (a.project !== undefined && typeof a.project !== "string") return false;
+  if (
+    a.format !== undefined &&
+    a.format !== "json" &&
+    a.format !== "markdown" &&
+    a.format !== "vault"
+  ) return false;
+  return true;
 }
 
 // ─── v3.1: Knowledge Set Retention (TTL) ─────────────────────
@@ -1248,6 +1270,9 @@ export function isSessionIntuitiveRecallArgs(
   const a = args as Record<string, unknown>;
   if (typeof a.project !== "string") return false;
   if (typeof a.query !== "string") return false;
+  // Optional numerics — guard against LLM passing strings like "10" or "high"
+  if (a.limit !== undefined && typeof a.limit !== "number") return false;
+  if (a.threshold !== undefined && typeof a.threshold !== "number") return false;
   return true;
 }
 
