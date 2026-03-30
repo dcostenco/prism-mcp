@@ -36,12 +36,18 @@ export function applySentinelBlock(existingContent: string, rulesBlock: string):
 
   if (blockRegex.test(existingContent)) {
     // Replace existing full block (non-global regex replaces the first occurrence safely)
-    return existingContent.replace(blockRegex, rulesBlock);
+    // Pass a replacer function to string.replace to prevent $ match-substitution vulnerabilities
+    return existingContent.replace(blockRegex, () => rulesBlock);
   }
 
   // Fallback check: Does a partial marker exist without proper closing?
   if (existingContent.includes(SENTINEL_START) || existingContent.includes(SENTINEL_END)) {
     console.warn('[Prism] Malformed PRISM auto-rules block detected. Appending a fresh block to prevent data loss.');
+    
+    // Disarm orphaned sentinels to protect user content on the next run
+    existingContent = existingContent
+      .replaceAll(SENTINEL_START, '<!-- PRISM:AUTO-RULES:START:ORPHANED -->')
+      .replaceAll(SENTINEL_END, '<!-- PRISM:AUTO-RULES:END:ORPHANED -->');
   }
 
   // Append with separator

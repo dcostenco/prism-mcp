@@ -137,14 +137,22 @@ export class SupabaseStorage implements StorageBackend {
 
   async updateLastAccessed(ids: string[]): Promise<void> {
     if (!ids || ids.length === 0) return;
+    const CHUNK_SIZE = 100;
     const now = new Date().toISOString();
     
     try {
-      await supabasePatch("session_ledger", {
-        last_accessed_at: now
-      }, {
-        id: `in.(${ids.join(",")})`
-      });
+      const promises = [];
+      for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+        const chunk = ids.slice(i, i + CHUNK_SIZE);
+        promises.push(
+          supabasePatch("session_ledger", {
+            last_accessed_at: now
+          }, {
+            id: `in.(${chunk.join(",")})`
+          })
+        );
+      }
+      await Promise.all(promises);
       debugLog(`[SupabaseStorage] Updated last_accessed_at for ${ids.length} entries`);
     } catch (err) {
       console.warn(`[SupabaseStorage] Failed to update last_accessed_at:`, err);

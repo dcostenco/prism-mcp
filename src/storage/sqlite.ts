@@ -562,6 +562,10 @@ export class SqliteStorage implements StorageBackend {
     await this.db.execute(
       `CREATE INDEX IF NOT EXISTS idx_mem_links_traversed ON memory_links(last_traversed_at)`
     );
+    // LRU compaction ordering optimization
+    await this.db.execute(
+      `CREATE INDEX IF NOT EXISTS idx_session_ledger_last_accessed ON session_ledger(last_accessed_at)`
+    );
 
     // ─── v6.1 Migration: Integrity Check ──────────────────────
     //
@@ -1034,11 +1038,16 @@ export class SqliteStorage implements StorageBackend {
 
   async updateLastAccessed(ids: string[]): Promise<void> {
     if (!ids || ids.length === 0) return;
-    const placeholders = ids.map(() => "?").join(", ");
-    await this.db.execute({
-      sql: `UPDATE session_ledger SET last_accessed_at = datetime('now') WHERE id IN (${placeholders})`,
-      args: ids,
-    });
+    const CHUNK_SIZE = 500;
+
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const placeholders = chunk.map(() => "?").join(", ");
+      await this.db.execute({
+        sql: `UPDATE session_ledger SET last_accessed_at = datetime('now') WHERE id IN (${placeholders})`,
+        args: chunk,
+      });
+    }
   }
 
   // ─── Load Context (Progressive) ────────────────────────────

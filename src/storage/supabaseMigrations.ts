@@ -210,6 +210,10 @@ export const MIGRATIONS: Migration[] = [
     name: "cognitive_memory_last_accessed",
     sql: `
       ALTER TABLE session_ledger ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMPTZ DEFAULT NULL;
+      
+      -- Added B-Tree index for LRU high-performance sorting
+      CREATE INDEX IF NOT EXISTS idx_session_ledger_last_accessed 
+      ON session_ledger(last_accessed_at);
     `,
   },
   {
