@@ -105,7 +105,7 @@ export function toMarkdown(exportData: object): string {
   lines.push(``);
   lines.push(`| Key | Value |`);
   lines.push(`|-----|-------|`);
-  for (const [k, v] of Object.entries(d.settings || {})) {
+  for (const [k, v] of Object.entries(redactSettings(d.settings || {}))) {
     lines.push(`| \`${k}\` | ${v} |`);
   }
   lines.push(``);
@@ -124,8 +124,9 @@ export function toMarkdown(exportData: object): string {
     lines.push(``);
     for (const vm of d.visual_memory) {
       if (!vm) continue;
-      const v = vm as { id?: string; description?: string; created_at?: string; original_filename?: string };
-      lines.push(`- **[\`${(v.id || "").substring(0, 8)}\`]** ${v.description || "No description"}`);
+      const v = vm as { id?: string | number; description?: string; created_at?: string; original_filename?: string };
+      const safeId = String(v.id || "").substring(0, 8);
+      lines.push(`- **[\`${safeId}\`]** ${v.description || "No description"}`);
       lines.push(`  <small>File: \`${v.original_filename || "Unknown"}\` | Date: ${v.created_at || "Unknown"}</small>`);
     }
     lines.push(``);
@@ -139,7 +140,10 @@ export function toMarkdown(exportData: object): string {
   } else {
     for (const entry of d.ledger) {
       if (!entry) continue;
-      lines.push(`### \`${entry.created_at?.split("T")[0] || "Unknown Date"}\` (Type: ${entry.event_type || "unknown"})`);
+      const dateStr = typeof entry.created_at === "string" 
+        ? entry.created_at.split("T")[0] 
+        : "Unknown Date";
+      lines.push(`### \`${dateStr}\` (Type: ${entry.event_type || "unknown"})`);
       lines.push(`**Summary:** ${entry.summary || "No summary"}`);
       if (Array.isArray(entry.todos) && entry.todos.length > 0) {
         lines.push(`\n**Outstanding TODOs:**`);
