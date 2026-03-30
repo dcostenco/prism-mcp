@@ -293,7 +293,7 @@ describe("sessionExportMemoryHandler — session_export_memory", () => {
       expect(() => JSON.parse(raw)).not.toThrow();
     });
 
-    it("root key is 'prism_export' and version is '4.5'", async () => {
+    it("root key is 'prism_export' and version is '6.1'", async () => {
       // REVIEWER NOTE: The envelope root key is intentional — it makes the
       // export format self-identifying. An importer can check for this key
       // before attempting to parse, rather than guessing the format.
@@ -303,7 +303,7 @@ describe("sessionExportMemoryHandler — session_export_memory", () => {
       const parsed = JSON.parse(await readFile(join(tempDir, `prism-export-test-project-${today}.json`), "utf-8"));
 
       expect(parsed).toHaveProperty("prism_export");
-      expect(parsed.prism_export.version).toBe("4.5");
+      expect(parsed.prism_export.version).toBe("6.1");
     });
 
     it("JSON contains handoff.last_summary and handoff.active_branch", async () => {

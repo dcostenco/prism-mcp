@@ -499,7 +499,7 @@ describe("SESSION_EXPORT_MEMORY_TOOL schema shape", () => {
       enum: string[];
       default: string;
     };
-    expect(formatProp.enum).toEqual(["json", "markdown"]);
+    expect(formatProp.enum).toEqual(["json", "markdown", "vault"]);
     expect(formatProp.default).toBe("json");
   });
 

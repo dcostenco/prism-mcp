@@ -824,9 +824,10 @@ export const SESSION_EXPORT_MEMORY_TOOL: Tool = {
     "- Visual memory index (descriptions, captions, timestamps; not the raw files)\n\n" +
     "**Formats:**\n" +
     "- `json` — machine-readable, suitable for import into another Prism instance\n" +
-    "- `markdown` — human-readable, ideal for Obsidian, Notion, or archiving\n\n" +
+    "- `markdown` — human-readable, ideal for static archiving\n" +
+    "- `vault` — Prism-Port: exports a compressed `.zip` of interrelated Markdown files with proper Obsidian/Logseq YAML frontmatter and `[[Wikilinks]]`\n\n" +
     "⚠️ Output directory must exist and be writable. " +
-    "Filenames are auto-generated: `prism-export-<project>-<date>.(json|md)`",
+    "Filenames are auto-generated: `prism-export-<project>-<date>.(json|md|zip)`",
   inputSchema: {
     type: "object",
     properties: {
@@ -837,8 +838,8 @@ export const SESSION_EXPORT_MEMORY_TOOL: Tool = {
       },
       format: {
         type: "string",
-        enum: ["json", "markdown"],
-        description: "Export format: 'json' (machine-readable) or 'markdown' (human-readable). Default: json.",
+        enum: ["json", "markdown", "vault"],
+        description: "Export format: 'json', 'markdown', or 'vault' (Obsidian .zip). Default: json.",
         default: "json",
       },
       output_dir: {
@@ -859,7 +860,7 @@ export const SESSION_EXPORT_MEMORY_TOOL: Tool = {
  */
 export function isSessionExportMemoryArgs(
   args: unknown
-): args is { project?: string; format?: "json" | "markdown"; output_dir: string } {
+): args is { project?: string; format?: "json" | "markdown" | "vault"; output_dir: string } {
   return (
     typeof args === "object" &&
     args !== null &&

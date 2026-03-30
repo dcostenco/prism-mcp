@@ -3,6 +3,8 @@ import * as nodePath from "node:path";
 import * as os from "node:os";
 import { randomUUID } from "node:crypto";
 import { redactSettings, toMarkdown } from "./commonHelpers.js";
+import * as fflate from "fflate";
+import { buildVaultDirectory } from "../utils/vaultExporter.js";
 /**
  * Session Memory Handlers (v2.0 — StorageBackend Refactor)
  *
@@ -1411,7 +1413,7 @@ export async function sessionExportMemoryHandler(args: unknown) {
 
       const exportPayload = {
         prism_export: {
-          version: "4.5",
+          version: "6.1",
           exported_at: exportedAt,
           project,
           settings: safeSettings,
@@ -1422,18 +1424,25 @@ export async function sessionExportMemoryHandler(args: unknown) {
       };
 
       // Serialize
-      const ext = format === "markdown" ? "md" : "json";
+      const ext = format === "markdown" ? "md" : format === "vault" ? "zip" : "json";
       const filename = `prism-export-${project}-${dateSuffix}.${ext}`;
       const outputPath = join(output_dir, filename);
 
-      let content: string;
-      if (format === "markdown") {
+      let content: string | Buffer;
+      if (format === "vault") {
+        const vaultFiles = buildVaultDirectory(exportPayload);
+        content = Buffer.from(fflate.zipSync(vaultFiles));
+      } else if (format === "markdown") {
         content = toMarkdown(exportPayload);
       } else {
         content = JSON.stringify(exportPayload, null, 2);
       }
 
-      await writeFile(outputPath, content, "utf-8");
+      if (format === "vault") {
+        await writeFile(outputPath, content as Buffer);
+      } else {
+        await writeFile(outputPath, content as string, "utf-8");
+      }
       exportedFiles.push(outputPath);
       debugLog(`[session_export_memory] Wrote ${content.length} bytes to ${outputPath}`);
     }

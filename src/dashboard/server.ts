@@ -32,12 +32,12 @@ import { getLLMProvider } from "../utils/llm/factory.js";
 
 const PORT = parseInt(process.env.PRISM_DASHBOARD_PORT || "3000", 10);
 
-/** Read HTTP request body as string */
+/** Read HTTP request body as string (Buffer-based to avoid GC thrash on large imports) */
 function readBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
-    let data = "";
-    req.on("data", chunk => { data += chunk; });
-    req.on("end", () => resolve(data));
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => { chunks.push(chunk); });
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
     req.on("error", reject);
   });
 }
@@ -53,37 +53,59 @@ function readBody(req: http.IncomingMessage): Promise<string> {
  * causing Antigravity to report MCP_SERVER_INIT_ERROR.
  */
 async function killPortHolder(port: number): Promise<void> {
+  const isWin = process.platform === "win32";
+
   return new Promise((resolve) => {
-    exec(`lsof -ti tcp:${port}`, { encoding: "utf-8" }, (err, stdout) => {
-      if (err) {
-        // lsof exits with code 1 when no matches found — that's expected.
-        // Any other failure (lsof missing, permission denied, etc.) gets a warning.
-        const isNoMatch = err.code === 1;
-        if (!isNoMatch) {
-          console.error(
-            `[Dashboard] killPortHolder: could not check port ${port} (lsof may not be installed) — skipping.`
-          );
+    if (isWin) {
+      // Windows: use netstat + taskkill (lsof is not available)
+      exec(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: "utf-8" }, (err, stdout) => {
+        if (err || !stdout.trim()) return resolve();
+
+        // Extract PIDs from the last column of netstat output
+        const pids = [...new Set(
+          stdout.trim().split("\n")
+            .map(line => line.trim().split(/\s+/).pop())
+            .filter((p): p is string => !!p && p !== "0" && p !== String(process.pid))
+        )];
+
+        if (pids.length > 0) {
+          console.error(`[Dashboard] Killing stale process(es) on port ${port}: ${pids.join(", ")}`);
+          exec(`taskkill /F ${pids.map(p => `/PID ${p}`).join(" ")}`, () => {
+            setTimeout(resolve, 300);
+          });
+        } else {
+          resolve();
         }
-        return resolve();
-      }
+      });
+    } else {
+      // Unix/macOS: use lsof
+      exec(`lsof -ti tcp:${port}`, { encoding: "utf-8" }, (err, stdout) => {
+        if (err) {
+          const isNoMatch = err.code === 1;
+          if (!isNoMatch) {
+            console.error(
+              `[Dashboard] killPortHolder: could not check port ${port} (lsof may not be installed) — skipping.`
+            );
+          }
+          return resolve();
+        }
 
-      const pids = stdout.trim().split("\n").filter(Boolean);
-      if (pids.length === 0) return resolve();
+        const pids = stdout.trim().split("\n").filter(Boolean);
+        if (pids.length === 0) return resolve();
 
-      // Don't kill ourselves
-      const myPid = String(process.pid);
-      const stalePids = pids.filter(p => p !== myPid);
+        const myPid = String(process.pid);
+        const stalePids = pids.filter(p => p !== myPid);
 
-      if (stalePids.length > 0) {
-        console.error(`[Dashboard] Killing stale process(es) on port ${port}: ${stalePids.join(", ")}`);
-        exec(`kill ${stalePids.join(" ")}`, () => {
-          // Brief pause to let the OS release the port
-          setTimeout(resolve, 300);
-        });
-      } else {
-        resolve();
-      }
-    });
+        if (stalePids.length > 0) {
+          console.error(`[Dashboard] Killing stale process(es) on port ${port}: ${stalePids.join(", ")}`);
+          exec(`kill ${stalePids.join(" ")}`, () => {
+            setTimeout(resolve, 300);
+          });
+        } else {
+          resolve();
+        }
+      });
+    }
   });
 }
 
@@ -359,8 +381,11 @@ return false;}
               const { backfillEmbeddingsHandler } = await import("../tools/hygieneHandlers.js");
               let hasMore = true;
               let cursorId: string | undefined = undefined;
+              let iterations = 0;
+              const MAX_ITERATIONS = 100; // safety cap: 100 × 50 = 5000 entries max
               
-              while (hasMore) {
+              while (hasMore && iterations < MAX_ITERATIONS) {
+                iterations++;
                 const result: any = await backfillEmbeddingsHandler({ dry_run: false, limit: 50, _cursor_id: cursorId });
                 const bStats = result._stats;
                 if (bStats) {
@@ -432,9 +457,7 @@ return false;}
 
       // POST /api/skills → { role, content } saves skill:<role>
       if (url.pathname === "/api/skills" && req.method === "POST") {
-        const body = await new Promise<string>(resolve => {
-          let data = ""; req.on("data", c => data += c); req.on("end", () => resolve(data));
-        });
+        const body = await readBody(req);
         const { role, content } = JSON.parse(body || "{}");
         if (!role) { res.writeHead(400); return res.end(JSON.stringify({ error: "role required" })); }
         await setSetting(`skill:${role}`, content || "");
@@ -836,9 +859,7 @@ return false;}
       // ─── API: Universal History Import (v5.2) ───
       if (url.pathname === "/api/import" && req.method === "POST") {
         try {
-          const body = await new Promise<string>(resolve => {
-            let data = ""; req.on("data", c => data += c); req.on("end", () => resolve(data));
-          });
+          const body = await readBody(req);
           const { path: filePath, format, project, dryRun } = JSON.parse(body || "{}");
           if (!filePath) {
             res.writeHead(400, { "Content-Type": "application/json" });
@@ -876,9 +897,7 @@ return false;}
       // ─── API: Universal History Import via File Upload (v5.2) ───
       if (url.pathname === "/api/import-upload" && req.method === "POST") {
         try {
-          const body = await new Promise<string>(resolve => {
-            let data = ""; req.on("data", c => data += c); req.on("end", () => resolve(data));
-          });
+          const body = await readBody(req);
           const { filename, content, format, project, dryRun } = JSON.parse(body || "{}");
           if (!content || !filename) {
             res.writeHead(400, { "Content-Type": "application/json" });
@@ -888,7 +907,8 @@ return false;}
           // Write uploaded content to a temp file
           const tmpDir = path.join(os.tmpdir(), "prism-import");
           fs.mkdirSync(tmpDir, { recursive: true });
-          const tmpFile = path.join(tmpDir, `upload-${Date.now()}-${filename}`);
+          const safeFilename = path.basename(filename); // prevent path traversal
+          const tmpFile = path.join(tmpDir, `upload-${Date.now()}-${safeFilename}`);
           fs.writeFileSync(tmpFile, content, "utf-8");
 
           try {
@@ -951,6 +971,8 @@ return false;}
           res.writeHead(500, { "Content-Type": "application/json" });
           return res.end(JSON.stringify({ error: err.message || "Failed to trigger Web Scholar" }));
         }
+      }
+
       // ─── API: Semantic Vector Search (v6.0) ───
       if (url.pathname === "/api/search" && req.method === "GET") {
         try {
@@ -978,7 +1000,16 @@ return false;}
             if (context) queryText = `${project} scope: ${JSON.stringify(context)}\nQuery: ${q}`;
           }
 
-          const queryEmbedding = await getLLMProvider().generateEmbedding(queryText);
+          // Check LLM provider availability before attempting embedding
+          let llm;
+          try {
+            llm = getLLMProvider();
+          } catch {
+            res.writeHead(503, { "Content-Type": "application/json" });
+            return res.end(JSON.stringify({ error: "LLM Provider not configured for semantic search. Provide a GOOGLE_API_KEY or equivalent." }));
+          }
+
+          const queryEmbedding = await llm.generateEmbedding(queryText);
 
           // We query limit + offset, then slice manually since the storage 
           // layer interface limit parameter doesn't natively expose offset.
@@ -1002,7 +1033,8 @@ return false;}
         }
       }
 
-      }
+
+
 
       if (url.pathname === "/manifest.json" && req.method === "GET") {
         const manifest = {
