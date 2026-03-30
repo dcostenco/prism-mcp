@@ -27,6 +27,7 @@ import { PRISM_USER_ID, SERVER_CONFIG } from "../config.js";
 import { renderDashboardHTML } from "./ui.js";
 import { getAllSettings, setSetting, getSetting } from "../storage/configStorage.js";
 import { compactLedgerHandler } from "../tools/compactionHandler.js";
+import { getLLMProvider } from "../utils/llm/factory.js";
 
 
 const PORT = parseInt(process.env.PRISM_DASHBOARD_PORT || "3000", 10);
@@ -338,7 +339,7 @@ return false;}
       }
 
       // ─── API: Brain Health Cleanup (v3.1) ───
-      // Deletes orphaned handoffs (handoffs with no backing ledger entries).
+      // Deletes orphaned handoffs and backfills missing embeddings.
       if (url.pathname === "/api/health/cleanup" && req.method === "POST") {
         try {
           const { runHealthCheck } = await import("../utils/healthCheck.js");
@@ -347,7 +348,40 @@ return false;}
           const stats = await s.getHealthStats(PRISM_USER_ID);
           const report = runHealthCheck(stats);
 
-          // Collect orphaned handoff projects from the health issues
+          let repairedCount = 0;
+          let failedCount = 0;
+          let cleanupMessages: string[] = [];
+
+          // 1. Backfill embeddings if missing
+          const embeddingIssue = report.issues.find(i => i.check === "missing_embeddings");
+          if (embeddingIssue && embeddingIssue.count > 0) {
+            try {
+              const { backfillEmbeddingsHandler } = await import("../tools/hygieneHandlers.js");
+              let hasMore = true;
+              let cursorId: string | undefined = undefined;
+              
+              while (hasMore) {
+                const result: any = await backfillEmbeddingsHandler({ dry_run: false, limit: 50, _cursor_id: cursorId });
+                const bStats = result._stats;
+                if (bStats) {
+                  repairedCount += bStats.repaired;
+                  failedCount += bStats.failed;
+                  if (bStats.last_id) cursorId = bStats.last_id;
+                  else hasMore = false;
+                  if ((bStats.repaired + bStats.failed) < 50) hasMore = false;
+                } else {
+                  hasMore = false;
+                }
+              }
+              cleanupMessages.push(`Repaired ${repairedCount} embeddings`);
+              if (failedCount > 0) cleanupMessages.push(`Failed to repair ${failedCount} embeddings`);
+            } catch (err) {
+              console.error("[Dashboard] Failed to backfill embeddings:", err);
+              cleanupMessages.push("Embedding backfill failed");
+            }
+          }
+
+          // 2. Collect orphaned handoff projects from the health issues
           const orphaned = stats.orphanedHandoffs || [];
           const cleaned: string[] = [];
 
@@ -360,15 +394,19 @@ return false;}
               console.error(`[Dashboard] Failed to delete handoff for ${project}:`, delErr);
             }
           }
+          if (cleaned.length > 0) cleanupMessages.push(`Cleaned ${cleaned.length} orphaned handoffs`);
+
+          const message = cleanupMessages.length > 0 
+            ? cleanupMessages.join(", ") 
+            : "No issues to clean up.";
 
           res.writeHead(200, { "Content-Type": "application/json" });
           return res.end(JSON.stringify({
             ok: true,
             cleaned,
-            count: cleaned.length,
-            message: cleaned.length > 0
-              ? `Cleaned up ${cleaned.length} orphaned handoff(s): ${cleaned.join(", ")}`
-              : "No orphaned handoffs to clean up.",
+            repairedCount,
+            count: cleaned.length + repairedCount,
+            message,
           }));
         } catch (err) {
           console.error("[Dashboard] Health cleanup error:", err);
@@ -913,6 +951,57 @@ return false;}
           res.writeHead(500, { "Content-Type": "application/json" });
           return res.end(JSON.stringify({ error: err.message || "Failed to trigger Web Scholar" }));
         }
+      // ─── API: Semantic Vector Search (v6.0) ───
+      if (url.pathname === "/api/search" && req.method === "GET") {
+        try {
+          const q = url.searchParams.get("q");
+          if (!q) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            return res.end(JSON.stringify({ error: "Missing ?q= parameter" }));
+          }
+
+          const project = url.searchParams.get("project") || null;
+          const limit = Number(url.searchParams.get("limit")) || 10;
+          const offset = Number(url.searchParams.get("offset")) || 0;
+          const similarityThreshold = parseFloat(url.searchParams.get("threshold") || "0.6");
+          const contextBoost = url.searchParams.get("boost") === "true";
+
+          const s = await getStorageSafe();
+          if (!s) {
+            res.writeHead(503, { "Content-Type": "application/json" });
+            return res.end(JSON.stringify({ error: "Storage initializing..." }));
+          }
+
+          let queryText: string = q as string;
+          if (contextBoost && project) {
+            const context = await s!.loadContext(project as string, "quick", PRISM_USER_ID);
+            if (context) queryText = `${project} scope: ${JSON.stringify(context)}\nQuery: ${q}`;
+          }
+
+          const queryEmbedding = await getLLMProvider().generateEmbedding(queryText);
+
+          // We query limit + offset, then slice manually since the storage 
+          // layer interface limit parameter doesn't natively expose offset.
+          const results = await s!.searchMemory({
+            queryEmbedding: JSON.stringify(queryEmbedding),
+            project: project || undefined,
+            limit: limit + offset,
+            similarityThreshold,
+            userId: PRISM_USER_ID,
+          });
+
+          // Slice to emulate offset for pagination
+          const paginated = results.slice(offset, offset + limit);
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          return res.end(JSON.stringify({ query: q, project, results: paginated }));
+        } catch (err: any) {
+          console.error("[Dashboard] Search error:", err);
+          res.writeHead(500, { "Content-Type": "application/json" });
+          return res.end(JSON.stringify({ error: err.message || "Failed to search memory" }));
+        }
+      }
+
       }
 
       if (url.pathname === "/manifest.json" && req.method === "GET") {

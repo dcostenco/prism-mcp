@@ -559,6 +559,11 @@ export function renderDashboardHTML(version: string): string {
       </div>
     </header>
 
+    <div class="main-tabs" style="display:flex; gap: 1rem; border-bottom: 1px solid var(--border-glass); margin-bottom: 1.5rem; padding-bottom: 0;">
+      <button class="s-tab active" id="mtab-project" onclick="switchMainTab('project')" style="font-size: 1rem;">📁 Project View</button>
+      <button class="s-tab" id="mtab-search" onclick="switchMainTab('search')" style="font-size: 1rem;">🔍 Vector Search</button>
+    </div>
+
     <div id="welcome" class="empty">
       <div class="emoji">🔮</div>
       <p>Select a project to inspect its neural state.</p>
@@ -737,11 +742,16 @@ export function renderDashboardHTML(version: string): string {
             </div>
             
             <label style="display:block; font-size:0.75rem; color:var(--text-muted); margin-bottom:0.3rem">Rename (Or leave empty to delete)</label>
-            <div style="display:flex; gap:0.5rem;">
+            <div style="display:flex; gap:0.5rem; margin-bottom:0.6rem;">
               <input type="text" id="nodeEditorInput" class="input-modern" style="flex:1; font-size:0.8rem; padding:0.3rem 0.6rem" placeholder="New keyword name...">
               <button onclick="submitNodeEdit()" class="btn-modern" style="padding:0.3rem 0.8rem; font-size:0.8rem">Apply</button>
               <button onclick="document.getElementById('nodeEditorPanel').style.display='none'" class="btn-modern" style="background:transparent; border-color:var(--border-subtle); padding:0.3rem 0.8rem; font-size:0.8rem">Cancel</button>
             </div>
+            
+            <label style="display:block; font-size:0.75rem; color:var(--text-muted); margin-bottom:0.3rem">Or merge into existing:</label>
+            <select id="nodeMergeSelect" class="input-modern" style="width:100%; font-size:0.8rem; padding:0.3rem 0.5rem" onchange="if(this.value) document.getElementById('nodeEditorInput').value = this.value">
+              <option value="">-- Select node --</option>
+            </select>
           </div>
         </div>
 
@@ -783,6 +793,27 @@ export function renderDashboardHTML(version: string): string {
           </div>
           <div id="schedulerContent" style="font-size:0.8rem;color:var(--text-muted)">
             Loading scheduler status...
+          </div>
+          <div id="densityStatContainer" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-glass); font-size: 0.85em; color: var(--text-muted); display:none">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search View (v6.0) -->
+    <div id="search-content" class="fade-in" style="display:none; margin: 0 auto; max-width: 900px; padding: 0 1rem;">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-purple)"></span> Semantic Vector Search 🔍</div>
+        <div style="margin-bottom: 1.5rem; display:flex; gap:1rem; align-items:center;">
+          <input type="text" id="searchInput" class="input-modern" style="flex:1; padding: 0.8rem 1rem; font-size: 1rem;" placeholder="Search past work, bugs, architecture decisions...">
+          <label style="font-size: 0.85rem; color: var(--text-secondary); display:flex; align-items:center; gap:0.4rem; cursor:pointer;" title="Biases results towards the currently scoped project">
+            <input type="checkbox" id="searchContextBoost" checked>
+            Context Boost
+          </label>
+        </div>
+        <div id="searchResults" class="timeline" style="margin-top: 1rem;">
+          <div style="color:var(--text-muted); font-size:0.9rem; padding: 2rem; text-align:center;">
+            Enter a query to search the neural ledger via embeddings...
           </div>
         </div>
       </div>
@@ -1187,6 +1218,108 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
   <div class="toast-fixed" id="fixedToast"></div>
 
   <script>
+    // ─── TABS & SEARCH (v6.0) ───
+    function switchMainTab(tabId) {
+      document.getElementById('mtab-project').classList.toggle('active', tabId === 'project');
+      document.getElementById('mtab-search').classList.toggle('active', tabId === 'search');
+      
+      if (tabId === 'project') {
+        document.getElementById('content').style.display = ''; // revert to CSS 'grid'
+        document.getElementById('search-content').style.display = 'none';
+      } else {
+        document.getElementById('content').style.display = 'none';
+        document.getElementById('search-content').style.display = 'block';
+        document.getElementById('searchInput').focus();
+      }
+    }
+
+    let searchTimeout = null;
+    let searchAbortController = null;
+    
+    async function performSearch() {
+      const input = document.getElementById('searchInput');
+      const boost = document.getElementById('searchContextBoost');
+      const resultsDiv = document.getElementById('searchResults');
+      const query = input.value.trim();
+      
+      if (!query) {
+        if (searchAbortController) searchAbortController.abort();
+        resultsDiv.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; padding: 2rem; text-align:center;">Enter a query to search the neural ledger via embeddings...</div>';
+        return;
+      }
+      
+      resultsDiv.innerHTML = '<div class="loading" style="padding:2rem;"><span class="spinner"></span> Searching neural memory via embeddings...</div>';
+      
+      const project = document.getElementById('projectSelect').value;
+      let url = \`/api/search?q=\${encodeURIComponent(query)}\`;
+      if (project) url += \`&project=\${encodeURIComponent(project)}\`;
+      if (boost.checked) url += \`&boost=true\`;
+      
+      if (searchAbortController) searchAbortController.abort();
+      searchAbortController = new AbortController();
+      
+      try {
+        const res = await fetch(url, { signal: searchAbortController.signal });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        
+        if (!data.results || data.results.length === 0) {
+          resultsDiv.innerHTML = '<div style="color:var(--text-muted); padding: 2rem; text-align:center;">No matching memories found for this query.</div>';
+          return;
+        }
+        
+        // Extract searchable terms for highlighting (length > 2)
+        const queryTerms = query.split(/\\s+/).filter(w => w.length > 2);
+        const termRegex = queryTerms.length > 0 
+          ? new RegExp(\`(\${queryTerms.map(w => w.replace(/[.*+?^$()|[\\]\\\\{}]/g, '\\\\$&')).join('|')})\`, 'gi')
+          : null;
+
+        function highlight(text) {
+          let escaped = escapeHtml(text || '');
+          if (termRegex) {
+            escaped = escaped.replace(termRegex, '<mark style="background: rgba(168, 85, 247, 0.4); color: inherit; padding: 0 0.1rem; border-radius: 2px;">$1</mark>');
+          }
+          return escaped;
+        }
+        
+        resultsDiv.innerHTML = data.results.map(r => {
+          const isGraduated = r.importance >= 7;
+          const opacity = isGraduated ? 1 : 0.8;
+          const borderStyle = isGraduated ? 'border-left: 3px solid var(--accent-purple); padding-left: 0.8rem;' : '';
+          
+          return \`<div class="entry" style="opacity: \${opacity}; \${borderStyle}">
+            <div class="entry-meta" style="justify-content:space-between; margin-bottom:0.5rem;">
+              <span>📁 \${escapeHtml(r.project)} • 🕒 \${new Date(r.session_date || r.created_at || Date.now()).toLocaleDateString()}</span>
+              <div style="display:flex; gap:0.5rem; font-size:0.75rem;">
+                <!-- Similarity is how closely the vector matches the conceptual query -->
+                <span class="badge" title="Similarity Score (Semantic Match)" style="background:rgba(6,182,212,0.1); color:var(--accent-cyan); border:1px solid rgba(6,182,212,0.3);">
+                  🎯 \${(r.similarity * 100).toFixed(1)}%
+                </span>
+                <!-- Importance is our Ebbinghaus decaying stat (frequency vs recency) -->
+                <span class="badge badge-purple" title="Ebbinghaus Importance (Recency/Reinforcement)">
+                  ⭐ \${(r.importance || 0).toFixed(1)}
+                </span>
+              </div>
+            </div>
+            <div class="entry-summary" style="font-size:0.9rem; line-height: 1.5;">\${highlight(r.summary)}</div>
+            \${r.decisions && r.decisions.length > 0 
+              ? \`<ul class="tag-list" style="margin-top:0.75rem;">\${r.decisions.map(d => \`<li class="tag">💡 \${highlight(d)}</li>\`).join('')}</ul>\`
+              : ''}
+          </div>\`;
+        }).join('');
+      } catch (err) {
+        if (err.name === 'AbortError') return; // Ignore aborted fetches
+        resultsDiv.innerHTML = \`<div style="padding:1rem; color:var(--accent-rose);">❌ Failed to search memory: \${escapeHtml(err.message)}</div>\`;
+      }
+    }
+
+    document.getElementById('searchInput')?.addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(performSearch, 300);
+    });
+    document.getElementById('searchContextBoost')?.addEventListener('change', performSearch);
+
+
     // Role icon map
     var ROLE_ICONS = {dev:'🛠️',qa:'🔍',pm:'📋',lead:'🏗️',security:'🔒',ux:'🎨',global:'🌐',cmo:'📢'};
 
@@ -1671,7 +1804,18 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
         // Empty state — no ledger entries yet
         if (data.nodes.length === 0) {
           container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.85rem">No knowledge associations found yet.</div>';
+          var dens = document.getElementById('densityStatContainer');
+          if (dens) dens.style.display = 'none';
           return;
+        }
+
+        // Calculate Memory Density before truncation
+        var graduatedNodes = data.nodes.filter(function(n) { return (n.value || 0) >= 7; }).length;
+        var denPercentage = Math.round((graduatedNodes / data.nodes.length) * 100);
+        var dens = document.getElementById('densityStatContainer');
+        if (dens) {
+           dens.style.display = 'block';
+           dens.innerHTML = '<strong>Memory Density:</strong> ' + denPercentage + '% <span title="Ratio of Highly-Reinforced (Graduated) knowledge vs raw concepts" style="cursor:help">🧠</span> (' + graduatedNodes + ' / ' + data.nodes.length + ' ideas graduated)';
         }
 
         // Safety cap: Vis.js Barnes-Hut physics blows the call stack at ~400+ nodes.
@@ -1758,6 +1902,16 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
             input.value = nodeData.label;
             input.dataset.oldId = clickedId;
             input.dataset.group = nodeData.group;
+            
+            // Populate merge dropdown
+            var mergeSelect = document.getElementById('nodeMergeSelect');
+            if (mergeSelect) {
+              var sameGroupNodes = allNodes.filter(function(n) { return n.group === nodeData.group && n.id !== clickedId; });
+              sameGroupNodes.sort(function(a, b) { return a.label.localeCompare(b.label); });
+              mergeSelect.innerHTML = '<option value="">-- Select node to merge into --</option>' + 
+                sameGroupNodes.map(function(n) { return '<option value="' + escapeHtml(n.label) + '">' + escapeHtml(n.label) + '</option>'; }).join('');
+              mergeSelect.value = "";
+            }
             
             document.getElementById('nodeEditorPanel').style.display = 'block';
           } else {
