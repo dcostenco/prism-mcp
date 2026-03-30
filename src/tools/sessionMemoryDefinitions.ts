@@ -144,8 +144,16 @@ export const SESSION_LOAD_CONTEXT_TOOL: Tool = {
         type: "integer",
         description: "Maximum token budget for context response. Uses 1 token ≈ 4 chars heuristic. When set, the response is truncated to fit within the budget. Default: unlimited.",
       },
+      toolAction: {
+        type: "string",
+        description: "Brief 2-5 word summary of what this tool is doing. Capitalize like a sentence.",
+      },
+      toolSummary: {
+        type: "string",
+        description: "Brief 2-5 word noun phrase describing what this tool call is about.",
+      },
     },
-    required: ["project"],
+    required: ["project", "toolAction", "toolSummary"],
   },
 };
 
@@ -195,6 +203,7 @@ export const KNOWLEDGE_SEARCH_TOOL: Tool = {
           "latency breakdown, and scoring metadata for explainability. Default: false.",
       },
     },
+    required: ["query"],
   },
 };
 
@@ -458,15 +467,15 @@ export function isKnowledgeSearchArgs(
   args: unknown
 ): args is {
   project?: string;
-  query?: string;
+  query: string;
   category?: string;
   limit?: number;
   enable_trace?: boolean;  // Phase 1: Explainability flag
 } {
   if (typeof args !== "object" || args === null) return false;
   const a = args as Record<string, unknown>;
+  if (typeof a.query !== "string") return false;
   if (a.project !== undefined && typeof a.project !== "string") return false;
-  if (a.query !== undefined && typeof a.query !== "string") return false;
   if (a.category !== undefined && typeof a.category !== "string") return false;
   if (a.limit !== undefined && typeof a.limit !== "number") return false;
   if (a.enable_trace !== undefined && typeof a.enable_trace !== "boolean") return false;
@@ -490,10 +499,10 @@ export function isSessionSaveLedgerArgs(
   if (typeof a.project !== "string") return false;
   if (typeof a.conversation_id !== "string") return false;
   if (typeof a.summary !== "string") return false;
-  // Optional array fields — guard against LLM passing a string instead of string[]
-  if (a.todos !== undefined && !Array.isArray(a.todos)) return false;
-  if (a.files_changed !== undefined && !Array.isArray(a.files_changed)) return false;
-  if (a.decisions !== undefined && !Array.isArray(a.decisions)) return false;
+  // Optional array fields — guard against LLM passing a string instead of string[] and check elements
+  if (a.todos !== undefined && (!Array.isArray(a.todos) || !a.todos.every(t => typeof t === "string"))) return false;
+  if (a.files_changed !== undefined && (!Array.isArray(a.files_changed) || !a.files_changed.every(t => typeof t === "string"))) return false;
+  if (a.decisions !== undefined && (!Array.isArray(a.decisions) || !a.decisions.every(t => typeof t === "string"))) return false;
   if (a.role !== undefined && typeof a.role !== "string") return false;
   return true;
 }
@@ -517,7 +526,7 @@ export function isSessionSaveHandoffArgs(
   const a = args as Record<string, unknown>;
   if (typeof a.project !== "string") return false;
   if (a.expected_version !== undefined && typeof a.expected_version !== "number") return false;
-  if (a.open_todos !== undefined && !Array.isArray(a.open_todos)) return false;
+  if (a.open_todos !== undefined && (!Array.isArray(a.open_todos) || !a.open_todos.every(t => typeof t === "string"))) return false;
   if (a.active_branch !== undefined && typeof a.active_branch !== "string") return false;
   if (a.last_summary !== undefined && typeof a.last_summary !== "string") return false;
   if (a.key_context !== undefined && typeof a.key_context !== "string") return false;
@@ -570,23 +579,23 @@ export function isBackfillEmbeddingsArgs(
 export function isBackfillLinksArgs(
   args: unknown
 ): args is { project: string } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project" in args &&
-    typeof (args as { project: string }).project === "string"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.project !== "string") return false;
+  return true;
 }
 
 export function isSessionLoadContextArgs(
   args: unknown
-): args is { project: string; level?: "quick" | "standard" | "deep"; role?: string; max_tokens?: number } {
+): args is { project: string; level?: "quick" | "standard" | "deep"; role?: string; max_tokens?: number; toolAction?: string; toolSummary?: string } {
   if (typeof args !== "object" || args === null) return false;
   const a = args as Record<string, unknown>;
   if (typeof a.project !== "string") return false;
   if (a.level !== undefined && a.level !== "quick" && a.level !== "standard" && a.level !== "deep") return false;
   if (a.role !== undefined && typeof a.role !== "string") return false;
   if (a.max_tokens !== undefined && typeof a.max_tokens !== "number") return false;
+  if (a.toolAction !== undefined && typeof a.toolAction !== "string") return false;
+  if (a.toolSummary !== undefined && typeof a.toolSummary !== "string") return false;
   return true;
 }
 
@@ -727,14 +736,11 @@ export function isSessionSaveImageArgs(
 export function isSessionViewImageArgs(
   args: unknown
 ): args is { project: string; image_id: string } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project" in args &&
-    typeof (args as { project: string }).project === "string" &&
-    "image_id" in args &&
-    typeof (args as { image_id: string }).image_id === "string"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.project !== "string") return false;
+  if (typeof a.image_id !== "string") return false;
+  return true;
 }
 
 // ─── v2.2.0: Health Check (fsck) Tool Definition ─────────────
@@ -748,12 +754,12 @@ export const SESSION_HEALTH_CHECK_TOOL: Tool = {
   name: "session_health_check",
   description:
     "Run integrity checks on the agent's memory (like fsck for filesystems). " +
-    "Scans for missing embeddings, duplicate entries, orphaned handoffs, and stale rollups.\\n\\n" +
-    "Checks performed:\\n" +
-    "1. **Missing embeddings** — entries that can't be found via semantic search\\n" +
-    "2. **Duplicate entries** — near-identical summaries wasting context tokens\\n" +
-    "3. **Orphaned handoffs** — handoff state with no backing ledger entries\\n" +
-    "4. **Stale rollups** — compaction artifacts with no archived originals\\n\\n" +
+    "Scans for missing embeddings, duplicate entries, orphaned handoffs, and stale rollups.\n\n" +
+    "Checks performed:\n" +
+    "1. **Missing embeddings** — entries that can't be found via semantic search\n" +
+    "2. **Duplicate entries** — near-identical summaries wasting context tokens\n" +
+    "3. **Orphaned handoffs** — handoff state with no backing ledger entries\n" +
+    "4. **Stale rollups** — compaction artifacts with no archived originals\n\n" +
     "Use auto_fix=true to automatically repair missing embeddings and clean up orphans.",
   inputSchema: {
     type: "object",
@@ -957,14 +963,11 @@ export const KNOWLEDGE_SET_RETENTION_TOOL: Tool = {
 export function isKnowledgeSetRetentionArgs(
   args: unknown
 ): args is { project: string; ttl_days: number } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project" in args &&
-    typeof (args as { project: string }).project === "string" &&
-    "ttl_days" in args &&
-    typeof (args as { ttl_days: number }).ttl_days === "number"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.project !== "string") return false;
+  if (typeof a.ttl_days !== "number") return false;
+  return true;
 }
 
 // ─── v4.0: Active Behavioral Memory Tools ────────────────────
@@ -1026,7 +1029,7 @@ export function isSessionSaveExperienceArgs(
   args: unknown
 ): args is {
   project: string;
-  event_type: string;
+  event_type: "correction" | "success" | "failure" | "learning";
   context: string;
   action: string;
   outcome: string;
@@ -1037,7 +1040,13 @@ export function isSessionSaveExperienceArgs(
   if (typeof args !== "object" || args === null) return false;
   const a = args as Record<string, unknown>;
   if (typeof a.project !== "string") return false;
-  if (typeof a.event_type !== "string") return false;
+  if (
+    typeof a.event_type !== "string" ||
+    (a.event_type !== "correction" &&
+     a.event_type !== "success" &&
+     a.event_type !== "failure" &&
+     a.event_type !== "learning")
+  ) return false;
   if (typeof a.context !== "string") return false;
   if (typeof a.action !== "string") return false;
   if (typeof a.outcome !== "string") return false;
@@ -1085,12 +1094,10 @@ export const KNOWLEDGE_DOWNVOTE_TOOL: Tool = {
 export function isKnowledgeVoteArgs(
   args: unknown
 ): args is { id: string } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "id" in args &&
-    typeof (args as { id: string }).id === "string"
-  );
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.id !== "string") return false;
+  return true;
 }
 
 // ─── v4.2: Knowledge Sync Rules Tool ─────────────────────────
