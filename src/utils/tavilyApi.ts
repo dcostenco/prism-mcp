@@ -65,14 +65,21 @@ export async function performTavilyExtract(
   if (urls.length === 0) return [];
 
   const client = getClient(apiKey);
-  // Tavily extract accepts up to 20 URLs at once
-  const batch = urls.slice(0, 20);
-  const response = await client.extract(batch, {
-    extractDepth: "basic",
-  });
+  const allResults: TavilyExtractResult[] = [];
 
-  return (response.results || []).map((r: any) => ({
-    url: r.url || "",
-    rawContent: r.rawContent || "",
-  }));
+  // Tavily extract accepts up to 20 URLs at once
+  for (let i = 0; i < urls.length; i += 20) {
+    const batch = urls.slice(i, i + 20);
+    const response = await client.extract(batch, {
+      extractDepth: "basic",
+    });
+
+    const mapped = (response.results || []).map((r: any) => ({
+      url: r.url || "",
+      rawContent: r.rawContent || "",
+    }));
+    allResults.push(...mapped);
+  }
+
+  return allResults;
 }
