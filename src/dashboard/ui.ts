@@ -2468,7 +2468,7 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
 
       async function loadSettings() {
       try {
-        var res = await fetch('/api/settings');
+        var res = await fetch('/api/settings?t=' + Date.now());
         var data = await res.json();
         var s = data.settings || {};
         // Runtime toggles
@@ -2529,30 +2529,44 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
 
     function toggleSetting(key, el) {
       var isActive = el.classList.toggle('active');
-      saveSetting(key, isActive ? 'true' : 'false');
+      saveSetting(key, isActive ? 'true' : 'false').then(function(ok) {
+        if (!ok) el.classList.toggle('active'); // rollback on failure
+      });
     }
     function toggleBootSetting(key, el) {
       var isActive = el.classList.toggle('active');
-      saveSetting(key, isActive ? 'true' : 'false');
-      showToast('Saved. Restart your AI client for this to take effect.');
+      saveSetting(key, isActive ? 'true' : 'false').then(function(ok) {
+        if (!ok) {
+          el.classList.toggle('active'); // rollback on failure
+        } else {
+          showToast('Saved. Restart your AI client for this to take effect.');
+        }
+      });
     }
     function saveBootSetting(key, value) {
-      saveSetting(key, value);
-      showToast('Saved. Restart your AI client for this to take effect.');
+      saveSetting(key, value).then(function(ok) {
+        if (ok) showToast('Saved. Restart your AI client for this to take effect.');
+      });
     }
 
     async function saveSetting(key, value) {
       try {
-        await fetch('/api/settings', {
+        var res = await fetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: key, value: value })
         });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         if (key === 'dashboard_theme') applyTheme(value);
         // Refresh identity chip if role or name changed
         if (key === 'default_role' || key === 'agent_name') loadIdentityChip();
         showToast('Saved ✓');
-      } catch(e) { console.error('Setting save failed:', e); }
+        return true;
+      } catch(e) {
+        console.error('Setting save failed:', e);
+        showToast('⚠️ Save failed — check server connection', true);
+        return false;
+      }
     }
 
     /**
