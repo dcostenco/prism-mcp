@@ -32,19 +32,24 @@ export async function performTavilySearch(
   query: string,
   maxResults: number = 10
 ): Promise<TavilySearchResult[]> {
-  const client = getClient(apiKey);
-  const response = await client.search(query, {
-    maxResults,
-    searchDepth: "advanced",
-    topic: "general",
-  });
+  try {
+    const client = getClient(apiKey);
+    const response = await client.search(query, {
+      maxResults,
+      searchDepth: "advanced",
+      topic: "general",
+    });
 
-  return (response.results || []).map((r: any) => ({
-    title: r.title || "",
-    url: r.url || "",
-    content: r.content || "",
-    score: r.score ?? 0,
-  }));
+    return (response.results || []).map((r: any) => ({
+      title: r.title || "",
+      url: r.url || "",
+      content: r.content || "",
+      score: r.score ?? 0,
+    }));
+  } catch (error) {
+    console.error(`[Tavily Search] Error performing search for query "${query}":`, error);
+    return [];
+  }
 }
 
 // ─── Extract ─────────────────────────────────────────────────
@@ -92,7 +97,7 @@ export async function performTavilyExtract(
       allResults.push(...mapped);
     } catch (error) {
       // Log the error but continue to the next batch to prevent total data loss
-      console.error(`[Tavily Extract] Error extracting batch ${i} to ${i + 20}:`, error);
+      console.error(`[Tavily Extract] Error extracting batch ${i} to ${Math.min(i + 20, urls.length)}:`, error);
     }
   }
 

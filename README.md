@@ -382,7 +382,7 @@ Soft/hard delete (Art. 17), full export in JSON, Markdown, or Obsidian vault `.z
 ## 🆕 What's New
 
 ### v6.1 — Prism-Port, Cognitive Load & Semantic Search ✅
-> **Current stable release (v6.1.8).** Data sovereignty meets active memory intelligence.
+> **Current stable release (v6.1.9).** Data sovereignty meets active memory intelligence.
 
 - 📦 **Prism-Port Vault Export** — New `vault` format for `session_export_memory`. Generates a `.zip` of interlinked Markdown files with YAML frontmatter, `[[Wikilinks]]`, and auto-generated `Keywords/` backlink indices. Drop into Obsidian or Logseq for instant knowledge graph.
 - 🏛️ **Dashboard Export Vault Button** — "🏛️ Export Vault" button in the Mind Palace UI exports the full Prism-Port vault ZIP directly from the browser. Both `/api/export` and `/api/export/vault` now use the unified `buildVaultDirectory` path — same rich format as the MCP tool.
@@ -391,6 +391,11 @@ Soft/hard delete (Art. 17), full export in JSON, Markdown, or Obsidian vault `.z
 - ✨ **Semantic Search Highlighting** — Native RegEx mapping that visually wraps the exact reason a vector result was retrieved during a search.
 - 📊 **Deep Purge Visualization** — A zero-overhead "Memory Density" analytic providing instant signal-to-noise ratio visibility (Graduated ideas vs raw concepts).
 - 🛡️ **Context-Boosted Search** — Biases semantic queries by intelligently interleaving your current project workspace.
+
+#### v6.1.9 — Web Scholar Tavily Integration
+- 🌐 **Tavily Core** — The Web Scholar now supports `@tavily/core` as an all-in-one search and extraction alternative to Brave+Firecrawl.
+- 📦 **API Chunking Limits** — Advanced looping logic transparently works around `tavily.extract` 20-URL boundaries.
+- 🛡️ **Network Resilience** — Handled promise rejections prevent data loss out-of-bounds due to chunk extraction or upstream network timeouts.
 
 #### v6.1.8 — Type Guard Hardening (Production Safety)
 - 🛡️ **Missing Guard Added** — `isSessionCompactLedgerArgs` was absent; an LLM passing `{threshold: "many"}` would reach the handler as a string. Added full validation for all four optional fields.

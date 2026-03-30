@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.1.9] - 2026-03-30
+
+### Added
+- **Tavily Support** — Added `@tavily/core` integration as a robust alternative to Brave + Firecrawl for the Web Scholar pipeline. Supports `performTavilySearch` and `performTavilyExtract`.
+
+### Fixed
+- **Tavily Chunking & Error Handling** — Implemented URL array chunking (batches of 20 URLs) for `performTavilyExtract` to bypass API limits and prevent data loss.
+- **Upstream Network Resilience** — `performTavilySearch` is wrapped in a `try...catch` block to cleanly return empty arrays on API failure/timeout, avoiding unhandled promise rejections.
+
+---
+
 ## [6.1.8] - 2026-03-30
 
 ### Fixed
