@@ -33,7 +33,7 @@ Works with **Claude Desktop · Claude Code · Cursor · Windsurf · Cline · Gem
 - [Architecture](#architecture-1)
 - [Research Roadmap](#research-roadmap)
 - [Roadmap](#-roadmap)
-- [Limitations](#%EF%B8%8F-limitations)
+- [Limitations](#limitations)
 
 ---
 
@@ -496,23 +496,19 @@ Soft/hard delete (Art. 17), full ZIP export (Art. 20), API key redaction, per-pr
 
 ![Prism v6 Features](docs/v6_cognitive_load_dashboard.png)
 
-### v5.5 — Architectural Hardening
-> Zero-dependency, production-grade reliability improvements.
+<details>
+<summary><strong>Earlier releases (v5.x and below)</strong></summary>
 
-- 🛡️ **Transactional Migrations** — SQLite DDL rebuilds are wrapped in explicit `BEGIN/COMMIT` blocks. A crash mid-migration can no longer corrupt your schema or lose handoff state.
-- 🛑 **Graceful Shutdown Registry** — `BackgroundTaskRegistry` uses a 5-second `Promise.race()` to await all in-flight flushes (embeddings, SDM writes, OTel spans) before the process exits. No more orphaned I/O.
-- 🕰️ **Thundering Herd Prevention** — Maintenance scheduler migrated from `setInterval` to a state-aware recursive `setTimeout`. Expensive compaction routines can never stack on top of each other.
-- 🚀 **Zero-Thrashing SDM Scans** — `Int32Array` scratchpad allocations hoisted outside the hot decode loop. Eliminates V8 GC pressure on large semantic memory banks.
-- 🧪 **368 Tests** — Zero regressions across 17 test suites.
+### v5.5 — Architectural Hardening
+- 🛡️ **Transactional Migrations** — SQLite DDL rebuilds are wrapped in explicit `BEGIN/COMMIT` blocks.
+- 🛑 **Graceful Shutdown Registry** — `BackgroundTaskRegistry` uses a 5-second `Promise.race()` to await flushes.
+- 🕰️ **Thundering Herd Prevention** — Maintenance scheduler migrated from `setInterval` to state-aware `setTimeout`.
+- 🚀 **Zero-Thrashing SDM Scans** — `Int32Array` scratchpad allocations hoisted outside the hot decode loop.
 
 ### v5.4 — Convergent Intelligence
-- 🔄 **CRDT Handoff Merging** — Multi-agent saves no longer reject on version conflict. Custom OR-Map engine auto-merges concurrent edits (Add-Wins for arrays, LWW for scalars).
-- ⏰ **Background Purge Scheduler** — Fully automated storage maintenance: TTL sweep, Ebbinghaus importance decay, auto-compaction, and deep storage purge on a configurable interval.
-- 🌐 **[Autonomous Web Scholar](#-autonomous-web-scholar)** — Agent-driven research pipeline. Brave Search → Firecrawl scrape → LLM synthesis → Prism ledger. Task-aware and Hivemind-integrated.
-- 🐝 **Scholar ↔ Hivemind Integration** — Scholar registers on the Radar, emits heartbeats, and broadcasts Telepathy alerts on completion.
-
-<details>
-<summary><strong>Earlier releases (v5.3 and below)</strong></summary>
+- 🔄 **CRDT Handoff Merging** — Multi-agent saves no longer reject on version conflict. Custom OR-Map engine auto-merges concurrent edits.
+- ⏰ **Background Purge Scheduler** — Fully automated storage maintenance TTL sweep, Ebbinghaus decay, auto-compaction.
+- 🌐 **Autonomous Web Scholar** — Agent-driven research pipeline. Brave Search → Firecrawl scrape → LLM synthesis.
 
 - **v5.3** — Hivemind Health Watchdog (state machine, loop detection, Telepathy alert injection)
 - **v5.2** — Cognitive Memory (Ebbinghaus decay, context-weighted retrieval), Universal History Migration, Smart Consolidation
@@ -741,8 +737,10 @@ Prism is evolving from smart session logging toward a **cognitive memory archite
 | **v5.5** | Architectural Hardening — transactional migrations, graceful shutdown, thundering herd prevention | Production reliability engineering | ✅ Shipped |
 | **v5.6** | Full Superposed Memory (SDM) — O(1) key-value retrieval via Hamming correlation | Kanerva's SDM | 🔬 In Progress |
 | **v5.6** | Intuitive Recall — proactive surface of relevant past decisions without explicit search | Predictive memory (cognitive science) | 🔬 In Progress |
-| **v6.x** | Affect-Tagged Memory — sentiment shapes what gets recalled | Affect-modulated retrieval (neuroscience) | 🔭 Horizon |
-| **v7+** | Zero-Search Retrieval — no index, no ANN, just ask the vector | Holographic Reduced Representations | 🔭 Horizon |
+| **v6.1** | Cognitive Load & Semantic Search — dynamic graph thinning, search highlights | Contextual working memory | ✅ Shipped |
+| **v6.2** | Synthesize & Prune — automated edge synthesis and visual decay | Implicit associative memory | 🔬 In Progress |
+| **v7.x** | Affect-Tagged Memory — sentiment shapes what gets recalled | Affect-modulated retrieval (neuroscience) | 🔭 Horizon |
+| **v8+** | Zero-Search Retrieval — no index, no ANN, just ask the vector | Holographic Reduced Representations | 🔭 Horizon |
 
 > Informed by LeCun's "Why AI Systems Don't Learn" (Dupoux, LeCun, Malik — March 2026) and Kanerva's SDM.
 
@@ -762,7 +760,7 @@ The v6.1 update laid the groundwork for Semantic Vector Search and basic Knowled
 
 ---
 
-## ⚠️ Limitations
+## Limitations
 
 - **LLM-dependent features require an API key.** Semantic search, Morning Briefings, auto-compaction, and VLM captioning need a `GOOGLE_API_KEY` (Gemini) or equivalent provider key. Without one, Prism falls back to keyword-only search (FTS5).
 - **Auto-load is model- and client-dependent.** Session auto-loading relies on both the LLM following system prompt instructions *and* the MCP client completing tool registration before the model's first turn. Prism provides platform-specific [Setup Guides](#-setup-guides) and a server-side fallback (v5.2.1) that auto-pushes context after 10 seconds.
