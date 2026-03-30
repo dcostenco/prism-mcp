@@ -25,6 +25,23 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 
 ---
 
+### ✅ v6.1.5–v6.1.8 — Production Hardening Series
+
+| Version | Feature | Detail |
+|---------|---------|--------|
+| v6.1.5 | 🗜️ **`maintenance_vacuum` Tool** | New MCP tool to run SQLite `VACUUM` after large purge operations — reclaims page allocations that SQLite retains until explicitly vacuumed. |
+| v6.1.5 | 🔒 **Prototype Pollution Guards** | CRDT merge pipeline hardened against `__proto__` / `constructor` injection via `Object.create(null)` scratchpads. |
+| v6.1.5 | 🧪 **425-Test Suite** | Edge-case suite across 20 files: CRDT merges, TurboQuant math invariants, prototype pollution, SQLite TTL boundary conditions. |
+| v6.1.6 | 🛡️ **11 Type Guards Hardened (Round 1)** | All MCP tool argument guards audited; explicit `typeof` validation added for every optional field. Prevents LLM-hallucinated payloads from bypassing type safety. |
+| v6.1.7 | 🔄 **Toggle Rollback on Failure** | `saveSetting()` returns `Promise<boolean>`; Hivemind and Auto-Capture toggles roll back optimistic UI state on server error. |
+| v6.1.7 | 🚫 **Settings Cache-Busting** | `loadSettings()` appends `?t=<timestamp>` to bypass stale browser/service-worker caches. |
+| v6.1.8 | 🛡️ **Missing Guard: `isSessionCompactLedgerArgs`** | `SESSION_COMPACT_LEDGER_TOOL` existed with no type guard — added with full optional field validation. |
+| v6.1.8 | ✅ **Array Field Validation** | `isSessionSaveLedgerArgs` now guards `todos`, `files_changed`, `decisions` with `Array.isArray`. |
+| v6.1.8 | 🔖 **Enum Literal Guard** | `isSessionExportMemoryArgs` rejects unknown `format` values at the MCP boundary. |
+| v6.1.8 | 🔢 **Numeric Guards** | `isSessionIntuitiveRecallArgs` validates `limit` and `threshold` as numbers. |
+
+---
+
 ### ✅ v5.5.0 — Architectural Hardening
 
 | Feature | Detail |
@@ -174,27 +191,26 @@ v3.0: Role-scoped memory, agent registration/heartbeat, Telepathy (real-time cro
 
 ---
 
-## 📊 The State of Prism (v5.5)
+## 📊 The State of Prism (v6.1.8)
 
-With v5.5 shipped, Prism has crossed from retrieval into **cognition**:
+With v6.1.8 shipped, Prism is a **production-hardened, type-safe, cognitively-grounded AI Operating System**:
 
-- **Cognitive** — Ebbinghaus decay + context-boosted retrieval = memory that knows what matters *right now*.
+- **Cognitive** — Ebbinghaus decay + context-boosted retrieval + Intuitive Recall = memory that knows what matters *right now*.
 - **Zero Cold-Start** — Universal Migration imports years of Claude/Gemini/ChatGPT history on day one.
-- **Scale** — TurboQuant 10× compression + Deep Storage Purge. Decades of session history on a laptop.
+- **Scale** — TurboQuant 10× compression + Deep Storage Purge + SQLite VACUUM. Decades of session history on a laptop.
+- **Safe** — Full type-guard matrix across all 30+ MCP tools. LLM-hallucinated payloads are rejected at the boundary.
 - **Convergent** — CRDT OR-Map handoff merging. Multiple agents, zero conflicts.
 - **Autonomous** — Web Scholar researches while you sleep. Task-aware, Hivemind-integrated.
-- **Hardened** — Transactional migrations, graceful shutdown, thundering herd prevention.
+- **Hardened** — Transactional migrations, graceful shutdown, thundering herd prevention, prototype pollution guards.
 - **Quality** — Interactive Knowledge Graph Editor + Behavioral Memory that learns from mistakes.
-- **Reliability** — 374 passing tests across 17 suites. Hardened auto-load hooks for Claude Code & Gemini.
+- **Reliability** — 425 passing tests across 20 suites.
 - **Observability** — OpenTelemetry span waterfalls for every tool call, LLM hop, and background worker.
 - **Multimodal** — VLM auto-captioning turns screenshots into semantically searchable memory.
-- **Security** — SQL injection prevention via column allowlists on all dynamic query paths.
+- **Security** — SQL injection prevention, path traversal guard, GDPR Art. 17+20 compliance.
 
 ---
 
-## 🗺️ Next on the Horizon — v6.x
-
-The next major frontier: **Advanced Cognition & Mobile**.
+## 🗺️ Next on the Horizon — v6.2
 
 ### 📱 Mind Palace Mobile PWA
 

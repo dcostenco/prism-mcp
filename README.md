@@ -340,7 +340,7 @@ A gorgeous glassmorphism UI at `localhost:3000` that lets you see exactly what y
 ![Mind Palace Dashboard](docs/mind-palace-dashboard.png)
 
 ### 🧬 10× Memory Compression
-Powered by a pure TypeScript port of Google's TurboQuant (Inspired by Google's ICLR research), Prism compresses 768-dim embeddings from **3,072 bytes → ~400 bytes** — enabling decades of session history on a standard laptop. No native modules. No vector database required.
+Powered by a pure TypeScript port of Google's TurboQuant (inspired by Google's ICLR research), Prism compresses 768-dim embeddings from **3,072 bytes → ~400 bytes** — enabling decades of session history on a standard laptop. No native modules. No vector database required.
 
 ### 🐝 Multi-Agent Hivemind
 Multiple agents (dev, QA, PM) can work on the same project with **role-isolated memory**. Agents discover each other automatically, share context in real-time via Telepathy sync, and see a team roster during context loading.
@@ -382,7 +382,7 @@ Soft/hard delete (Art. 17), full export in JSON, Markdown, or Obsidian vault `.z
 ## 🆕 What's New
 
 ### v6.1 — Prism-Port, Cognitive Load & Semantic Search ✅
-> **Current stable release.** Data sovereignty meets active memory intelligence.
+> **Current stable release (v6.1.8).** Data sovereignty meets active memory intelligence.
 
 - 📦 **Prism-Port Vault Export** — New `vault` format for `session_export_memory`. Generates a `.zip` of interlinked Markdown files with YAML frontmatter, `[[Wikilinks]]`, and auto-generated `Keywords/` backlink indices. Drop into Obsidian or Logseq for instant knowledge graph.
 - 🏛️ **Dashboard Export Vault Button** — "🏛️ Export Vault" button in the Mind Palace UI exports the full Prism-Port vault ZIP directly from the browser. Both `/api/export` and `/api/export/vault` now use the unified `buildVaultDirectory` path — same rich format as the MCP tool.
@@ -391,6 +391,26 @@ Soft/hard delete (Art. 17), full export in JSON, Markdown, or Obsidian vault `.z
 - ✨ **Semantic Search Highlighting** — Native RegEx mapping that visually wraps the exact reason a vector result was retrieved during a search.
 - 📊 **Deep Purge Visualization** — A zero-overhead "Memory Density" analytic providing instant signal-to-noise ratio visibility (Graduated ideas vs raw concepts).
 - 🛡️ **Context-Boosted Search** — Biases semantic queries by intelligently interleaving your current project workspace.
+
+#### v6.1.8 — Type Guard Hardening (Production Safety)
+- 🛡️ **Missing Guard Added** — `isSessionCompactLedgerArgs` was absent; an LLM passing `{threshold: "many"}` would reach the handler as a string. Added full validation for all four optional fields.
+- ✅ **Array Field Validation** — `isSessionSaveLedgerArgs` now guards `todos`, `files_changed`, and `decisions` with `Array.isArray` checks — prevents a hallucinated `{todos: "string"}` from bypassing the type system.
+- 🔖 **Enum Literal Guard** — `isSessionExportMemoryArgs` now rejects any `format` value outside `'json' | 'markdown' | 'vault'` at the boundary instead of propagating to the handler.
+- 🔢 **Numeric Field Guards** — `isSessionIntuitiveRecallArgs` now validates `limit` and `threshold` as numbers, blocking string coercion (`{limit: "many"}`).
+- 🧹 **Legacy Guard Migration** — `isMemoryHistoryArgs`, `isMemoryCheckoutArgs`, and `isSessionSaveImageArgs` migrated to the consistent `Record<string, unknown>` pattern; `isMemoryHistoryArgs` also gains a previously missing `limit` number check.
+
+#### v6.1.7 — Dashboard Toggle Persistence
+- 🔄 **Rollback on Save Failure** — `saveSetting()` now returns `Promise<boolean>`; UI toggles (Hivemind, Auto-Capture) roll back their optimistic state if the server request fails.
+- 🚫 **Cache-Busting** — `loadSettings()` appends `?t=<timestamp>` to bypass stale browser/service-worker caches.
+- 🔔 **HTTP Error Detection** — Explicit 4xx/5xx catching in `saveSetting()` surfaces failed saves as user-visible toast notifications.
+
+#### v6.1.6 — Type Guard Audit (Round 1)
+- 🛡️ **11 Type Guards Hardened** — Audited and refactored all MCP tool argument guards to include explicit `typeof` validation for optional fields, preventing LLM-hallucinated payloads from causing runtime type coercion errors.
+
+#### v6.1.5 — SQLite Deep Storage TTL
+- 🧪 **Comprehensive Edge-Case Test Suite** — 425 tests across 20 files covering CRDT merges, TurboQuant mathematical invariants, prototype pollution guards, and SQLite retention TTL boundary conditions.
+- 🔒 **Prototype Pollution Guards** — CRDT merge pipeline hardened against `__proto__` / `constructor` injection via `Object.create(null)` scratchpads.
+- 🗜️ **`maintenance_vacuum` Tool** — New tool to reclaim SQLite disk space after large purge operations.
 
 #### v6.1.4 — Production Hardening
 - 🔒 **Embedding Binary Strip** — Both `embedding` (raw float32) and `embedding_compressed` (TurboQuant binary blob) are now stripped from all export formats, preventing ~400 bytes of raw binary per entry from appearing in vault/JSON exports.
@@ -557,7 +577,7 @@ Requires `PRISM_ENABLE_HIVEMIND=true`.
 | `SUPABASE_URL` | If cloud | Supabase project URL |
 | `SUPABASE_KEY` | If cloud | Supabase anon/service key |
 | `PRISM_USER_ID` | No | Multi-tenant user isolation (default: `"default"`) |
-| `PRISM_AUTO_CAPTURE` | No | `"true"` to auto-snapshot dev servers |
+| `PRISM_AUTO_CAPTURE` | No | `"true"` to auto-snapshot dev server UI states (HTML/DOM) for visual memory |
 | `PRISM_CAPTURE_PORTS` | No | Comma-separated ports (default: `3000,3001,5173,8080`) |
 | `PRISM_DEBUG_LOGGING` | No | `"true"` for verbose logs |
 | `PRISM_DASHBOARD_PORT` | No | Dashboard port (default: `3000`) |
@@ -650,8 +670,8 @@ Prism is evolving from smart session logging toward a **cognitive memory archite
 | **v5.4** | Autonomous Web Scholar — background research pipeline with LLM synthesis | Autonomous research agents | ✅ Shipped |
 | **v5.5** | SDM Decoder Foundation — pre-allocated typed-array hot loop, zero GC thrash | Kanerva's Sparse Distributed Memory (1988) | ✅ Shipped |
 | **v5.5** | Architectural Hardening — transactional migrations, graceful shutdown, thundering herd prevention | Production reliability engineering | ✅ Shipped |
+| **v6.1** | Intuitive Recall — proactive surface of relevant past decisions without explicit search; `session_intuitive_recall` tool | Predictive memory (cognitive science) | ✅ Shipped |
 | **v6.2+** | Full Superposed Memory (SDM) — O(1) key-value retrieval via Hamming correlation | Kanerva's SDM | 🔬 In Progress |
-| **v6.2+** | Intuitive Recall — proactive surface of relevant past decisions without explicit search | Predictive memory (cognitive science) | 🔬 In Progress |
 | **v6.1** | Prism-Port Vault Export — Obsidian/Logseq `.zip` with YAML frontmatter & `[[Wikilinks]]` | Data sovereignty, PKM interop | ✅ Shipped |
 | **v6.1** | Cognitive Load & Semantic Search — dynamic graph thinning, search highlights | Contextual working memory | ✅ Shipped |
 | **v6.2** | Synthesize & Prune — automated edge synthesis and visual decay | Implicit associative memory | 🔬 In Progress |
@@ -667,7 +687,7 @@ Prism is evolving from smart session logging toward a **cognitive memory archite
 > **[Full ROADMAP.md →](ROADMAP.md)**
 
 ### v6.2: The "Synthesize & Prune" Phase
-The v6.1 update shipped Prism-Port (Obsidian vault export) and enhanced Knowledge Gardening. The v6.2 phase aims to turn collected data into proactive intelligence, moving the dashboard from a passive storage viewer into an active, self-organizing Mind Palace.
+The v6.1 series (through v6.1.8) shipped Prism-Port vault export, Intuitive Recall, full type guard hardening, and dashboard toggle persistence. The v6.2 phase aims to turn collected data into proactive intelligence, moving the dashboard from a passive storage viewer into an active, self-organizing Mind Palace.
 
 1. 🕸️ **Automated Edge Synthesis (The "Dream" Procedure):** A background routine that runs on the graph payload to find semantically similar but disconnected nodes via Cosine Similarity. It highlights potential ghostly edges in the UI, empowering the system to autonomously suggest new mental models instead of waiting for the user to connect the dots manually.
 2. 🗓️ **Temporal Decay Heatmaps (Visualizing the Ebbinghaus Curve):** A UI overlay toggle where un-accessed nodes dynamically desaturate or physically "fade" while Graduated nodes (Score >= 7) stay vibrant longer. This makes the "Deep Purge" decision-making visceral: if the graph looks gray, trigger a learning session or a cleanup.
@@ -681,7 +701,7 @@ The v6.1 update shipped Prism-Port (Obsidian vault export) and enhanced Knowledg
 - **Auto-load is model- and client-dependent.** Session auto-loading relies on both the LLM following system prompt instructions *and* the MCP client completing tool registration before the model's first turn. Prism provides platform-specific [Setup Guides](#-setup-guides) and a server-side fallback (v5.2.1) that auto-pushes context after 10 seconds.
 - **MCP client race conditions.** Some MCP clients may not finish tool enumeration before the model generates its first response, causing transient `unknown_tool` errors. This is a client-side timing issue — Prism's server completes the MCP handshake in ~60ms. Workaround: the server-side auto-push fallback and the startup skill's retry logic.
 - **No real-time sync without Supabase.** Local SQLite mode is single-machine only. Multi-device or team sync requires a Supabase backend.
-- **Embedding quality varies by provider.** Gemini `text-embedding-004` and OpenAI `text-embedding-3-small` produce high-quality 768-dim vectors. Ollama embeddings (e.g., `nomic-embed-text`) are usable but may reduce retrieval accuracy.
+- **Embedding quality varies by provider.** Gemini `text-embedding-004` and OpenAI `text-embedding-3-small` produce high-quality 768-dim vectors. Prism passes `dimensions: 768` via the Matryoshka API for OpenAI models (native output is 1536-dim; this truncation is lossless and outperforms ada-002 at full 1536 dims). Ollama embeddings (e.g., `nomic-embed-text`) are usable but may reduce retrieval accuracy.
 - **Dashboard is HTTP-only.** The Mind Palace dashboard at `localhost:3000` does not support HTTPS. For remote access, use a reverse proxy (nginx/Caddy) or SSH tunnel. Basic auth is available via `PRISM_DASHBOARD_USER` / `PRISM_DASHBOARD_PASS`.
 - **Long-lived clients can accumulate zombie processes.** MCP clients that run for extended periods (e.g., Claude CLI) may leave orphaned Prism server processes. The lifecycle manager detects true orphans (PPID=1) but allows coexistence for active parent processes. Use `PRISM_INSTANCE` to isolate instances across clients.
 - **Migration is one-way.** Universal History Migration imports sessions *into* Prism but does not export back to Claude/Gemini/OpenAI formats. Use `session_export_memory` for portable JSON/Markdown export, or the `vault` format for Obsidian/Logseq-compatible `.zip` archives.
