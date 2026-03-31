@@ -629,8 +629,28 @@ export interface StorageBackend {
    * Create a link between two ledger entries.
    * Uses INSERT OR IGNORE (idempotent). After insert, atomically prunes
    * any related_to links beyond the 25-link cap.
+   *
+   * v6.2 (migration 035): Requires userId for tenant-aware validation.
+   * Supabase routes through prism_create_link SECURITY DEFINER RPC.
    */
-  createLink(link: MemoryLink): Promise<void>;
+  createLink(link: MemoryLink, userId: string): Promise<void>;
+
+  /**
+   * Delete a link by composite key (source_id, target_id, link_type).
+   * Validates tenant ownership of both endpoints before deletion.
+   *
+   * @param sourceId - Source entry UUID
+   * @param targetId - Target entry UUID
+   * @param linkType - Link type discriminator
+   * @param userId   - Tenant identity for ownership validation
+   * @returns true if a link was deleted, false if not found
+   */
+  deleteLink(
+    sourceId: string,
+    targetId: string,
+    linkType: MemoryLink['link_type'],
+    userId: string
+  ): Promise<boolean>;
 
   /**
    * Get all outbound links from a source entry.

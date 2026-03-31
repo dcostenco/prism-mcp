@@ -2615,9 +2615,11 @@ export class SqliteStorage implements StorageBackend {
   // Cap enforcement and reinforcement are designed to be called from
   // application logic (not triggers) per the RFC design decisions.
 
-  async createLink(link: MemoryLink): Promise<void> {
+  async createLink(link: MemoryLink, _userId: string): Promise<void> {
     // INSERT OR IGNORE — idempotent on composite PK (source, target, type)
     // Strength is clamped by CHECK constraint (0.0–1.0) in schema.
+    // Note: _userId accepted for interface parity with Supabase (which validates
+    // tenant ownership via prism_create_link RPC). SQLite is single-tenant.
     await this.db.execute({
       sql: `INSERT OR IGNORE INTO memory_links
             (source_id, target_id, link_type, strength, metadata)
@@ -2636,6 +2638,20 @@ export class SqliteStorage implements StorageBackend {
     if (link.link_type === 'related_to') {
       await this.pruneExcessLinks(link.source_id, 'related_to');
     }
+  }
+
+  async deleteLink(
+    sourceId: string,
+    targetId: string,
+    linkType: MemoryLink['link_type'],
+    _userId: string
+  ): Promise<boolean> {
+    const result = await this.db.execute({
+      sql: `DELETE FROM memory_links
+            WHERE source_id = ? AND target_id = ? AND link_type = ?`,
+      args: [sourceId, targetId, linkType],
+    });
+    return (result.rowsAffected ?? 0) > 0;
   }
 
   async getLinksFrom(

@@ -1118,20 +1118,16 @@ export class SupabaseStorage implements StorageBackend {
   // RPC layer is built. This ensures Supabase users don't crash when
   // Phase 3 auto-linking fires. SQLite is the primary target for v6.0.
 
-  async createLink(link: MemoryLink): Promise<void> {
+  async createLink(link: MemoryLink, userId: string): Promise<void> {
     try {
-      await supabasePost(
-        "memory_links",
-        {
-          source_id: link.source_id,
-          target_id: link.target_id,
-          link_type: link.link_type,
-          strength: Math.max(0.0, Math.min(link.strength ?? 1.0, 1.0)),
-          metadata: link.metadata ? JSON.parse(link.metadata) : null,
-        },
-        { on_conflict: "source_id,target_id,link_type" },
-        { Prefer: "return=minimal,resolution=ignore-duplicates" }
-      );
+      await supabaseRpc("prism_create_link", {
+        p_user_id: userId,
+        p_source_id: link.source_id,
+        p_target_id: link.target_id,
+        p_link_type: link.link_type,
+        p_strength: Math.max(0.0, Math.min(link.strength ?? 1.0, 1.0)),
+        p_metadata: link.metadata ? JSON.parse(link.metadata) : null,
+      });
 
       if (link.link_type === 'related_to') {
         await this.pruneExcessLinks(link.source_id, 'related_to', 25);
@@ -1139,6 +1135,26 @@ export class SupabaseStorage implements StorageBackend {
     } catch (e: any) {
       debugLog("[SupabaseStorage] createLink failed: " + e.message);
       return;
+    }
+  }
+
+  async deleteLink(
+    sourceId: string,
+    targetId: string,
+    linkType: MemoryLink["link_type"],
+    userId: string
+  ): Promise<boolean> {
+    try {
+      const result = await supabaseRpc("prism_delete_link", {
+        p_user_id: userId,
+        p_source_id: sourceId,
+        p_target_id: targetId,
+        p_link_type: linkType,
+      });
+      return result === true || result === "true";
+    } catch (e: any) {
+      debugLog("[SupabaseStorage] deleteLink failed: " + e.message);
+      return false;
     }
   }
 

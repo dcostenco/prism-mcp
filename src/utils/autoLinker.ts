@@ -145,7 +145,7 @@ async function linkTemporal(
     metadata: JSON.stringify({ conversation_id: conversationId }),
   };
 
-  await storage.createLink(link);
+  await storage.createLink(link, userId);
   debugLog(
     `[autoLinker] Temporal link: ${(previousEntry as any).id.substring(0, 8)} → ${entryId.substring(0, 8)}`
   );
@@ -199,7 +199,7 @@ async function linkByKeywordOverlap(
         link_type: "related_to",
         strength: KEYWORD_LINK_STRENGTH,
         metadata: JSON.stringify({ shared_keywords: match.shared_count }),
-      });
+      }, userId);
 
       // Reverse link: match → newEntry (bidirectional)
       await storage.createLink({
@@ -208,7 +208,7 @@ async function linkByKeywordOverlap(
         link_type: "related_to",
         strength: KEYWORD_LINK_STRENGTH,
         metadata: JSON.stringify({ shared_keywords: match.shared_count }),
-      });
+      }, userId);
 
       created++;
     } catch (err) {

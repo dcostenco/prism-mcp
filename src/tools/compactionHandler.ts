@@ -224,7 +224,7 @@ export async function compactLedgerHandler(args: unknown) {
             link_type: "spawned_from",
             strength: 1.0,
             metadata: JSON.stringify({ reason: "compaction", original_date: entry.session_date })
-          });
+          }, PRISM_USER_ID);
         } catch (err) {
           debugLog(`[compact_ledger] Failed to create spawned_from link for ${rollupId}: ${err instanceof Error ? err.message : String(err)}`);
         }

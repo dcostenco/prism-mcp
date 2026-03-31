@@ -482,7 +482,134 @@ export const MIGRATIONS: Migration[] = [
       $inner$;
     `
   },
-  // Future migrations go here (version 35+)
+  // ─── Migration 035: Tenant-safe writes + soft-delete hardening ───
+  {
+    version: 35,
+    name: "rpc_soft_delete_and_write_security",
+    sql: `
+      -- Helper: enforce tenant ownership + visible (not deleted) ledger entry
+      CREATE OR REPLACE FUNCTION public.prism_assert_ledger_owner(
+        p_user_id TEXT,
+        p_entry_id UUID
+      )
+      RETURNS VOID
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path = public
+      AS $inner$
+      BEGIN
+        IF p_user_id IS NULL OR btrim(p_user_id) = '' THEN
+          RAISE EXCEPTION 'p_user_id is required';
+        END IF;
+        IF p_entry_id IS NULL THEN
+          RAISE EXCEPTION 'p_entry_id is required';
+        END IF;
+        IF NOT EXISTS (
+          SELECT 1 FROM public.session_ledger sl
+          WHERE sl.id = p_entry_id AND sl.user_id = p_user_id AND sl.deleted_at IS NULL
+        ) THEN
+          RAISE EXCEPTION 'Tenant ownership/visibility check failed for entry %', p_entry_id;
+        END IF;
+      END;
+      $inner$;
+
+      -- Tenant-safe create/upsert link
+      CREATE OR REPLACE FUNCTION public.prism_create_link(
+        p_user_id TEXT,
+        p_source_id UUID,
+        p_target_id UUID,
+        p_link_type TEXT,
+        p_strength REAL DEFAULT 1.0,
+        p_metadata JSONB DEFAULT NULL
+      )
+      RETURNS TABLE (
+        source_id UUID,
+        target_id UUID,
+        link_type TEXT,
+        strength REAL,
+        metadata JSONB,
+        created_at TIMESTAMPTZ,
+        last_traversed_at TIMESTAMPTZ
+      )
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path = public
+      AS $inner$
+      DECLARE
+        v_strength REAL := GREATEST(0.0, LEAST(COALESCE(p_strength, 1.0), 1.0));
+      BEGIN
+        IF p_link_type IS NULL OR btrim(p_link_type) = '' THEN
+          RAISE EXCEPTION 'p_link_type is required';
+        END IF;
+        PERFORM public.prism_assert_ledger_owner(p_user_id, p_source_id);
+        PERFORM public.prism_assert_ledger_owner(p_user_id, p_target_id);
+        INSERT INTO public.memory_links (source_id, target_id, link_type, strength, metadata)
+        VALUES (p_source_id, p_target_id, p_link_type, v_strength, p_metadata)
+        ON CONFLICT (source_id, target_id, link_type)
+        DO UPDATE SET strength = EXCLUDED.strength, metadata = EXCLUDED.metadata, last_traversed_at = now();
+        RETURN QUERY
+        SELECT m.source_id, m.target_id, m.link_type, m.strength, m.metadata, m.created_at, m.last_traversed_at
+        FROM public.memory_links m
+        WHERE m.source_id = p_source_id AND m.target_id = p_target_id AND m.link_type = p_link_type;
+      END;
+      $inner$;
+
+      -- Tenant-safe delete by composite key
+      CREATE OR REPLACE FUNCTION public.prism_delete_link(
+        p_user_id TEXT, p_source_id UUID, p_target_id UUID, p_link_type TEXT
+      )
+      RETURNS BOOLEAN
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path = public
+      AS $inner$
+      DECLARE v_deleted INTEGER := 0;
+      BEGIN
+        PERFORM public.prism_assert_ledger_owner(p_user_id, p_source_id);
+        PERFORM public.prism_assert_ledger_owner(p_user_id, p_target_id);
+        DELETE FROM public.memory_links ml
+        WHERE ml.source_id = p_source_id AND ml.target_id = p_target_id AND ml.link_type = p_link_type;
+        GET DIAGNOSTICS v_deleted = ROW_COUNT;
+        RETURN v_deleted > 0;
+      END;
+      $inner$;
+
+      -- Admin restore helper
+      CREATE OR REPLACE FUNCTION public.admin_get_deleted_entries(
+        p_user_id TEXT, p_project TEXT DEFAULT NULL, p_limit INTEGER DEFAULT 100
+      )
+      RETURNS TABLE (id UUID, project TEXT, summary TEXT, deleted_at TIMESTAMPTZ, deleted_reason TEXT, created_at TIMESTAMPTZ)
+      LANGUAGE sql
+      SECURITY DEFINER
+      SET search_path = public
+      AS $inner$
+        SELECT sl.id, sl.project, sl.summary, sl.deleted_at, sl.deleted_reason, sl.created_at
+        FROM public.session_ledger sl
+        WHERE sl.user_id = p_user_id AND sl.deleted_at IS NOT NULL
+          AND (p_project IS NULL OR sl.project = p_project)
+        ORDER BY sl.deleted_at DESC
+        LIMIT GREATEST(1, LEAST(p_limit, 1000));
+      $inner$;
+
+      -- Lock down direct memory_links table access
+      ALTER TABLE public.memory_links ENABLE ROW LEVEL SECURITY;
+      DROP POLICY IF EXISTS memory_links_all ON public.memory_links;
+      DROP POLICY IF EXISTS memory_links_no_direct_select ON public.memory_links;
+      DROP POLICY IF EXISTS memory_links_no_direct_insert ON public.memory_links;
+      DROP POLICY IF EXISTS memory_links_no_direct_update ON public.memory_links;
+      DROP POLICY IF EXISTS memory_links_no_direct_delete ON public.memory_links;
+      CREATE POLICY memory_links_no_direct_select ON public.memory_links FOR SELECT USING (false);
+      CREATE POLICY memory_links_no_direct_insert ON public.memory_links FOR INSERT WITH CHECK (false);
+      CREATE POLICY memory_links_no_direct_update ON public.memory_links FOR UPDATE USING (false) WITH CHECK (false);
+      CREATE POLICY memory_links_no_direct_delete ON public.memory_links FOR DELETE USING (false);
+
+      -- Grant execute on all RPCs
+      GRANT EXECUTE ON FUNCTION public.prism_assert_ledger_owner(TEXT, UUID) TO service_role, authenticated;
+      GRANT EXECUTE ON FUNCTION public.prism_create_link(TEXT, UUID, UUID, TEXT, REAL, JSONB) TO service_role, authenticated;
+      GRANT EXECUTE ON FUNCTION public.prism_delete_link(TEXT, UUID, UUID, TEXT) TO service_role, authenticated;
+      GRANT EXECUTE ON FUNCTION public.admin_get_deleted_entries(TEXT, TEXT, INTEGER) TO service_role;
+    `
+  },
 
 ];
 
