@@ -2794,6 +2794,42 @@ export class SqliteStorage implements StorageBackend {
     return result.rowsAffected;
   }
 
+  async summarizeWeakLinks(
+    project: string,
+    userId: string,
+    minStrength: number,
+    maxSourceEntries: number = 25,
+    maxLinksPerSource: number = 25,
+  ): Promise<{ sources_considered: number; links_scanned: number; links_soft_pruned: number }> {
+    const entries = await this.db.execute({
+      sql: `SELECT id
+            FROM session_ledger
+            WHERE project = ?
+              AND user_id = ?
+              AND deleted_at IS NULL
+              AND archived_at IS NULL
+            ORDER BY created_at DESC
+            LIMIT ?`,
+      args: [project, userId, maxSourceEntries],
+    });
+
+    let linksScanned = 0;
+    let linksSoftPruned = 0;
+
+    for (const row of entries.rows) {
+      const sourceId = row.id as string;
+      const links = await this.getLinksFrom(sourceId, userId, 0.0, maxLinksPerSource);
+      linksScanned += links.length;
+      linksSoftPruned += links.filter(l => l.strength < minStrength).length;
+    }
+
+    return {
+      sources_considered: entries.rows.length,
+      links_scanned: linksScanned,
+      links_soft_pruned: linksSoftPruned,
+    };
+  }
+
   // ─── v6.0 Phase 3: Keyword Overlap Finder ──────────────────
   //
   // Pushes heavy intersection logic to the DB layer.

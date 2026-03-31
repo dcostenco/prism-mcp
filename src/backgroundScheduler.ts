@@ -18,7 +18,16 @@
  */
 
 import { getStorage } from "./storage/index.js";
-import { PRISM_USER_ID, PRISM_SCHOLAR_ENABLED, PRISM_SCHOLAR_INTERVAL_MS } from "./config.js";
+import {
+  PRISM_USER_ID,
+  PRISM_SCHOLAR_ENABLED,
+  PRISM_SCHOLAR_INTERVAL_MS,
+  PRISM_GRAPH_PRUNING_ENABLED,
+  PRISM_GRAPH_PRUNE_MIN_STRENGTH,
+  PRISM_GRAPH_PRUNE_PROJECT_COOLDOWN_MS,
+  PRISM_GRAPH_PRUNE_SWEEP_BUDGET_MS,
+  PRISM_GRAPH_PRUNE_MAX_PROJECTS_PER_SWEEP,
+} from "./config.js";
 import { debugLog } from "./utils/logger.js";
 import { runWebScholar } from "./scholar/webScholar.js";
 import { getAllActiveSdmProjects, getSdmEngine } from "./sdm/sdmEngine.js";
@@ -124,6 +133,16 @@ export interface SchedulerConfig {
   edgeSynthesisMaxRetries: number;
   /** Backoff duration after terminal synthesis failure (default: 30 minutes) */
   edgeSynthesisBackoffMs: number;
+  /** Enable soft-prune summary sweep (default: false, opt-in via env) */
+  enableGraphPruning: boolean;
+  /** Minimum link strength threshold for soft-prune accounting (default: 0.15) */
+  graphPruneMinStrength: number;
+  /** Per-project prune cooldown in milliseconds (default: 10 minutes) */
+  graphPruneProjectCooldownMs: number;
+  /** Max wall-clock budget for prune task per sweep (default: 30 seconds) */
+  graphPruneSweepBudgetMs: number;
+  /** Max projects to evaluate in prune task per sweep (default: 25) */
+  graphPruneMaxProjectsPerSweep: number;
 }
 
 export const DEFAULT_SCHEDULER_CONFIG: SchedulerConfig = {
@@ -142,6 +161,11 @@ export const DEFAULT_SCHEDULER_CONFIG: SchedulerConfig = {
   edgeSynthesisBudgetMs: 60_000,
   edgeSynthesisMaxRetries: 1,
   edgeSynthesisBackoffMs: 30 * 60_000,
+  enableGraphPruning: PRISM_GRAPH_PRUNING_ENABLED,
+  graphPruneMinStrength: PRISM_GRAPH_PRUNE_MIN_STRENGTH,
+  graphPruneProjectCooldownMs: PRISM_GRAPH_PRUNE_PROJECT_COOLDOWN_MS,
+  graphPruneSweepBudgetMs: PRISM_GRAPH_PRUNE_SWEEP_BUDGET_MS,
+  graphPruneMaxProjectsPerSweep: PRISM_GRAPH_PRUNE_MAX_PROJECTS_PER_SWEEP,
 };
 
 // ─── Scheduler State ─────────────────────────────────────────
@@ -162,6 +186,9 @@ const lastSynthesisAt = new Map<string, number>();
 
 /** Per-project synthesis backoff-until timestamp (ms since epoch) */
 const synthesisBackoffUntil = new Map<string, number>();
+
+/** Per-project last prune summary timestamp (ms since epoch) */
+const lastPruneAt = new Map<string, number>();
 
 export interface SchedulerSweepResult {
   /** ISO timestamp of sweep start */
@@ -189,6 +216,19 @@ export interface SchedulerSweepResult {
       skippedBudget: number;
       skippedBackoff: number;
       newLinks: number;
+      error?: string;
+    };
+    graphPruning: {
+      ran: boolean;
+      projectsConsidered: number;
+      projectsPruned: number;
+      linksScanned: number;
+      linksSoftPruned: number;
+      skippedBackpressure: number;
+      skippedCooldown: number;
+      skippedBudget: number;
+      durationMs: number;
+      minStrength: number;
       error?: string;
     };
   };
@@ -231,6 +271,7 @@ export function startScheduler(config?: Partial<SchedulerConfig>): () => void {
     cfg.enableDeepPurge && "DeepPurge",
     cfg.enableSdmFlush && "SdmFlush",
     cfg.enableEdgeSynthesis && "EdgeSynthesis",
+    cfg.enableGraphPruning && "GraphPruning",
   ].filter(Boolean).join(", ");
 
   console.error(
@@ -346,6 +387,18 @@ export async function runSchedulerSweep(
         skippedBudget: 0,
         skippedBackoff: 0,
         newLinks: 0,
+      },
+      graphPruning: {
+        ran: false,
+        projectsConsidered: 0,
+        projectsPruned: 0,
+        linksScanned: 0,
+        linksSoftPruned: 0,
+        skippedBackpressure: 0,
+        skippedCooldown: 0,
+        skippedBudget: 0,
+        durationMs: 0,
+        minStrength: cfg.graphPruneMinStrength,
       },
     },
   };
@@ -673,8 +726,86 @@ export async function runSchedulerSweep(
     } catch {
       // Non-critical — don't let metrics failure break the scheduler
     }
+
   }
 
+  // ── Task 8: Graph Soft-Prune Summary (WS3) ─────────────────
+  if (cfg.enableGraphPruning) {
+    const pruneTaskStart = Date.now();
+    try {
+      result.tasks.graphPruning.ran = true;
+      const projects = await storage.listProjects();
+      const maxProjects = Math.max(1, cfg.graphPruneMaxProjectsPerSweep);
+
+      for (const project of projects) {
+        const now = Date.now();
+
+        if (result.tasks.graphPruning.projectsConsidered >= maxProjects) {
+          break;
+        }
+
+        if (runningSynthesis.has(project)) {
+          result.tasks.graphPruning.skippedBackpressure++;
+          continue;
+        }
+
+        const lastPrune = lastPruneAt.get(project);
+        if (typeof lastPrune === "number" && now - lastPrune < cfg.graphPruneProjectCooldownMs) {
+          result.tasks.graphPruning.skippedCooldown++;
+          continue;
+        }
+
+        if (now - pruneTaskStart >= cfg.graphPruneSweepBudgetMs) {
+          result.tasks.graphPruning.skippedBudget++;
+          continue;
+        }
+
+        result.tasks.graphPruning.projectsConsidered++;
+
+        try {
+          const summary = await storage.summarizeWeakLinks(
+            project,
+            PRISM_USER_ID,
+            cfg.graphPruneMinStrength,
+            25,
+            25,
+          );
+
+          result.tasks.graphPruning.linksScanned += summary.links_scanned;
+          result.tasks.graphPruning.linksSoftPruned += summary.links_soft_pruned;
+          if (summary.links_soft_pruned > 0) {
+            result.tasks.graphPruning.projectsPruned++;
+          }
+
+          lastPruneAt.set(project, Date.now());
+        } catch (err) {
+          debugLog(`[Scheduler] Graph pruning summary failed for "${project}": ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+    } catch (err) {
+      result.tasks.graphPruning.error = err instanceof Error ? err.message : String(err);
+      console.error(`[Scheduler] Graph pruning summary error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    result.tasks.graphPruning.durationMs = Date.now() - pruneTaskStart;
+
+    try {
+      const { recordPruningRun } = await import("./observability/graphMetrics.js");
+      recordPruningRun({
+        projects_considered: result.tasks.graphPruning.projectsConsidered,
+        projects_pruned: result.tasks.graphPruning.projectsPruned,
+        links_scanned: result.tasks.graphPruning.linksScanned,
+        links_soft_pruned: result.tasks.graphPruning.linksSoftPruned,
+        min_strength: cfg.graphPruneMinStrength,
+        duration_ms: result.tasks.graphPruning.durationMs,
+        skipped_backpressure: result.tasks.graphPruning.skippedBackpressure,
+        skipped_cooldown: result.tasks.graphPruning.skippedCooldown,
+        skipped_budget: result.tasks.graphPruning.skippedBudget,
+      });
+    } catch {
+      // Non-critical — don't let metrics failure break the scheduler
+    }
+  }
 
   } finally {
     clearInterval(heartbeatInterval!);
