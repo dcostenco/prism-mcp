@@ -835,8 +835,10 @@ export class SqliteStorage implements StorageBackend {
 
     for (const [key, value] of Object.entries(data)) {
       if (!ALLOWED_COLUMNS.has(key)) {
-        debugLog(`[SqliteStorage] patchLedger: rejected unknown column "${key}" — skipping`);
-        continue;
+        throw new Error(
+          `[SqliteStorage] patchLedger: rejected unknown column "${key}". ` +
+          `Allowed: ${[...ALLOWED_COLUMNS].join(', ')}`
+        );
       }
       if (key === "embedding") {
         // Use libSQL's native vector() function for F32_BLOB columns.
@@ -2559,8 +2561,23 @@ export class SqliteStorage implements StorageBackend {
 
     if (!opts.dryRun) {
       debugLog("[SqliteStorage] Starting VACUUM — acquiring exclusive DB lock");
-      await this.db.execute("VACUUM");
-      debugLog("[SqliteStorage] VACUUM complete");
+      try {
+        await this.db.execute("VACUUM");
+        debugLog("[SqliteStorage] VACUUM complete");
+      } catch (err: any) {
+        // SQLITE_BUSY (error code 5) means another connection holds the lock.
+        // Surface a clear, retryable error instead of crashing.
+        const isBusy = err.message?.includes('SQLITE_BUSY') ||
+                       err.message?.includes('database is locked') ||
+                       err.code === 5;
+        if (isBusy) {
+          throw new Error(
+            '[SqliteStorage] VACUUM failed: database is locked by another connection. ' +
+            'Retry after other operations complete. (SQLITE_BUSY)'
+          );
+        }
+        throw err; // Re-throw non-lock errors
+      }
     }
 
     const sizeAfter = await this.getDatabaseSize();

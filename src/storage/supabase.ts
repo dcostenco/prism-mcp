@@ -21,6 +21,8 @@ import {
   supabaseDelete,
 } from "../utils/supabaseApi.js";
 
+import { gzipSync, gunzipSync } from "node:zlib";
+
 import {
   StorageBackend,
   LedgerEntry,
@@ -945,7 +947,6 @@ export class SupabaseStorage implements StorageBackend {
   // backward compatibility during migration.
 
   private arrayToBase64(arr: Float32Array): string {
-    const { gzipSync } = require('node:zlib') as typeof import('node:zlib');
     const raw = Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
     const compressed = gzipSync(raw, { level: 6 });
     return 'gz:' + compressed.toString('base64');
@@ -955,7 +956,6 @@ export class SupabaseStorage implements StorageBackend {
     let buffer: Buffer;
     if (base64.startsWith('gz:')) {
       // Compressed format: gz:<base64(gzip(bytes))>
-      const { gunzipSync } = require('node:zlib') as typeof import('node:zlib');
       const compressed = Buffer.from(base64.slice(3), 'base64');
       buffer = gunzipSync(compressed);
     } else {

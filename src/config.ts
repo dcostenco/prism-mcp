@@ -90,6 +90,18 @@ export const PRISM_STORAGE: "local" | "supabase" =
 export const SUPABASE_URL = process.env.SUPABASE_URL;
 export const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
+/**
+ * SESSION_MEMORY_ENABLED — Master toggle for session persistence tools.
+ *
+ * Hardcoded to `true` since v3.0. This flag was originally used to gate
+ * session memory tools when Supabase credentials were optional. Now that
+ * session memory is a core feature (both SQLite and Supabase backends),
+ * it is always enabled.
+ *
+ * The flag is kept (rather than removed) because several modules import
+ * it for conditional registration of MCP tools. Removing it would require
+ * a broader refactor with no functional benefit.
+ */
 export const SESSION_MEMORY_ENABLED = true;
 // Note: debug() is defined at the bottom of this file; these lines
 // execute at import time after the full module is loaded by Node.

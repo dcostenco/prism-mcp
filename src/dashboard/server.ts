@@ -172,6 +172,13 @@ return false;}
 
   if (AUTH_ENABLED) {
     console.error(`[Dashboard] 🔒 Auth enabled for user "${AUTH_USER}"`);
+    // Security advisory: HTTP Basic Auth transmits credentials in cleartext.
+    // When auth is enabled for remote access, HTTPS (reverse proxy) is strongly recommended.
+    console.error(
+      `[Dashboard] ⚠️  WARNING: Dashboard uses HTTP (not HTTPS). ` +
+      `Credentials are sent in cleartext. Use a reverse proxy (nginx/caddy) ` +
+      `with TLS for remote access.`
+    );
   }
 
   const httpServer = http.createServer(async (req, res) => {
@@ -777,6 +784,9 @@ return false;}
 
 
       // ─── API: Universal History Import (v5.2) ───
+      // NOTE: Transactional safety (BEGIN/COMMIT/ROLLBACK) is handled inside
+      // universalImporter — each conversation is inserted atomically.
+      // The dashboard handler provides HTTP-level error handling only.
       if (url.pathname === "/api/import" && req.method === "POST") {
         try {
           const body = await readBody(req);
