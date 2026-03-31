@@ -102,17 +102,32 @@ interface SchedulerSynthesisMetrics {
   last_sweep_at: string | null;
 }
 
+interface PruningMetrics {
+  projects_considered_last: number;
+  projects_pruned_last: number;
+  links_scanned_last: number;
+  links_soft_pruned_last: number;
+  min_strength_last: number;
+  duration_ms_last: number;
+  skipped_backpressure_last: number;
+  skipped_cooldown_last: number;
+  skipped_budget_last: number;
+  last_run_at: string | null;
+}
+
 interface WarningFlags {
   synthesis_quality_warning: boolean;
   testme_provider_warning: boolean;
   synthesis_failure_warning: boolean;
 }
 
+
 // ─── Singleton State ─────────────────────────────────────────────
 
 let synthesis: SynthesisMetrics = createFreshSynthesisMetrics();
 let testMe: TestMeMetrics = createFreshTestMeMetrics();
 let schedulerSynthesis: SchedulerSynthesisMetrics = createFreshSchedulerMetrics();
+let pruning: PruningMetrics = createFreshPruningMetrics();
 
 function createFreshSynthesisMetrics(): SynthesisMetrics {
   return {
@@ -159,7 +174,21 @@ function createFreshSchedulerMetrics(): SchedulerSynthesisMetrics {
   };
 }
 
-// ─── Structured Log Emission ─────────────────────────────────────
+function createFreshPruningMetrics(): PruningMetrics {
+  return {
+    projects_considered_last: 0,
+    projects_pruned_last: 0,
+    links_scanned_last: 0,
+    links_soft_pruned_last: 0,
+    min_strength_last: 0,
+    duration_ms_last: 0,
+    skipped_backpressure_last: 0,
+    skipped_cooldown_last: 0,
+    skipped_budget_last: 0,
+    last_run_at: null,
+  };
+}
+
 
 function emitGraphEvent(event: Record<string, unknown>): void {
   try {
@@ -295,6 +324,45 @@ export function recordSchedulerSynthesis(data: SchedulerSynthesisData): void {
   });
 }
 
+export interface PruningRunData {
+  projects_considered: number;
+  projects_pruned: number;
+  links_scanned: number;
+  links_soft_pruned: number;
+  min_strength: number;
+  duration_ms: number;
+  skipped_backpressure: number;
+  skipped_cooldown: number;
+  skipped_budget: number;
+}
+
+export function recordPruningRun(data: PruningRunData): void {
+  const now = new Date().toISOString();
+  pruning.projects_considered_last = data.projects_considered;
+  pruning.projects_pruned_last = data.projects_pruned;
+  pruning.links_scanned_last = data.links_scanned;
+  pruning.links_soft_pruned_last = data.links_soft_pruned;
+  pruning.min_strength_last = data.min_strength;
+  pruning.duration_ms_last = data.duration_ms;
+  pruning.skipped_backpressure_last = data.skipped_backpressure;
+  pruning.skipped_cooldown_last = data.skipped_cooldown;
+  pruning.skipped_budget_last = data.skipped_budget;
+  pruning.last_run_at = now;
+
+  emitGraphEvent({
+    event: "graph_prune_run",
+    projects_considered: data.projects_considered,
+    projects_pruned: data.projects_pruned,
+    links_scanned: data.links_scanned,
+    links_soft_pruned: data.links_soft_pruned,
+    min_strength: data.min_strength,
+    duration_ms: data.duration_ms,
+    skipped_backpressure: data.skipped_backpressure,
+    skipped_cooldown: data.skipped_cooldown,
+    skipped_budget: data.skipped_budget,
+  });
+}
+
 // ─── Warning Flag Computation ────────────────────────────────────
 
 function computeWarningFlags(): WarningFlags {
@@ -358,6 +426,18 @@ export interface GraphMetricsSnapshot {
     skipped_backoff_last: number;
     last_sweep_at: string | null;
   };
+  pruning: {
+    projects_considered_last: number;
+    projects_pruned_last: number;
+    links_scanned_last: number;
+    links_soft_pruned_last: number;
+    min_strength_last: number;
+    duration_ms_last: number;
+    skipped_backpressure_last: number;
+    skipped_cooldown_last: number;
+    skipped_budget_last: number;
+    last_run_at: string | null;
+  };
   warnings: WarningFlags;
 }
 
@@ -399,6 +479,18 @@ export function getGraphMetricsSnapshot(): GraphMetricsSnapshot {
       skipped_backoff_last: schedulerSynthesis.skipped_backoff_last,
       last_sweep_at: schedulerSynthesis.last_sweep_at,
     },
+    pruning: {
+      projects_considered_last: pruning.projects_considered_last,
+      projects_pruned_last: pruning.projects_pruned_last,
+      links_scanned_last: pruning.links_scanned_last,
+      links_soft_pruned_last: pruning.links_soft_pruned_last,
+      min_strength_last: pruning.min_strength_last,
+      duration_ms_last: pruning.duration_ms_last,
+      skipped_backpressure_last: pruning.skipped_backpressure_last,
+      skipped_cooldown_last: pruning.skipped_cooldown_last,
+      skipped_budget_last: pruning.skipped_budget_last,
+      last_run_at: pruning.last_run_at,
+    },
     warnings: computeWarningFlags(),
   };
 }
@@ -409,4 +501,5 @@ export function resetGraphMetricsForTests(): void {
   synthesis = createFreshSynthesisMetrics();
   testMe = createFreshTestMeMetrics();
   schedulerSynthesis = createFreshSchedulerMetrics();
+  pruning = createFreshPruningMetrics();
 }

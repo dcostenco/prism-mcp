@@ -2984,24 +2984,29 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
         parts.push('</div>');
         parts.push('</div>');
 
-        // Scheduler synthesis row
-        if (m.scheduler.last_sweep_at) {
+        // Pruning summary row
+        if (m.pruning && m.pruning.last_run_at) {
           parts.push('<div style="border-top:1px solid var(--border-glass);padding-top:0.4rem;margin-top:0.2rem;font-size:0.75rem">');
-          parts.push('📅 Scheduler: ' + m.scheduler.projects_processed_last + ' attempted, ' +
-            m.scheduler.projects_succeeded_last + ' ok, ' + m.scheduler.projects_failed_last + ' failed');
-          parts.push('<br>Links: ' + m.scheduler.links_created_last + ' | Retries: ' + m.scheduler.retries_last + ' | ' + m.scheduler.duration_ms_last + 'ms');
+          parts.push('🧹 Pruning: ' + m.pruning.projects_considered_last + ' considered, ' + m.pruning.projects_pruned_last + ' impacted');
+          parts.push('<br>Links: ' + m.pruning.links_soft_pruned_last + ' soft-pruned / ' + m.pruning.links_scanned_last + ' scanned');
+          var pruneRatio = m.pruning.links_scanned_last > 0
+            ? Math.round((m.pruning.links_soft_pruned_last / m.pruning.links_scanned_last) * 100)
+            : 0;
+          parts.push(' (' + pruneRatio + '%)');
+          parts.push('<br>Threshold: ' + m.pruning.min_strength_last + ' | ' + m.pruning.duration_ms_last + 'ms');
 
-          const skipParts = [];
-          if (m.scheduler.skipped_backpressure_last > 0) skipParts.push('⏳ ' + m.scheduler.skipped_backpressure_last + ' backpressure');
-          if (m.scheduler.skipped_cooldown_last > 0) skipParts.push('🕒 ' + m.scheduler.skipped_cooldown_last + ' cooldown');
-          if (m.scheduler.skipped_budget_last > 0) skipParts.push('⛽ ' + m.scheduler.skipped_budget_last + ' budget');
-          if (skipParts.length > 0) {
-            parts.push('<br><span style="color:var(--accent-amber)">Skipped: ' + skipParts.join(' · ') + '</span>');
+          const pruneSkipParts = [];
+          if (m.pruning.skipped_backpressure_last > 0) pruneSkipParts.push('⏳ ' + m.pruning.skipped_backpressure_last + ' backpressure');
+          if (m.pruning.skipped_cooldown_last > 0) pruneSkipParts.push('🕒 ' + m.pruning.skipped_cooldown_last + ' cooldown');
+          if (m.pruning.skipped_budget_last > 0) pruneSkipParts.push('⛽ ' + m.pruning.skipped_budget_last + ' budget');
+          if (pruneSkipParts.length > 0) {
+            parts.push('<br><span style="color:var(--accent-amber)">Skipped: ' + pruneSkipParts.join(' · ') + '</span>');
           }
 
-          parts.push('<br><span style="color:var(--text-muted)">' + timeAgo(m.scheduler.last_sweep_at) + '</span>');
+          parts.push('<br><span style="color:var(--text-muted)">' + timeAgo(m.pruning.last_run_at) + '</span>');
           parts.push('</div>');
         }
+
 
         el.innerHTML = parts.join('');
 

@@ -224,3 +224,21 @@ export const PRISM_LINK_DECAY_DAYS = parseInt(
   process.env.PRISM_LINK_DECAY_DAYS || "30", 10
 );
 
+// ─── v6.2: Graph Soft-Pruning ───────────────────────────────
+// Soft-pruning filters weak links from graph/retrieval reads while preserving
+// underlying rows for provenance. This does NOT delete links.
+export const PRISM_GRAPH_PRUNING_ENABLED = process.env.PRISM_GRAPH_PRUNING_ENABLED === "true";
+export const PRISM_GRAPH_PRUNE_MIN_STRENGTH = parseFloat(
+  process.env.PRISM_GRAPH_PRUNE_MIN_STRENGTH || "0.15"
+);
+
+// Scheduler-driven prune sweep controls (WS3)
+export const PRISM_GRAPH_PRUNE_PROJECT_COOLDOWN_MS = parseInt(
+  process.env.PRISM_GRAPH_PRUNE_PROJECT_COOLDOWN_MS || "600000", 10
+);
+export const PRISM_GRAPH_PRUNE_SWEEP_BUDGET_MS = parseInt(
+  process.env.PRISM_GRAPH_PRUNE_SWEEP_BUDGET_MS || "30000", 10
+);
+export const PRISM_GRAPH_PRUNE_MAX_PROJECTS_PER_SWEEP = parseInt(
+  process.env.PRISM_GRAPH_PRUNE_MAX_PROJECTS_PER_SWEEP || "25", 10
+);

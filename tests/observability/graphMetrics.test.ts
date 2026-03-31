@@ -16,6 +16,7 @@ import {
   recordSynthesisRun,
   recordTestMeRequest,
   recordSchedulerSynthesis,
+  recordPruningRun,
   getGraphMetricsSnapshot,
   resetGraphMetricsForTests,
 } from "../../src/observability/graphMetrics.js";
@@ -274,7 +275,18 @@ describe("resetGraphMetricsForTests", () => {
   it("clears all state back to initial", () => {
     recordSynthesisRun({ project: "p", status: "ok", duration_ms: 100, new_links: 5 });
     recordTestMeRequest({ project: "p", node_id: "a", status: "success", duration_ms: 10 });
-    recordSchedulerSynthesis({ projects_processed: 2, links_created: 8, duration_ms: 300, skipped_backpressure: 0 });
+    recordSchedulerSynthesis({
+      projects_processed: 2,
+      projects_succeeded: 1,
+      projects_failed: 1,
+      retries: 1,
+      links_created: 8,
+      duration_ms: 300,
+      skipped_backpressure: 0,
+      skipped_cooldown: 0,
+      skipped_budget: 0,
+      skipped_backoff: 0,
+    });
 
     resetGraphMetricsForTests();
     const snap = getGraphMetricsSnapshot();
@@ -306,6 +318,7 @@ describe("Snapshot shape contract", () => {
     expect(snap).toHaveProperty("synthesis");
     expect(snap).toHaveProperty("testMe");
     expect(snap).toHaveProperty("scheduler");
+    expect(snap).toHaveProperty("pruning");
     expect(snap).toHaveProperty("warnings");
   });
 
@@ -351,10 +364,31 @@ describe("Snapshot shape contract", () => {
     expect(typeof sc.skipped_backoff_last).toBe("number");
   });
 
-  it("warnings has all required flags", () => {
+
+  it("pruning has all required fields", () => {
+    recordPruningRun({
+      projects_considered: 3,
+      projects_pruned: 2,
+      links_scanned: 50,
+      links_soft_pruned: 12,
+      min_strength: 0.15,
+      duration_ms: 120,
+      skipped_backpressure: 1,
+      skipped_cooldown: 1,
+      skipped_budget: 0,
+    });
+
     const snap = getGraphMetricsSnapshot();
-    expect(typeof snap.warnings.synthesis_quality_warning).toBe("boolean");
-    expect(typeof snap.warnings.testme_provider_warning).toBe("boolean");
-    expect(typeof snap.warnings.synthesis_failure_warning).toBe("boolean");
+    const p = snap.pruning;
+    expect(typeof p.projects_considered_last).toBe("number");
+    expect(typeof p.projects_pruned_last).toBe("number");
+    expect(typeof p.links_scanned_last).toBe("number");
+    expect(typeof p.links_soft_pruned_last).toBe("number");
+    expect(typeof p.min_strength_last).toBe("number");
+    expect(typeof p.duration_ms_last).toBe("number");
+    expect(typeof p.skipped_backpressure_last).toBe("number");
+    expect(typeof p.skipped_cooldown_last).toBe("number");
+    expect(typeof p.skipped_budget_last).toBe("number");
+    expect(["string", "object"]).toContain(typeof p.last_run_at);
   });
 });

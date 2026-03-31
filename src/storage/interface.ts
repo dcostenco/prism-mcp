@@ -692,6 +692,24 @@ export interface StorageBackend {
   decayLinks(olderThanDays: number): Promise<number>;
 
   /**
+   * Summarize weak-link soft-pruning impact for a project without deleting links.
+   * Used by scheduler observability to estimate how many links would be filtered
+   * out by the active minStrength threshold.
+   */
+  summarizeWeakLinks(
+    project: string,
+    userId: string,
+    minStrength: number,
+    maxSourceEntries?: number,
+    maxLinksPerSource?: number,
+  ): Promise<{
+    sources_considered: number;
+    links_scanned: number;
+    links_soft_pruned: number;
+  }>;
+
+
+  /**
    * Find existing ledger entries that share ≥ minSharedKeywords with the given keywords.
    * Used by the auto-linker to create `related_to` edges on save.
    *

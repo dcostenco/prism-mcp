@@ -1263,6 +1263,49 @@ export class SupabaseStorage implements StorageBackend {
     }
   }
 
+  async summarizeWeakLinks(
+    project: string,
+    userId: string,
+    minStrength: number,
+    maxSourceEntries: number = 25,
+    maxLinksPerSource: number = 25,
+  ): Promise<{ sources_considered: number; links_scanned: number; links_soft_pruned: number }> {
+    try {
+      const rows = await this.getLedgerEntries({
+        project: `eq.${project}`,
+        user_id: `eq.${userId}`,
+        deleted_at: "is.null",
+        archived_at: "is.null",
+        select: "id",
+        order: "created_at.desc",
+        limit: maxSourceEntries,
+      }) as Array<{ id?: string }>;
+
+      let linksScanned = 0;
+      let linksSoftPruned = 0;
+
+      for (const row of rows) {
+        if (!row?.id) continue;
+        const links = await this.getLinksFrom(row.id, userId, 0.0, maxLinksPerSource);
+        linksScanned += links.length;
+        linksSoftPruned += links.filter(l => l.strength < minStrength).length;
+      }
+
+      return {
+        sources_considered: rows.length,
+        links_scanned: linksScanned,
+        links_soft_pruned: linksSoftPruned,
+      };
+    } catch (e: any) {
+      debugLog("[SupabaseStorage] summarizeWeakLinks failed: " + e.message);
+      return {
+        sources_considered: 0,
+        links_scanned: 0,
+        links_soft_pruned: 0,
+      };
+    }
+  }
+
   async findKeywordOverlapEntries(
     excludeId: string,
     project: string,

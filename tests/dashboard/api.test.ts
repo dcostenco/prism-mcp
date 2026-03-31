@@ -403,6 +403,7 @@ describe("GET /api/graph/metrics (Router Integration)", () => {
     expect(parsed).toHaveProperty("synthesis");
     expect(parsed).toHaveProperty("testMe");
     expect(parsed).toHaveProperty("scheduler");
+    expect(parsed).toHaveProperty("pruning");
     expect(parsed).toHaveProperty("warnings");
 
     // Verify the seeded data flows through
@@ -421,6 +422,17 @@ describe("GET /api/graph/metrics (Router Integration)", () => {
     expect(typeof parsed.scheduler.skipped_cooldown_last).toBe("number");
     expect(typeof parsed.scheduler.skipped_budget_last).toBe("number");
     expect(typeof parsed.scheduler.skipped_backoff_last).toBe("number");
+
+    // Pruning fields (WS3 additions) are present and numeric
+    expect(typeof parsed.pruning.projects_considered_last).toBe("number");
+    expect(typeof parsed.pruning.projects_pruned_last).toBe("number");
+    expect(typeof parsed.pruning.links_scanned_last).toBe("number");
+    expect(typeof parsed.pruning.links_soft_pruned_last).toBe("number");
+    expect(typeof parsed.pruning.min_strength_last).toBe("number");
+    expect(typeof parsed.pruning.duration_ms_last).toBe("number");
+    expect(typeof parsed.pruning.skipped_backpressure_last).toBe("number");
+    expect(typeof parsed.pruning.skipped_cooldown_last).toBe("number");
+    expect(typeof parsed.pruning.skipped_budget_last).toBe("number");
 
     // Warning flags are present and boolean
     expect(typeof parsed.warnings.synthesis_quality_warning).toBe("boolean");
