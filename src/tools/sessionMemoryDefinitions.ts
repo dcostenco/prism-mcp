@@ -601,6 +601,7 @@ export function isSessionLoadContextArgs(
 
 // ─── v2.0: Time Travel Tool Definitions ──────────────────────
 
+
 export const MEMORY_HISTORY_TOOL: Tool = {
   name: "memory_history",
   description:
@@ -1317,5 +1318,63 @@ export function isMaintenanceVacuumArgs(
   if (typeof args !== "object" || args === null) return false;
   const a = args as Record<string, unknown>;
   if (a.dry_run !== undefined && typeof a.dry_run !== "boolean") return false;
+  return true;
+}
+
+// ─── v6.0 Phase 3: Edge Synthesis (On-Demand) ───────────────────────
+
+export const SESSION_SYNTHESIZE_EDGES_TOOL: Tool = {
+  name: "session_synthesize_edges",
+  description:
+    "Step 3A Edge Synthesis: Scans recent project entries with embeddings, finds high-similarity " +
+    "but currently disconnected entries, and creates inferred links as 'synthesized_from'.\n\n" +
+    "**On-Demand Graph Enrichment**: Use this tool periodically to discover semantic relationships " +
+    "between structurally disconnected memory nodes. It batch processes the newest active entries.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project: {
+        type: "string",
+        description: "Project identifier.",
+      },
+      similarity_threshold: {
+        type: "number",
+        description: "Minimum cosine similarity score (0.0 to 1.0) to create a link. Default: 0.7.",
+      },
+      max_entries: {
+        type: "integer",
+        description: "Maximum number of recent entries to scan as sources. Default: 50. Max cap: 50.",
+      },
+      max_neighbors_per_entry: {
+        type: "integer",
+        description: "Maximum number of links to synthesize per source entry. Default: 3. Max cap: 5.",
+      },
+      randomize_selection: {
+        type: "boolean",
+        description: "If true, randomly sample active entries instead of taking the newest (default false). Ideal for wide-coverage background sweeps.",
+      },
+    },
+    required: ["project"],
+  },
+};
+
+export interface SessionSynthesizeEdgesArgs {
+  project: string;
+  similarity_threshold?: number;
+  max_entries?: number;
+  max_neighbors_per_entry?: number;
+  randomize_selection?: boolean;
+}
+
+export function isSessionSynthesizeEdgesArgs(
+  args: unknown
+): args is SessionSynthesizeEdgesArgs {
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.project !== "string") return false;
+  if (a.similarity_threshold !== undefined && typeof a.similarity_threshold !== "number") return false;
+  if (a.max_entries !== undefined && typeof a.max_entries !== "number") return false;
+  if (a.max_neighbors_per_entry !== undefined && typeof a.max_neighbors_per_entry !== "number") return false;
+  if (a.randomize_selection !== undefined && typeof a.randomize_selection !== "boolean") return false;
   return true;
 }

@@ -106,6 +106,8 @@ export interface SchedulerConfig {
   enableDeepPurge: boolean;
   /** Auto-flush SDM matrices to disk (default: true) */
   enableSdmFlush: boolean;
+  /** Auto-synthesize graph edges in background (default: true) */
+  enableEdgeSynthesis: boolean;
   /** Minimum age in days for deep purge eligibility (default: 30) */
   purgeOlderThanDays: number;
   /** Minimum entries before compaction triggers (default: 50) */
@@ -123,6 +125,7 @@ export const DEFAULT_SCHEDULER_CONFIG: SchedulerConfig = {
   enableCompaction: true,
   enableDeepPurge: true,
   enableSdmFlush: true,
+  enableEdgeSynthesis: true,
   purgeOlderThanDays: 30,
   compactionThreshold: 50,
   compactionKeepRecent: 10,
@@ -139,6 +142,9 @@ let lastSweepResult: SchedulerSweepResult | null = null;
 /** When the scheduler was started */
 let schedulerStartedAt: string | null = null;
 
+/** Backpressure: tracks projects currently undergoing edge synthesis */
+const runningSynthesis = new Set<string>();
+
 export interface SchedulerSweepResult {
   /** ISO timestamp of sweep start */
   startedAt: string;
@@ -154,6 +160,7 @@ export interface SchedulerSweepResult {
     deepPurge: { ran: boolean; purged: number; reclaimedBytes: number; error?: string };
     sdmFlush: { ran: boolean; projectsFlushed: number; error?: string };
     linkDecay: { ran: boolean; linksDecayed: number; error?: string };
+    edgeSynthesis: { ran: boolean; projectsSynthesized: number; newLinks: number; error?: string };
   };
 }
 
@@ -193,6 +200,7 @@ export function startScheduler(config?: Partial<SchedulerConfig>): () => void {
     cfg.enableCompaction && "Compaction",
     cfg.enableDeepPurge && "DeepPurge",
     cfg.enableSdmFlush && "SdmFlush",
+    cfg.enableEdgeSynthesis && "EdgeSynthesis",
   ].filter(Boolean).join(", ");
 
   console.error(
@@ -297,6 +305,7 @@ export async function runSchedulerSweep(
       deepPurge: { ran: false, purged: 0, reclaimedBytes: 0 },
       sdmFlush: { ran: false, projectsFlushed: 0 },
       linkDecay: { ran: false, linksDecayed: 0 },
+      edgeSynthesis: { ran: false, projectsSynthesized: 0, newLinks: 0 },
     },
   };
 
@@ -516,6 +525,52 @@ export async function runSchedulerSweep(
     debugLog(`[Scheduler] Link decay error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  // ── Task 7: Edge Synthesis ──────────────────────────────────
+  if (cfg.enableEdgeSynthesis) {
+    try {
+      result.tasks.edgeSynthesis.ran = true;
+      const projects = await storage.listProjects();
+      
+      // Dynamic import to avoid circular dependencies
+      const { synthesizeEdgesCore } = await import("./tools/graphHandlers.js");
+
+      for (const project of projects) {
+        if (runningSynthesis.has(project)) {
+          debugLog(`[Scheduler] Skipping edge synthesis for "${project}" — already running`);
+          continue;
+        }
+
+        try {
+          runningSynthesis.add(project);
+          
+          debugLog(`[Scheduler] Synthesizing edges for "${project}"...`);
+          const synthRes = await synthesizeEdgesCore({
+            project,
+            similarity_threshold: 0.7,
+            max_entries: 50,
+            max_neighbors_per_entry: 3,
+            randomize_selection: true, // Use random sampling for wide coverage in background
+          });
+          
+          if (synthRes && synthRes.success) {
+            result.tasks.edgeSynthesis.projectsSynthesized++;
+            result.tasks.edgeSynthesis.newLinks += synthRes.newLinks;
+            if (synthRes.newLinks > 0) {
+              debugLog(`[Scheduler] Edge Synthesis: created ${synthRes.newLinks} links for "${project}"`);
+            }
+          }
+        } catch (err) {
+          debugLog(`[Scheduler] Edge Synthesis failed for "${project}": ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+          runningSynthesis.delete(project);
+        }
+      }
+    } catch (err) {
+      result.tasks.edgeSynthesis.error = err instanceof Error ? err.message : String(err);
+      console.error(`[Scheduler] Edge Synthesis error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   } finally {
     clearInterval(heartbeatInterval!);
     // Release Supabase distributed lock explicitly so the next sweep
@@ -550,6 +605,9 @@ export async function runSchedulerSweep(
   }
   if (result.tasks.linkDecay.ran && result.tasks.linkDecay.linksDecayed > 0) {
     parts.push(`LinkDecay:${result.tasks.linkDecay.linksDecayed} links`);
+  }
+  if (result.tasks.edgeSynthesis.ran && result.tasks.edgeSynthesis.projectsSynthesized > 0) {
+    parts.push(`Synthesis:${result.tasks.edgeSynthesis.newLinks} links in ${result.tasks.edgeSynthesis.projectsSynthesized} projects`);
   }
 
   const summaryLine = parts.length > 0

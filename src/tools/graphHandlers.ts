@@ -56,8 +56,8 @@ import {
   isKnowledgeSyncRulesArgs,
   // v5.1: Deep Storage Mode type guard
   isDeepStoragePurgeArgs,
-  // v5.5: SDM Intuitive Recall type guard
   isSessionIntuitiveRecallArgs,
+  isSessionSynthesizeEdgesArgs,
 } from "./sessionMemoryDefinitions.js";
 
 // v4.2: File system access for knowledge_sync_rules
@@ -828,3 +828,278 @@ export async function sessionIntuitiveRecallHandler(
     };
   }
 }
+
+export async function synthesizeEdgesCore({
+  project,
+  similarity_threshold = 0.7,
+  max_entries = 50,
+  max_neighbors_per_entry = 3,
+  randomize_selection = false,
+}: {
+  project: string;
+  similarity_threshold?: number;
+  max_entries?: number;
+  max_neighbors_per_entry?: number;
+  randomize_selection?: boolean;
+}) {
+  const storage = await getStorage();
+  const llm = getLLMProvider();
+
+  try {
+    let recentEntries: unknown[];
+
+    if (randomize_selection) {
+      // 1. Fetch up to 1000 IDs for the project
+      const rawIds = await storage.getLedgerEntries({
+        user_id: `eq.${PRISM_USER_ID}`,
+        project: `eq.${project}`,
+        deleted_at: "is.null",
+        archived_at: "is.null",
+        select: "id",
+        limit: 1000,
+      }) as { id: string }[];
+
+      // 2. Fisher-Yates shuffle
+      const ids = rawIds.map(r => r.id).filter(Boolean);
+      for (let i = ids.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+      }
+
+      // 3. Take max_entries
+      const selectedIds = ids.slice(0, max_entries);
+
+      if (selectedIds.length > 0) {
+        recentEntries = await storage.getLedgerEntries({
+          ids: selectedIds,
+        });
+      } else {
+        recentEntries = [];
+      }
+    } else {
+      recentEntries = await storage.getLedgerEntries({
+        user_id: `eq.${PRISM_USER_ID}`,
+        project: `eq.${project}`,
+        deleted_at: "is.null",
+        archived_at: "is.null",
+        order: "created_at.desc",
+        limit: max_entries,
+      });
+    }
+
+    let newLinks = 0;
+    let skippedLinks = 0;
+    let entriesScanned = 0;
+    let totalCandidates = 0;
+    let totalBelow = 0;
+
+    for (const entry of recentEntries as any[]) {
+      entriesScanned++;
+      let queryEmbeddingStr = entry.embedding;
+
+      // Handle compressed-only entries by regenerating the query vector
+      if (!queryEmbeddingStr) {
+        if (!entry.embedding_compressed) {
+          continue; // No semantic data available
+        }
+        const textToEmbed = [entry.summary || "", ...(entry.decisions || [])].filter(Boolean).join(" | ");
+        if (!textToEmbed) continue;
+        const generated = await llm.generateEmbedding(textToEmbed);
+        queryEmbeddingStr = JSON.stringify(generated);
+      }
+
+      let candidatesEvaluated = 0;
+      let belowThreshold = 0;
+
+      // Fetch more candidates with a baseline threshold to calculate tuning metrics
+      const similar = await storage.searchMemory({
+        queryEmbedding: queryEmbeddingStr,
+        project,
+        limit: max_neighbors_per_entry * 3 + 1, // Look deeper to surface metrics
+        similarityThreshold: 0.0, // Filter manually below
+        userId: PRISM_USER_ID,
+      });
+
+      // Get existing links to avoid duplicates
+      const existingLinks = await storage.getLinksFrom(entry.id, PRISM_USER_ID);
+      const existingTargetIds = new Set(existingLinks.map(l => l.target_id));
+
+      let neighborsFound = 0;
+
+      for (const match of similar) {
+        if (match.id === entry.id) continue;
+        
+        candidatesEvaluated++;
+        
+        if (match.similarity < similarity_threshold) {
+          belowThreshold++;
+          continue;
+        }
+
+        if (neighborsFound >= max_neighbors_per_entry) {
+          continue; // We have enough top neighbors above threshold
+        }
+        
+        neighborsFound++;
+
+        if (existingTargetIds.has(match.id)) {
+          skippedLinks++;
+        } else {
+          await storage.createLink({
+            source_id: entry.id,
+            target_id: match.id,
+            link_type: 'synthesized_from',
+            strength: Math.max(0, Math.min(1, match.similarity)),
+          }, PRISM_USER_ID);
+          newLinks++;
+        }
+      }
+      
+      totalCandidates += candidatesEvaluated;
+      totalBelow += belowThreshold;
+    }
+    
+    return {
+      success: true,
+      entriesScanned,
+      totalCandidates,
+      totalBelow,
+      skippedLinks,
+      newLinks
+    };
+  } catch (err) {
+    debugLog(`[synthesizeEdgesCore] Failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw err;
+  }
+}
+
+export async function sessionSynthesizeEdgesHandler(args: unknown) {
+  if (!isSessionSynthesizeEdgesArgs(args)) {
+    throw new Error("Invalid arguments for session_synthesize_edges");
+  }
+
+  const {
+    project,
+    similarity_threshold = 0.7,
+    max_entries = 50,
+    max_neighbors_per_entry = 3,
+    randomize_selection = false,
+  } = args;
+
+  try {
+    const res = await synthesizeEdgesCore({
+      project,
+      similarity_threshold,
+      max_entries,
+      max_neighbors_per_entry,
+      randomize_selection,
+    });
+
+    return {
+      content: [{
+        type: "text",
+        text: `✅ Synthesized edges for project "${project}"\n\n` +
+              `• Entries scanned: ${res.entriesScanned}\n` +
+              `• Candidates evaluated: ${res.totalCandidates}\n` +
+              `• Below threshold (<${similarity_threshold}): ${res.totalBelow}\n` +
+              `• Duplicates skipped: ${res.skippedLinks}\n` +
+              `• New links created: ${res.newLinks}`
+      }],
+      isError: false,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      content: [{ type: "text", text: `❌ Failed to synthesize edges: ${msg}` }],
+      isError: true,
+    };
+  }
+}
+
+// ─── Step 4: LLM Context Assembly (Test Me) ──────────────────────────
+
+export async function assembleTestMeContext(nodeId: string, project: string, storage: any) {
+  // 1. Gather outbound graph links (top 5)
+  const outboundLinks = await storage.getLinksFrom(nodeId, PRISM_USER_ID, 0.0, 5);
+  
+  // 2. Gather semantic neighbors (top 5) via true search
+  const semanticResult = await storage.searchKnowledge({
+    project,
+    keywords: [nodeId],
+    limit: 5,
+    userId: PRISM_USER_ID
+  });
+  
+  // 3. Deduplicate and compactly format the results
+  const contextMap = new Map<string, string>();
+  
+  for (const link of outboundLinks) {
+    // If the target is an entry, fetch its summary to provide context
+    try {
+      if (link.target_id && link.target_id.length === 36) { // naive UUID check
+        const entries = await storage.getLedgerEntries({ id: `eq.${link.target_id}` });
+        if (entries && entries.length > 0) {
+          contextMap.set(link.target_id, entries[0].summary.substring(0, 300));
+        }
+      }
+    } catch {}
+  }
+  
+  const semanticEntries = semanticResult?.results || [];
+  for (const entry of semanticEntries as any[]) {
+    if (entry.id && !contextMap.has(entry.id) && entry.summary) {
+      contextMap.set(entry.id, entry.summary.substring(0, 300));
+    }
+  }
+  
+  return {
+    nodeId,
+    project,
+    contextItems: Array.from(contextMap.values())
+  };
+}
+
+export async function generateTestMeQuestions(context: any, nodeId: string) {
+  try {
+    const provider = getLLMProvider();
+
+    const payloadContext = context.contextItems.length > 0 
+      ? context.contextItems.join("\\n---\\n")
+      : "No direct graph context available.";
+
+    const prompt = `You are a technical knowledge assistant. Generate exactly 3 active-recall Socratic questions and short answers for the concept/node: "${nodeId}".
+
+Available context from the knowledge graph:
+${payloadContext}
+
+If context is sparse, derive questions from intrinsic properties and likely operational implications of the concept.
+
+Constraint: Output strictly as JSON array of objects with keys "q" and "a". Do not include markdown fences or other text.
+Example:
+[
+  {"q":"What is X?","a":"X is..."},
+  {"q":"How does X work?","a":"It works by..."}
+]`;
+
+    const responseText = await provider.generateText(prompt);
+    
+    // Attempt to parse strictly
+    let textToParse = responseText.trim();
+    if (textToParse.startsWith("\`\`\`json")) {
+      textToParse = textToParse.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
+    }
+    
+    const parsed = JSON.parse(textToParse);
+    if (!Array.isArray(parsed) || parsed.length !== 3 || !parsed[0].q || !parsed[0].a) {
+      throw new Error("Invalid output shape");
+    }
+    
+    return { questions: parsed };
+  } catch (err: any) {
+    if (err.message?.includes("API key") || err.message?.includes("auth")) {
+      return { questions: [], reason: "no_api_key" };
+    }
+    return { questions: [], reason: "generation_failed" };
+  }
+}
+

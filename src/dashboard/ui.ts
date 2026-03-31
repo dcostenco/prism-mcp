@@ -811,6 +811,13 @@ export function renderDashboardHTML(version: string): string {
 
           <div id="network-container">Loading nodes...</div>
           
+          <!-- Graph Maintenance Actions -->
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-glass); display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button onclick="triggerEdgeSynthesis()" class="input-modern" style="font-size:0.75rem; padding:0.3rem 0.65rem; cursor:pointer; border:1px solid var(--accent-purple); background:transparent; color:var(--text-primary); border-radius:6px; transition:all 0.2s;">
+              ⚡ Synthesize Edges
+            </button>
+            <span id="synthesisStatus" style="font-size: 0.75rem; color: var(--text-muted); align-self: center;"></span>
+          </div>
           <!-- v5.1 Node Editor Panel -->
           <div id="nodeEditorPanel" class="node-editor-panel">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
@@ -829,6 +836,13 @@ export function renderDashboardHTML(version: string): string {
             <select id="nodeMergeSelect" class="input-modern" style="width:100%; font-size:0.8rem; padding:0.3rem 0.5rem" onchange="if(this.value) document.getElementById('nodeEditorInput').value = this.value">
               <option value="">-- Select node --</option>
             </select>
+            
+            <hr style="border:none; border-top:1px solid var(--border-subtle); margin:1rem 0;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Active Recall</span>
+              <button id="testMeBtn" onclick="triggerTestMe()" class="btn-modern" style="padding:0.3rem 0.6rem; font-size:0.75rem; background:var(--accent-teal); border-color:var(--accent-teal);" title="Generate 3 quiz questions using AI">📝 Test Me</button>
+            </div>
+            <div id="testMeContainer" style="margin-top:0.8rem; display:flex; flex-direction:column; gap:0.5rem;"></div>
           </div>
         </div>
 
@@ -2013,6 +2027,7 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       loadGraph();
     }
 
+
     /**
      * Compute decay color for a node.
      * Fresh (0 days) → bright green (#10b981)
@@ -2193,6 +2208,15 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
               mergeSelect.value = "";
             }
             
+            var tmBtn = document.getElementById('testMeBtn');
+            var tmCont = document.getElementById('testMeContainer');
+            if (tmCont) tmCont.innerHTML = '';
+            if (tmBtn) {
+              tmBtn.disabled = false;
+              tmBtn.textContent = '📝 Test Me';
+              tmBtn.style.opacity = '1';
+            }
+            
             document.getElementById('nodeEditorPanel').style.display = 'block';
           } else {
             var panel = document.getElementById('nodeEditorPanel');
@@ -2277,6 +2301,115 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       } finally {
         btn.disabled = false;
         btn.textContent = 'Apply';
+      }
+    }
+
+    async function triggerEdgeSynthesis() {
+      const project = document.getElementById('graphProjectFilter')?.value || document.getElementById('projectSelect')?.value;
+      if (!project) {
+        alert("Please select an active project first.");
+        return;
+      }
+      
+      const btn = document.querySelector('button[onclick="triggerEdgeSynthesis()"]');
+      const status = document.getElementById('synthesisStatus');
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+      if (status) status.textContent = 'running...';
+      
+      try {
+        const res = await fetch('/api/graph/synthesize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: project, randomize_selection: true, max_entries: 50 })
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.success) {
+          if (status) status.textContent = '✅ Created ' + data.newLinks + ' links (Scanned: ' + data.entriesScanned + ')';
+          setTimeout(loadGraph, 1000); // Reload graph to show new edges
+        } else {
+          showToast('❌ Edge Synthesis Error: ' + (data.error || 'Failed'), true);
+          if (status) status.textContent = '❌ Failed';
+        }
+      } catch (e) {
+        showToast('❌ Edge Synthesis Error: ' + e.message, true);
+        if (status) status.textContent = '❌ Error';
+      } finally {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        setTimeout(function() {
+          if (status) status.textContent = '';
+        }, 5000);
+      }
+    }
+
+    window.triggerTestMe = triggerTestMe;
+    async function triggerTestMe() {
+      var input = document.getElementById('nodeEditorInput');
+      var oldId = input.dataset.oldId;
+      var project = document.getElementById('graphProjectFilter')?.value || document.getElementById('projectSelect')?.value;
+      
+      if (!oldId || !project) return;
+      
+      var btn = document.getElementById('testMeBtn');
+      var container = document.getElementById('testMeContainer');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '...';
+      }
+      if (container) {
+        container.innerHTML = '<div style="font-size:0.75rem; color:var(--text-muted); text-align:center; padding:1rem 0;">Generating questions...</div>';
+      }
+      
+      try {
+        var res = await fetch('/api/graph/test-me?id=' + encodeURIComponent(oldId) + '&project=' + encodeURIComponent(project));
+        var data = await res.json();
+        
+        if (data.reason === 'no_api_key') {
+          if (btn) {
+            btn.disabled = true;
+            btn.title = 'Requires AI key to generate quizzes';
+            btn.style.opacity = '0.5';
+          }
+          if (container) container.innerHTML = '';
+          return;
+        } else if (data.reason === 'generation_failed' || !data.questions || data.questions.length === 0) {
+          showToast('Failed to generate quizzes. Try again.', true);
+          if (container) container.innerHTML = '';
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = '📝 Test Me';
+          }
+          return;
+        }
+        
+        if (container) {
+          container.innerHTML = '';
+          data.questions.forEach(function(qa) {
+            var card = document.createElement('div');
+            card.style.background = 'var(--bg-secondary)';
+            card.style.border = '1px solid var(--border-subtle)';
+            card.style.borderRadius = '6px';
+            card.style.padding = '0.6rem';
+            
+            card.innerHTML = 
+              '<div style="font-size:0.8rem; font-weight:600; color:var(--text-primary); margin-bottom:0.4rem;">' + escapeHtml(qa.q) + '</div>' +
+              '<div class="testme-ans" style="display:none; font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; padding-top:0.4rem; border-top:1px dashed var(--border-subtle);">' +
+                escapeHtml(qa.a) + 
+              '</div>' +
+              '<button onclick="this.previousElementSibling.style.display=\'block\'; this.style.display=\'none\'" style="background:transparent; border:none; color:var(--accent-purple); font-size:0.7rem; cursor:pointer; padding:0; margin-top:0.3rem;">Show Answer</button>';
+              
+            container.appendChild(card);
+          });
+        }
+        
+      } catch (err) {
+        showToast('Error generating quiz', true);
+        if (container) container.innerHTML = '';
+      } finally {
+        if (btn && !(btn.title && btn.title.includes('Requires AI key'))) {
+          btn.textContent = '📝 Test Me';
+          btn.disabled = false;
+        }
       }
     }
 

@@ -247,6 +247,80 @@ export async function handleGraphRoutes(
     }
   }
 
+  // ─── API: Synthesize Graph Edges (v6.0) ───
+  if (url.pathname === "/api/graph/synthesize" && req.method === "POST") {
+    try {
+      const body = await readBody(req);
+      const { project, max_entries, similarity_threshold, randomize_selection } = JSON.parse(body || "{}");
+
+      if (!project) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Project is required" }));
+        return true;
+      }
+
+      const s = await getStorageSafe();
+      if (!s) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Storage not ready" }));
+        return true;
+      }
+
+      // dynamic import to avoid circular dependencies in routing
+      const { synthesizeEdgesCore } = await import("../tools/graphHandlers.js");
+      
+      const result = await synthesizeEdgesCore({
+        project,
+        max_entries: typeof max_entries === "number" ? max_entries : 50,
+        similarity_threshold: typeof similarity_threshold === "number" ? similarity_threshold : 0.7,
+        randomize_selection: typeof randomize_selection === "boolean" ? randomize_selection : false,
+      });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(result));
+      return true;
+    } catch (err) {
+      console.error("[Dashboard] Edge Synthesis error:", err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Synthesis failed" }));
+      return true;
+    }
+  }
+
+  // ─── API: Test Me (LLM Context Assembly v6.0) ───
+  if (url.pathname === "/api/graph/test-me" && req.method === "GET") {
+    const id = url.searchParams.get("id");
+    const project = url.searchParams.get("project");
+
+    if (!id || !project) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Node ID and project are required" }));
+      return true;
+    }
+
+    try {
+      const s = await getStorageSafe();
+      if (!s) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Storage not ready" }));
+        return true;
+      }
+
+      const { assembleTestMeContext, generateTestMeQuestions } = await import("../tools/graphHandlers.js");
+      const context = await assembleTestMeContext(id, project, s);
+      const result = await generateTestMeQuestions(context, id);
+      
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(result));
+      return true;
+    } catch (err) {
+      console.error("[Dashboard] Test Me error:", err);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ questions: [], reason: "generation_failed" }));
+      return true;
+    }
+  }
+
   // Not a graph route — let caller handle it
   return false;
 }

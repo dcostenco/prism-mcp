@@ -142,6 +142,7 @@ import {
   KNOWLEDGE_DOWNVOTE_TOOL,
   // v6.0: Associative Memory Graph tools
   SESSION_BACKFILL_LINKS_TOOL,
+  SESSION_SYNTHESIZE_EDGES_TOOL,
 
   sessionSaveLedgerHandler,
   sessionSaveHandoffHandler,
@@ -153,6 +154,7 @@ import {
   sessionSearchMemoryHandler,
   backfillEmbeddingsHandler,
   sessionBackfillLinksHandler,
+  sessionSynthesizeEdgesHandler,
   // ─── v2.0: Time Travel handlers ───
   memoryHistoryHandler,
   memoryCheckoutHandler,
@@ -263,6 +265,7 @@ function buildSessionMemoryTools(autoloadList: string[]): Tool[] {
     SESSION_EXPORT_MEMORY_TOOL,    // session_export_memory — full portability export (Article 20)
     // ─── v6.0: Associative Memory Graph tools ───
     SESSION_BACKFILL_LINKS_TOOL,   // session_backfill_links — retroactive graph edge creation
+    SESSION_SYNTHESIZE_EDGES_TOOL, // session_synthesize_edges — inferred semantic graph enrichment
     // ─── v6.1: Storage Hygiene tool ───
     MAINTENANCE_VACUUM_TOOL,       // maintenance_vacuum — reclaim SQLite disk space post-purge
   ];
@@ -857,6 +860,10 @@ export function createServer() {
           case "session_backfill_links":
             if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
             result = await sessionBackfillLinksHandler(args); break;
+
+          case "session_synthesize_edges":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            result = await sessionSynthesizeEdgesHandler(args); break;
 
           case "session_backfill_embeddings":
             if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
