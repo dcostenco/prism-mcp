@@ -286,3 +286,147 @@ describe("Graph Step 3B/4 Contracts", () => {
     }
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// 4. GRAPH METRICS — Snapshot Shape Contract
+// ═══════════════════════════════════════════════════════════════════
+
+describe("Graph Metrics API shape", () => {
+  it("getGraphMetricsSnapshot returns stable typed payload", async () => {
+    const { getGraphMetricsSnapshot, resetGraphMetricsForTests, recordSynthesisRun } = await import("../../src/observability/graphMetrics.js");
+
+    resetGraphMetricsForTests();
+
+    // Record one synthesis run so counters are non-zero
+    recordSynthesisRun({
+      project: TEST_PROJECT,
+      status: "ok",
+      duration_ms: 150,
+      entries_scanned: 25,
+      candidates: 60,
+      below_threshold: 40,
+      new_links: 8,
+      skipped_links: 3,
+    });
+
+    const snap = getGraphMetricsSnapshot();
+
+    // Top-level keys
+    expect(snap).toHaveProperty("synthesis");
+    expect(snap).toHaveProperty("testMe");
+    expect(snap).toHaveProperty("scheduler");
+    expect(snap).toHaveProperty("warnings");
+
+    // Synthesis counters
+    expect(snap.synthesis.runs_total).toBe(1);
+    expect(snap.synthesis.links_created_total).toBe(8);
+    expect(snap.synthesis.last_status).toBe("ok");
+    expect(snap.synthesis.duration_p50_ms).toBe(150);
+
+    // Warnings are booleans
+    expect(typeof snap.warnings.synthesis_quality_warning).toBe("boolean");
+    expect(typeof snap.warnings.testme_provider_warning).toBe("boolean");
+    expect(typeof snap.warnings.synthesis_failure_warning).toBe("boolean");
+
+    // JSON-serializable (no functions, no undefined)
+    const json = JSON.stringify(snap);
+    expect(json).not.toContain("undefined");
+    const parsed = JSON.parse(json);
+    expect(parsed.synthesis.runs_total).toBe(1);
+
+    resetGraphMetricsForTests();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. GRAPH METRICS ROUTE — Router Integration Test
+// ═══════════════════════════════════════════════════════════════════
+
+describe("GET /api/graph/metrics (Router Integration)", () => {
+  /**
+   * Exercises handleGraphRoutes with a mock HTTP req/res for the
+   * /api/graph/metrics endpoint. This validates:
+   *   - The route is recognized and handled (returns true)
+   *   - HTTP 200 status code is set
+   *   - Content-Type is application/json
+   *   - Response body is valid JSON with the expected top-level keys
+   */
+  it("returns 200 with correct metrics JSON shape via handleGraphRoutes", async () => {
+    const { handleGraphRoutes } = await import("../../src/dashboard/graphRouter.js");
+    const { resetGraphMetricsForTests, recordSynthesisRun } = await import("../../src/observability/graphMetrics.js");
+
+    resetGraphMetricsForTests();
+
+    // Seed one synthesis run so the response has non-trivial data
+    recordSynthesisRun({
+      project: TEST_PROJECT,
+      status: "ok",
+      duration_ms: 200,
+      entries_scanned: 10,
+      candidates: 30,
+      below_threshold: 20,
+      new_links: 5,
+      skipped_links: 1,
+    });
+
+    // Build mock URL, request, and response
+    const url = new URL("http://localhost:3000/api/graph/metrics");
+    const mockReq = { method: "GET" } as any;
+
+    let statusCode = 0;
+    let headers: Record<string, string> = {};
+    let body = "";
+
+    const mockRes = {
+      writeHead(code: number, hdrs: Record<string, string>) {
+        statusCode = code;
+        headers = hdrs;
+      },
+      end(data: string) {
+        body = data;
+      },
+    } as any;
+
+    const getStorageSafe = async () => storage;
+
+    const handled = await handleGraphRoutes(url, mockReq, mockRes, getStorageSafe);
+
+    // Route was handled
+    expect(handled).toBe(true);
+
+    // HTTP semantics
+    expect(statusCode).toBe(200);
+    expect(headers["Content-Type"]).toBe("application/json");
+
+    // Body is valid JSON with all required top-level keys
+    const parsed = JSON.parse(body);
+    expect(parsed).toHaveProperty("synthesis");
+    expect(parsed).toHaveProperty("testMe");
+    expect(parsed).toHaveProperty("scheduler");
+    expect(parsed).toHaveProperty("warnings");
+
+    // Verify the seeded data flows through
+    expect(parsed.synthesis.runs_total).toBe(1);
+    expect(parsed.synthesis.links_created_total).toBe(5);
+    expect(parsed.synthesis.last_status).toBe("ok");
+
+    // Warning flags are present and boolean
+    expect(typeof parsed.warnings.synthesis_quality_warning).toBe("boolean");
+    expect(typeof parsed.warnings.testme_provider_warning).toBe("boolean");
+    expect(typeof parsed.warnings.synthesis_failure_warning).toBe("boolean");
+
+    resetGraphMetricsForTests();
+  });
+
+  it("returns false for non-graph routes", async () => {
+    const { handleGraphRoutes } = await import("../../src/dashboard/graphRouter.js");
+
+    const url = new URL("http://localhost:3000/api/settings");
+    const mockReq = { method: "GET" } as any;
+    const mockRes = { writeHead() {}, end() {} } as any;
+    const getStorageSafe = async () => storage;
+
+    const handled = await handleGraphRoutes(url, mockReq, mockRes, getStorageSafe);
+    expect(handled).toBe(false);
+  });
+});

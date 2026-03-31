@@ -527,6 +527,9 @@ export async function runSchedulerSweep(
 
   // ── Task 7: Edge Synthesis ──────────────────────────────────
   if (cfg.enableEdgeSynthesis) {
+    const synthTaskStart = Date.now();
+    let synthSkippedBackpressure = 0;
+    let synthProjectsAttempted = 0;
     try {
       result.tasks.edgeSynthesis.ran = true;
       const projects = await storage.listProjects();
@@ -537,8 +540,11 @@ export async function runSchedulerSweep(
       for (const project of projects) {
         if (runningSynthesis.has(project)) {
           debugLog(`[Scheduler] Skipping edge synthesis for "${project}" — already running`);
+          synthSkippedBackpressure++;
           continue;
         }
+
+        synthProjectsAttempted++;
 
         try {
           runningSynthesis.add(project);
@@ -568,6 +574,21 @@ export async function runSchedulerSweep(
     } catch (err) {
       result.tasks.edgeSynthesis.error = err instanceof Error ? err.message : String(err);
       console.error(`[Scheduler] Edge Synthesis error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // Emit scheduler-level synthesis telemetry
+    // Note: projects_processed = all attempted projects (not just successes)
+    // to accurately reflect the scope of work attempted during the sweep.
+    try {
+      const { recordSchedulerSynthesis } = await import("./observability/graphMetrics.js");
+      recordSchedulerSynthesis({
+        projects_processed: synthProjectsAttempted,
+        links_created: result.tasks.edgeSynthesis.newLinks,
+        duration_ms: Date.now() - synthTaskStart,
+        skipped_backpressure: synthSkippedBackpressure,
+      });
+    } catch {
+      // Non-critical — don't let metrics failure break the scheduler
     }
   }
 

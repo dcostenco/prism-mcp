@@ -18,6 +18,7 @@
 import type * as http from "http";
 import type { StorageBackend } from "../storage/interface.js";
 import { PRISM_USER_ID } from "../config.js";
+import { recordSynthesisRun, recordTestMeRequest, getGraphMetricsSnapshot } from "../observability/graphMetrics.js";
 
 /** Typed graph node with optional decay metadata */
 interface GraphNode {
@@ -249,6 +250,7 @@ export async function handleGraphRoutes(
 
   // ─── API: Synthesize Graph Edges (v6.0) ───
   if (url.pathname === "/api/graph/synthesize" && req.method === "POST") {
+    const synthStart = Date.now();
     try {
       const body = await readBody(req);
       const { project, max_entries, similarity_threshold, randomize_selection } = JSON.parse(body || "{}");
@@ -276,10 +278,27 @@ export async function handleGraphRoutes(
         randomize_selection: typeof randomize_selection === "boolean" ? randomize_selection : false,
       });
 
+      recordSynthesisRun({
+        project,
+        status: "ok",
+        duration_ms: Date.now() - synthStart,
+        entries_scanned: result.entriesScanned,
+        candidates: result.totalCandidates,
+        below_threshold: result.totalBelow,
+        new_links: result.newLinks,
+        skipped_links: result.skippedLinks,
+      });
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(result));
       return true;
     } catch (err) {
+      recordSynthesisRun({
+        project: "unknown",
+        status: "error",
+        duration_ms: Date.now() - synthStart,
+        error: err instanceof Error ? err.message : "Synthesis failed",
+      });
       console.error("[Dashboard] Edge Synthesis error:", err);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Synthesis failed" }));
@@ -289,10 +308,17 @@ export async function handleGraphRoutes(
 
   // ─── API: Test Me (LLM Context Assembly v6.0) ───
   if (url.pathname === "/api/graph/test-me" && req.method === "GET") {
+    const tmStart = Date.now();
     const id = url.searchParams.get("id");
     const project = url.searchParams.get("project");
 
     if (!id || !project) {
+      recordTestMeRequest({
+        project: project || "unknown",
+        node_id: id || "unknown",
+        status: "bad_request",
+        duration_ms: Date.now() - tmStart,
+      });
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Node ID and project are required" }));
       return true;
@@ -309,16 +335,43 @@ export async function handleGraphRoutes(
       const { assembleTestMeContext, generateTestMeQuestions } = await import("../tools/graphHandlers.js");
       const context = await assembleTestMeContext(id, project, s);
       const result = await generateTestMeQuestions(context, id);
-      
+
+      // Classify outcome
+      let tmStatus: "success" | "no_api_key" | "generation_failed" = "success";
+      if (result.reason === "no_api_key") tmStatus = "no_api_key";
+      else if (result.reason === "generation_failed") tmStatus = "generation_failed";
+      else if (!result.questions || result.questions.length === 0) tmStatus = "generation_failed";
+
+      recordTestMeRequest({
+        project,
+        node_id: id,
+        status: tmStatus,
+        duration_ms: Date.now() - tmStart,
+      });
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(result));
       return true;
     } catch (err) {
+      recordTestMeRequest({
+        project,
+        node_id: id,
+        status: "error",
+        duration_ms: Date.now() - tmStart,
+      });
       console.error("[Dashboard] Test Me error:", err);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ questions: [], reason: "generation_failed" }));
       return true;
     }
+  }
+
+  // ─── API: Graph Metrics (v6.0 Observability) ───
+  if (url.pathname === "/api/graph/metrics" && req.method === "GET") {
+    const snapshot = getGraphMetricsSnapshot();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(snapshot));
+    return true;
   }
 
   // Not a graph route — let caller handle it

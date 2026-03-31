@@ -889,6 +889,20 @@ export function renderDashboardHTML(version: string): string {
           </div>
         </div>
       </div>
+
+      <!-- Graph Health Metrics (v6.0 Observability) -->
+      <div class="card" style="margin-top:1rem">
+        <div class="card-title" style="display:flex;align-items:center;gap:0.5rem">
+          <span class="dot" style="background:var(--accent-blue)"></span>
+          Graph Health 📊
+          <div style="flex:1"></div>
+          <span id="graphHealthWarnings" style="display:inline-flex;gap:0.3rem"></span>
+          <button onclick="loadGraphMetrics()" class="refresh-btn">↻</button>
+        </div>
+        <div id="graphMetricsContent" style="font-size:0.8rem;color:var(--text-muted)">
+          Loading graph metrics...
+        </div>
+      </div>
     </div>
 
     <!-- Search View (v6.0) -->
@@ -2327,6 +2341,7 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
         if (res.ok && data.success) {
           if (status) status.textContent = '✅ Created ' + data.newLinks + ' links (Scanned: ' + data.entriesScanned + ')';
           setTimeout(loadGraph, 1000); // Reload graph to show new edges
+          loadGraphMetrics(); // Refresh health metrics
         } else {
           showToast('❌ Edge Synthesis Error: ' + (data.error || 'Failed'), true);
           if (status) status.textContent = '❌ Failed';
@@ -2410,6 +2425,7 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
           btn.textContent = '📝 Test Me';
           btn.disabled = false;
         }
+        loadGraphMetrics(); // Refresh health metrics
       }
     }
 
@@ -2916,6 +2932,91 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       }
     }
 
+    async function loadGraphMetrics() {
+      var el = document.getElementById('graphMetricsContent');
+      var warn = document.getElementById('graphHealthWarnings');
+      if (!el) return;
+      try {
+        var res = await fetch('/api/graph/metrics');
+        var m = await res.json();
+        var parts = [];
+
+        // Synthesis row
+        parts.push('<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.5rem">');
+        parts.push('<div><strong>Synthesis</strong></div>');
+        parts.push('<div><strong>Test Me</strong></div>');
+
+        // Synthesis stats
+        parts.push('<div style="font-size:0.75rem">');
+        parts.push('Runs: <strong>' + m.synthesis.runs_total + '</strong>');
+        if (m.synthesis.runs_failed > 0) parts.push(' (<span style="color:var(--accent-rose)">' + m.synthesis.runs_failed + ' failed</span>)');
+        parts.push('<br>Links created: <strong>' + m.synthesis.links_created_total + '</strong>');
+        if (m.synthesis.last_run_at) {
+          var synthStatus = m.synthesis.last_status === 'ok'
+            ? '<span style="color:var(--accent-green)">✓ ok</span>'
+            : '<span style="color:var(--accent-rose)">✗ error</span>';
+          parts.push('<br>Last: ' + synthStatus + ' (' + m.synthesis.last_links_created + ' links)');
+          parts.push('<br><span style="color:var(--text-muted)">' + timeAgo(m.synthesis.last_run_at) + '</span>');
+        }
+        if (m.synthesis.duration_p50_ms !== null) {
+          parts.push('<br>p50: ' + m.synthesis.duration_p50_ms + 'ms');
+        }
+        parts.push('</div>');
+
+        // Test-Me stats
+        parts.push('<div style="font-size:0.75rem">');
+        parts.push('Requests: <strong>' + m.testMe.requests_total + '</strong>');
+        parts.push('<br><span style="color:var(--accent-green)">✓ ' + m.testMe.success_total + '</span>');
+        if (m.testMe.no_api_key_total > 0) parts.push(' <span style="color:var(--accent-amber)">🔑 ' + m.testMe.no_api_key_total + '</span>');
+        if (m.testMe.generation_failed_total > 0) parts.push(' <span style="color:var(--accent-rose)">✗ ' + m.testMe.generation_failed_total + '</span>');
+        if (m.testMe.last_run_at) {
+          var tmStatus = m.testMe.last_status === 'success'
+            ? '<span style="color:var(--accent-green)">✓</span>'
+            : m.testMe.last_status === 'no_api_key'
+              ? '<span style="color:var(--accent-amber)">🔑</span>'
+              : '<span style="color:var(--accent-rose)">✗</span>';
+          parts.push('<br>Last: ' + tmStatus + ' ' + m.testMe.last_status);
+          parts.push('<br><span style="color:var(--text-muted)">' + timeAgo(m.testMe.last_run_at) + '</span>');
+        }
+        if (m.testMe.duration_p50_ms !== null) {
+          parts.push('<br>p50: ' + m.testMe.duration_p50_ms + 'ms');
+        }
+        parts.push('</div>');
+        parts.push('</div>');
+
+        // Scheduler synthesis row
+        if (m.scheduler.last_sweep_at) {
+          parts.push('<div style="border-top:1px solid var(--border-glass);padding-top:0.4rem;margin-top:0.2rem;font-size:0.75rem">');
+          parts.push('📅 Scheduler: ' + m.scheduler.projects_processed_last + ' projects, ' +
+            m.scheduler.links_created_last + ' links, ' + m.scheduler.duration_ms_last + 'ms');
+          if (m.scheduler.skipped_backpressure_last > 0) {
+            parts.push(' <span style="color:var(--accent-amber)">(⏳ ' + m.scheduler.skipped_backpressure_last + ' skipped)</span>');
+          }
+          parts.push('<br><span style="color:var(--text-muted)">' + timeAgo(m.scheduler.last_sweep_at) + '</span>');
+          parts.push('</div>');
+        }
+
+        el.innerHTML = parts.join('');
+
+        // Warning badges
+        if (warn) {
+          var badges = [];
+          if (m.warnings.synthesis_quality_warning) {
+            badges.push('<span style="background:var(--accent-amber);color:#000;padding:2px 6px;border-radius:3px;font-size:0.65rem;font-weight:600" title="Over 85% of synthesis candidates are below threshold">⚠ Quality</span>');
+          }
+          if (m.warnings.testme_provider_warning) {
+            badges.push('<span style="background:var(--accent-rose);color:#fff;padding:2px 6px;border-radius:3px;font-size:0.65rem;font-weight:600" title="No API key configured — Test Me cannot generate quizzes">🔑 No Key</span>');
+          }
+          if (m.warnings.synthesis_failure_warning) {
+            badges.push('<span style="background:var(--accent-rose);color:#fff;padding:2px 6px;border-radius:3px;font-size:0.65rem;font-weight:600" title="Over 20% of synthesis runs are failing">⚠ Failures</span>');
+          }
+          warn.innerHTML = badges.join('');
+        }
+      } catch(e) {
+        el.innerHTML = '<div style="color:var(--text-muted)">Graph metrics unavailable</div>';
+      }
+    }
+
     async function triggerWebScholar() {
       var btn = document.getElementById('scholarBtn');
       if (btn) { btn.disabled = true; btn.textContent = '🔄 Triggering...'; }
@@ -2932,8 +3033,10 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
 
     // Load scheduler status on page load
     loadSchedulerStatus();
+    loadGraphMetrics();
     // Auto-refresh scheduler status every 60s
     setInterval(loadSchedulerStatus, 60000);
+    setInterval(loadGraphMetrics, 60000);
 
     function timeAgo(iso) {
       var diff = Date.now() - new Date(iso).getTime();
