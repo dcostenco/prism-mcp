@@ -74,6 +74,7 @@ import {
   WATCHDOG_OFFLINE_MIN, WATCHDOG_LOOP_THRESHOLD,
   PRISM_SCHEDULER_ENABLED, PRISM_SCHEDULER_INTERVAL_MS,
   PRISM_SCHOLAR_ENABLED,
+  PRISM_HDC_ENABLED,
 } from "./config.js";
 import { startWatchdog, drainAlerts } from "./hivemindWatchdog.js";
 import { startScheduler, startScholarScheduler } from "./backgroundScheduler.js";
@@ -143,6 +144,7 @@ import {
   // v6.0: Associative Memory Graph tools
   SESSION_BACKFILL_LINKS_TOOL,
   SESSION_SYNTHESIZE_EDGES_TOOL,
+  SESSION_COGNITIVE_ROUTE_TOOL,
 
   sessionSaveLedgerHandler,
   sessionSaveHandoffHandler,
@@ -155,6 +157,7 @@ import {
   backfillEmbeddingsHandler,
   sessionBackfillLinksHandler,
   sessionSynthesizeEdgesHandler,
+  sessionCognitiveRouteHandler,
   // ─── v2.0: Time Travel handlers ───
   memoryHistoryHandler,
   memoryCheckoutHandler,
@@ -266,6 +269,7 @@ function buildSessionMemoryTools(autoloadList: string[]): Tool[] {
     // ─── v6.0: Associative Memory Graph tools ───
     SESSION_BACKFILL_LINKS_TOOL,   // session_backfill_links — retroactive graph edge creation
     SESSION_SYNTHESIZE_EDGES_TOOL, // session_synthesize_edges — inferred semantic graph enrichment
+    SESSION_COGNITIVE_ROUTE_TOOL,  // session_cognitive_route — HDC policy-gated concept routing (v6.5)
     // ─── v6.1: Storage Hygiene tool ───
     MAINTENANCE_VACUUM_TOOL,       // maintenance_vacuum — reclaim SQLite disk space post-purge
   ];
@@ -864,6 +868,11 @@ export function createServer() {
           case "session_synthesize_edges":
             if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
             result = await sessionSynthesizeEdgesHandler(args); break;
+
+          case "session_cognitive_route":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");
+            if (!PRISM_HDC_ENABLED) throw new Error("HDC cognitive routing not enabled. Set PRISM_HDC_ENABLED=true.");
+            result = await sessionCognitiveRouteHandler(args); break;
 
           case "session_backfill_embeddings":
             if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured. Set SUPABASE_URL and SUPABASE_KEY.");

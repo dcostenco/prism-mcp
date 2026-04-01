@@ -843,6 +843,12 @@ export function renderDashboardHTML(version: string): string {
               <button id="testMeBtn" onclick="triggerTestMe()" class="btn-modern" style="padding:0.3rem 0.6rem; font-size:0.75rem; background:var(--accent-teal); border-color:var(--accent-teal);" title="Generate 3 quiz questions using AI">📝 Test Me</button>
             </div>
             <div id="testMeContainer" style="margin-top:0.8rem; display:flex; flex-direction:column; gap:0.5rem;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.8rem;">
+              <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Cognitive Route (v6.5)</span>
+              <button id="cognitiveRouteBtn" onclick="triggerCognitiveRoute()" class="btn-modern" style="padding:0.3rem 0.6rem; font-size:0.75rem; background:var(--accent-blue); border-color:var(--accent-blue);" title="Resolve concept route and explain why it surfaced">🧭 Route</button>
+            </div>
+            <div id="cognitiveRouteContainer" style="margin-top:0.6rem; display:flex; flex-direction:column; gap:0.4rem;"></div>
+
           </div>
         </div>
 
@@ -2373,7 +2379,66 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       }
     }
 
-    window.triggerTestMe = triggerTestMe;
+
+
+    async function triggerCognitiveRoute() {
+      var input = document.getElementById('nodeEditorInput');
+      var state = input && input.dataset && input.dataset.oldId ? input.dataset.oldId : '';
+      var _gpf = document.getElementById('graphProjectFilter');
+      var _ps = document.getElementById('projectSelect');
+      var project = (_gpf ? _gpf.value : '') || (_ps ? _ps.value : '');
+      var container = document.getElementById('cognitiveRouteContainer');
+      var btn = document.getElementById('cognitiveRouteBtn');
+
+      if (!project || !state) {
+        if (container) {
+          container.innerHTML = '<div style="font-size:0.75rem;color:var(--accent-rose);">Select a project and click a graph node first.</div>';
+        }
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '...';
+      }
+      if (container) {
+        container.innerHTML = '<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;padding:0.6rem 0;">Resolving cognitive route...</div>';
+      }
+
+      try {
+        var url = '/api/graph/cognitive-route' +
+          '?project=' + encodeURIComponent(project) +
+          '&state=' + encodeURIComponent('State:' + state) +
+          '&role=' + encodeURIComponent('Role:dev') +
+          '&action=' + encodeURIComponent('Action:inspect') +
+          '&explain=true';
+
+        var res = await fetch(url);
+        var data = await res.json();
+
+        if (!res.ok || data.isError) {
+          if (container) {
+            container.innerHTML = '<div style="font-size:0.75rem;color:var(--accent-rose);">' + escapeHtml(data.error || data.text || 'Cognitive route failed') + '</div>';
+          }
+          return;
+        }
+
+        if (container) {
+          var txt = data.text || '';
+          container.innerHTML = '<pre style="margin:0;white-space:pre-wrap;font-size:0.72rem;line-height:1.45;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:6px;padding:0.6rem;color:var(--text-secondary);">' + escapeHtml(txt) + '</pre>';
+        }
+      } catch (err) {
+        if (container) {
+          container.innerHTML = '<div style="font-size:0.75rem;color:var(--accent-rose);">' + escapeHtml(err.message || 'Route error') + '</div>';
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🧭 Route';
+        }
+      }
+    }
+
     async function triggerTestMe() {
       var input = document.getElementById('nodeEditorInput');
       var oldId = input.dataset.oldId;
@@ -3058,6 +3123,58 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
           parts.push('</div>');
         }
 
+        // Cognitive Routing row (v6.5)
+        if (m.cognitive && m.cognitive.evaluations_total > 0) {
+          parts.push('<div style="border-top:1px solid var(--border-glass);padding-top:0.4rem;margin-top:0.2rem;font-size:0.75rem">');
+          parts.push('<strong>🧠 Cognitive Routing</strong>');
+          parts.push('<br>Evaluations: <strong>' + m.cognitive.evaluations_total + '</strong>');
+
+          // Route distribution bar
+          var cogTotal = m.cognitive.evaluations_total;
+          var autoP = Math.round((m.cognitive.route_auto_total / cogTotal) * 100);
+          var clarP = Math.round((m.cognitive.route_clarify_total / cogTotal) * 100);
+          var fallP = 100 - autoP - clarP;
+          parts.push('<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:4px 0;background:var(--surface-glass)">');
+          if (autoP > 0) parts.push('<div style="width:' + autoP + '%;background:var(--accent-green)" title="Auto: ' + autoP + '%"></div>');
+          if (clarP > 0) parts.push('<div style="width:' + clarP + '%;background:var(--accent-amber)" title="Clarify: ' + clarP + '%"></div>');
+          if (fallP > 0) parts.push('<div style="width:' + fallP + '%;background:var(--accent-rose)" title="Fallback: ' + fallP + '%"></div>');
+          parts.push('</div>');
+          parts.push('<span style="color:var(--accent-green)">● Auto ' + autoP + '%</span>');
+          parts.push(' <span style="color:var(--accent-amber)">● Clarify ' + clarP + '%</span>');
+          parts.push(' <span style="color:var(--accent-rose)">● Fallback ' + fallP + '%</span>');
+
+          // Rates
+          if (m.cognitive.ambiguity_rate !== null) {
+            var ambPct = Math.round(m.cognitive.ambiguity_rate * 100);
+            var ambColor = ambPct > 40 ? 'var(--accent-rose)' : ambPct > 20 ? 'var(--accent-amber)' : 'var(--accent-green)';
+            parts.push('<br>Ambiguity: <span style="color:' + ambColor + ';font-weight:600">' + ambPct + '%</span>');
+          }
+          if (m.cognitive.fallback_rate !== null) {
+            var fbPct = Math.round(m.cognitive.fallback_rate * 100);
+            var fbColor = fbPct > 30 ? 'var(--accent-rose)' : fbPct > 15 ? 'var(--accent-amber)' : 'var(--accent-green)';
+            parts.push(' · Fallback: <span style="color:' + fbColor + ';font-weight:600">' + fbPct + '%</span>');
+          }
+
+          // Convergence steps
+          if (m.cognitive.median_convergence_steps !== null) {
+            parts.push('<br>Convergence: ' + m.cognitive.median_convergence_steps + ' steps (avg)');
+          }
+          if (m.cognitive.duration_p50_ms !== null) {
+            parts.push(' · p50: ' + m.cognitive.duration_p50_ms + 'ms');
+          }
+
+          // Last evaluation
+          if (m.cognitive.last_run_at) {
+            var lastRoute = m.cognitive.last_route || '—';
+            var lastConcept = m.cognitive.last_concept || '(none)';
+            var lastConf = m.cognitive.last_confidence !== null ? Math.round(m.cognitive.last_confidence * 100) + '%' : '—';
+            parts.push('<br>Last: ' + lastRoute + ' → ' + lastConcept + ' (' + lastConf + ')');
+            parts.push('<br><span style="color:var(--text-muted)">' + timeAgo(m.cognitive.last_run_at) + '</span>');
+          }
+
+          parts.push('</div>');
+        }
+
 
         el.innerHTML = parts.join('');
 
@@ -3072,6 +3189,12 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
           }
           if (m.warnings.synthesis_failure_warning) {
             badges.push('<span style="background:var(--accent-rose);color:#fff;padding:2px 6px;border-radius:3px;font-size:0.65rem;font-weight:600" title="Over 20% of synthesis runs are failing">⚠ Failures</span>');
+          }
+          if (m.warnings.cognitive_fallback_rate_warning) {
+            badges.push('<span style="background:var(--accent-rose);color:#fff;padding:2px 6px;border-radius:3px;font-size:0.65rem;font-weight:600" title="Over 30% of cognitive routes land on FALLBACK">⚠ Cog Fallback</span>');
+          }
+          if (m.warnings.cognitive_ambiguity_rate_warning) {
+            badges.push('<span style="background:var(--accent-amber);color:#000;padding:2px 6px;border-radius:3px;font-size:0.65rem;font-weight:600" title="Over 40% of cognitive evaluations are ambiguous">⚠ Cog Ambiguity</span>');
           }
           warn.innerHTML = badges.join('');
         }

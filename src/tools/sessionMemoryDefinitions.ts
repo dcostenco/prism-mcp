@@ -1378,3 +1378,76 @@ export function isSessionSynthesizeEdgesArgs(
   if (a.randomize_selection !== undefined && typeof a.randomize_selection !== "boolean") return false;
   return true;
 }
+
+
+export const SESSION_COGNITIVE_ROUTE_TOOL: Tool = {
+  name: "session_cognitive_route",
+  description:
+    "Resolve an HDC compositional state into a nearest semantic concept with policy-gated routing. " +
+    "Returns concept, confidence, distance, ambiguity, convergence steps, and route outcome. " +
+    "Use this for explainable cognitive recall decisions in v6.5.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project: {
+        type: "string",
+        description: "Project identifier.",
+      },
+      state: {
+        type: "string",
+        description: "Current state concept key (e.g. 'State:ActiveSession').",
+      },
+      role: {
+        type: "string",
+        description: "Role concept key used for transition binding.",
+      },
+      action: {
+        type: "string",
+        description: "Action concept key used for transition binding.",
+      },
+      fallback_threshold: {
+        type: "number",
+        description: "Optional route fallback threshold override (0 <= fallback < clarify <= 1).",
+      },
+      clarify_threshold: {
+        type: "number",
+        description: "Optional route clarify threshold override (0 <= fallback < clarify <= 1).",
+      },
+      explain: {
+        type: "boolean",
+        description: "If true, include expanded explainability details in the response. Default: true.",
+      },
+    },
+    required: ["project", "state", "role", "action"],
+  },
+};
+
+export interface SessionCognitiveRouteArgs {
+  project: string;
+  state: string;
+  role: string;
+  action: string;
+  fallback_threshold?: number;
+  clarify_threshold?: number;
+  explain?: boolean;
+}
+
+export function isSessionCognitiveRouteArgs(
+  args: unknown
+): args is SessionCognitiveRouteArgs {
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.project !== "string") return false;
+  if (typeof a.state !== "string") return false;
+  if (typeof a.role !== "string") return false;
+  if (typeof a.action !== "string") return false;
+  if (a.fallback_threshold !== undefined && typeof a.fallback_threshold !== "number") return false;
+  if (a.clarify_threshold !== undefined && typeof a.clarify_threshold !== "number") return false;
+  if (a.explain !== undefined && typeof a.explain !== "boolean") return false;
+  if (
+    typeof a.fallback_threshold === "number" &&
+    typeof a.clarify_threshold === "number" &&
+    !(a.fallback_threshold >= 0 && a.fallback_threshold < a.clarify_threshold && a.clarify_threshold <= 1)
+  ) return false;
+  return true;
+}

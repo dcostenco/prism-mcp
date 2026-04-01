@@ -8,6 +8,20 @@
 
 Prism has evolved from a simple SQLite session logger into a **Quantized, Multimodal, Multi-Agent, Self-Learning, Observable AI Operating System**.
 
+### ✅ v6.5.0 — HDC Cognitive Routing
+
+| Feature | Detail |
+|---------|--------|
+| 🧠 **HDC Cognitive Routing** | New `session_cognitive_route` tool composes agent state, role, and action into a 768-dim binary hypervector via XOR binding, resolves to nearest concept via Hamming distance, and routes through a three-outcome policy gateway (`direct` / `clarify` / `fallback`). |
+| 🎛️ **Per-Project Threshold Overrides** | Fallback and clarify thresholds are configurable per-project and persisted via the existing `getSetting`/`setSetting` contract. No new storage migrations required (**Phase 2 storage-parity scope note**: `getSetting()`/`setSetting()` already abstracts SQLite/Supabase parity for threshold overrides as decimal-string key-value pairs). |
+| 🔬 **Explainability Mode** | When `explain: true`, responses include convergence steps, raw Hamming distance, and ambiguity flags. Controlled by `PRISM_HDC_EXPLAINABILITY_ENABLED` (default: `true`). |
+| 📊 **Cognitive Observability** | `recordCognitiveRoute()` in `graphMetrics.ts` tracks route distribution, rolling confidence/distance averages, ambiguity rates, and null-concept counts. Warning heuristics: fallback rate > 30%, ambiguity rate > 40%. |
+| 🖥️ **Dashboard Cognitive Card** | Route distribution bar, confidence/distance gauges, and warning badges in the Mind Palace metrics panel. On-demand "Cognitive Route" button in the Node Editor panel. |
+| 🔒 **Feature Gating** | Entire v6.5 pipeline gated behind `PRISM_HDC_ENABLED` (default: `true`). Clean error + zero telemetry when disabled. |
+| 🧪 **566 Tests** | 30 suites (42 new tests: 26 handler integration + 16 dashboard API). TypeScript strict mode, zero errors, zero regressions. |
+
+---
+
 ### ✅ v6.2.0 — Autonomous Cognitive Loop ("Synthesize & Prune")
 
 | Feature | Detail |
@@ -208,13 +222,14 @@ v3.0: Role-scoped memory, agent registration/heartbeat, Telepathy (real-time cro
 
 ---
 
-## 📊 The State of Prism (v6.2.0)
+## 📊 The State of Prism (v6.5.0)
 
-With v6.2.0 shipped, Prism is a **production-hardened, self-organizing, cognitively-grounded AI Operating System**:
+With v6.5.0 shipped, Prism is a **production-hardened, self-organizing, cognitively-routed AI Operating System**:
 
+- **Cognitively-Routed** — HDC state machine composes agent context into binary hypervectors and resolves semantic concepts via Hamming distance. Policy gateway routes with configurable thresholds.
 - **Self-Organizing** — Edge Synthesis + Graph Pruning form an autonomous cognitive loop: the graph grows connective tissue overnight and prunes dead weight on schedule.
 - **Cognitive** — Ebbinghaus decay + context-boosted retrieval + Intuitive Recall + Active Recall quizzes = memory that knows what matters *right now*.
-- **Observable** — SLO dashboard tracks synthesis success rate, net link growth, prune ratio, and sweep latency. Warning badges fire proactively.
+- **Observable** — SLO dashboard tracks synthesis success rate, net link growth, prune ratio, sweep latency, and cognitive route distribution. Warning badges fire proactively.
 - **Zero Cold-Start** — Universal Migration imports years of Claude/Gemini/ChatGPT history on day one.
 - **Scale** — TurboQuant 10× compression + Deep Storage Purge + SQLite VACUUM. Decades of session history on a laptop.
 - **Safe** — Full type-guard matrix across all 30+ MCP tools. LLM-hallucinated payloads are rejected at the boundary.
@@ -222,8 +237,8 @@ With v6.2.0 shipped, Prism is a **production-hardened, self-organizing, cognitiv
 - **Autonomous** — Web Scholar researches while you sleep. Task-aware, Hivemind-integrated.
 - **Hardened** — Transactional migrations, graceful shutdown, thundering herd prevention, prototype pollution guards, tenant-safe graph writes.
 - **Quality** — Interactive Knowledge Graph Editor + Behavioral Memory that learns from mistakes.
-- **Reliability** — 510 passing tests across 28 suites.
-- **Observability** — OpenTelemetry span waterfalls + SLO metrics for every tool call, LLM hop, background worker, and graph sweep.
+- **Reliability** — 566 passing tests across 30 suites.
+- **Observability** — OpenTelemetry span waterfalls + SLO metrics + cognitive route telemetry for every tool call, LLM hop, background worker, and graph sweep.
 - **Multimodal** — VLM auto-captioning turns screenshots into semantically searchable memory.
 - **Security** — SQL injection prevention, path traversal guard, GDPR Art. 17+20 compliance.
 
@@ -231,7 +246,7 @@ With v6.2.0 shipped, Prism is a **production-hardened, self-organizing, cognitiv
 
 ## 🗺️ Next on the Horizon
 
-### 📱 Mind Palace Mobile PWA — v6.3
+### 📱 Mind Palace Mobile PWA — Supporting Track
 
 **Problem:** The dashboard is desktop-only. Quick check-ins on mobile require a laptop.
 
@@ -242,17 +257,17 @@ With v6.2.0 shipped, Prism is a **production-hardened, self-organizing, cognitiv
 2. Service worker + offline cache for read-only access
 3. Push notifications via Web Push API for Telepathy events
 
-### 🧠 Cognitive Architecture — v6.5
+### 🔭 Future Cognitive Tracks
 
-### Full Superposed Memory (SDM) & Hyperdimensional Computing (HDC/VSA)
+#### v7.x — Affect-Tagged Memory
+- **Problem:** Pure semantic relevance misses urgency and emotional salience in real-world agent collaboration.
+- **Benefit:** Recall prioritization improves by weighting memories with affective/contextual valence, making surfaced context more behaviorally useful.
+- **Dependency:** Builds on v6.5 compositional memory states so affect can be attached and retrieved as first-class signal.
 
-**Problem:** Semantic search requires embedding every query and scanning all vectors — O(n) at scale. Standard SDM provides memory storage, but lacks a reasoning language to construct cognitive logic (e.g. associating an Action + User Role + Topic algebraically) locally without hitting LLM embedding limits.
-
-**Solution:** The intersection of Neuro-Symbolic AI: combining SDM (associative storage) with HDC/BSC (algebraic logic).
-1. **HDC (Hyperdimensional Computing):** Binds, bundles, and permutes bits locally (in microseconds via bitwise XOR and majority-rule ops) to form logical compositional agent states in continuous time.
-2. **SDM (Sparse Distributed Memory):** The hardware tissue. Stores the composed HDC states for noisy retrieval and cleanup via Kanerva's Hamming-space addressing.
-
-Foundation shipped in v5.5 (typed-array decoder, GC-free hot loop); HDC algebra integration and full Hamming-space address mapping targeting v6.5.
+#### v8+ — Zero-Search Retrieval
+- **Problem:** Index/ANN retrieval layers add latency, complexity, and operational overhead at very large memory scales.
+- **Benefit:** Direct vector-addressed recall (“just ask the vector”) reduces retrieval indirection and moves Prism toward truly native associative memory.
+- **Dependency:** Requires stable SDM/HDC primitives and production-grade retrieval calibration from v6.5/v7.x.
 
 ---
 

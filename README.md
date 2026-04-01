@@ -395,8 +395,18 @@ Soft/hard delete (Art. 17), full export in JSON, Markdown, or Obsidian vault `.z
 
 ## 🆕 What's New
 
-### v6.2 — The "Synthesize & Prune" Phase ✅
-> **Current stable release (v6.2.1).** The Mind Palace becomes self-organizing.
+### v6.5 — HDC Cognitive Routing ✅
+> **Current stable release.** The Mind Palace gains a brain-inspired routing engine.
+
+- 🧠 **Hyperdimensional Cognitive Routing** — New `session_cognitive_route` tool composes the agent's current state, role, and action into a single 768-dim binary hypervector via XOR binding, then resolves it to a semantic concept via Hamming distance. Three-outcome policy gateway: `direct` / `clarify` / `fallback`.
+- 🎛️ **Per-Project Threshold Overrides** — Fallback and clarify thresholds are configurable per-project and persisted via the existing `getSetting`/`setSetting` contract (no new migrations).
+- 🔬 **Explainability Mode** — When `explain: true`, responses include convergence steps, raw Hamming distance, and ambiguity flags for full auditability.
+- 📊 **Cognitive Observability** — `graphMetrics.ts` tracks route distribution (direct/clarify/fallback), rolling confidence/distance averages, ambiguity rates, and null-concept counts. Warning heuristics for fallback > 30% and ambiguity > 40%.
+- 🖥️ **Dashboard Integration** — Cognitive metrics card with route distribution bar, confidence gauges, and warning badges. On-demand "Cognitive Route" button in the Node Editor panel.
+- 🔒 **Feature Gating** — Entire pipeline gated behind `PRISM_HDC_ENABLED` (default: `true`). Clean error + zero telemetry when disabled.
+
+<details>
+<summary><strong>v6.2 — The "Synthesize & Prune" Phase</strong></summary>
 
 - 🕸️ **Edge Synthesis ("The Dream Procedure")** — Automated background linker discovers semantically similar but disconnected memory nodes via cosine similarity (≥ 0.7 threshold). Batch-limited to 50 sources × 3 neighbors. New `session_synthesize_edges` tool for on-demand graph enrichment.
 - ✂️ **Graph Pruning (Soft-Prune)** — Configurable strength-based pruning soft-deletes weak links. Includes per-project cooldown, backpressure guards, and sweep budget controls. Enable with `PRISM_GRAPH_PRUNING_ENABLED=true`.
@@ -405,6 +415,8 @@ Soft/hard delete (Art. 17), full export in JSON, Markdown, or Obsidian vault `.z
 - 📝 **Active Recall ("Test Me")** — Node editor panel generates synthetic quizzes from semantic neighbors for knowledge activation.
 - ⚡ **Supabase Weak-Link RPC (WS4.1)** — New `prism_summarize_weak_links` Postgres function (migration 036) aggregates pruning server-side, eliminating N+1 network roundtrips.
 - 🔒 **Migration 035** — Tenant-safe graph writes + soft-delete hardening for MemoryLinks.
+
+</details>
 
 <details>
 <summary><strong>v6.1 — Prism-Port, Cognitive Load & Semantic Search</strong></summary>
@@ -566,6 +578,17 @@ Prism ships 30+ tools, but **90% of your workflow uses just three:**
 </details>
 
 <details>
+<summary><strong>Cognitive Architecture (1 tool)</strong></summary>
+
+Requires `PRISM_HDC_ENABLED=true` (default).
+
+| Tool | Purpose |
+|------|---------|
+| `session_cognitive_route` | HDC compositional state resolution with policy-gated routing |
+
+</details>
+
+<details>
 <summary><strong>Multi-Agent Hivemind (3 tools)</strong></summary>
 
 Requires `PRISM_ENABLE_HIVEMIND=true`.
@@ -608,6 +631,8 @@ Requires `PRISM_ENABLE_HIVEMIND=true`.
 | `PRISM_SCHOLAR_INTERVAL_MS` | No | Scholar interval in ms (default: `0` = manual only) |
 | `PRISM_SCHOLAR_TOPICS` | No | Comma-separated research topics (default: `"ai,agents"`) |
 | `PRISM_SCHOLAR_MAX_ARTICLES_PER_RUN` | No | Max articles per Scholar run (default: `3`) |
+| `PRISM_HDC_ENABLED` | No | `"true"` (default) to enable HDC cognitive routing pipeline |
+| `PRISM_HDC_EXPLAINABILITY_ENABLED` | No | `"true"` (default) to include convergence/distance/ambiguity in cognitive route responses |
 
 </details>
 
@@ -692,7 +717,8 @@ Prism is evolving from smart session logging toward a **cognitive memory archite
 | **v5.5** | SDM Decoder Foundation — pre-allocated typed-array hot loop, zero GC thrash | Kanerva's Sparse Distributed Memory (1988) | ✅ Shipped |
 | **v5.5** | Architectural Hardening — transactional migrations, graceful shutdown, thundering herd prevention | Production reliability engineering | ✅ Shipped |
 | **v6.1** | Intuitive Recall — proactive surface of relevant past decisions without explicit search; `session_intuitive_recall` tool | Predictive memory (cognitive science) | ✅ Shipped |
-| **v6.2+** | Full Superposed Memory (SDM) — O(1) key-value retrieval via Hamming correlation | Kanerva's SDM | 🔬 In Progress |
+| **v6.5** | HDC Cognitive Routing — compositional state-machine with XOR binding, Hamming resolution, and policy-gated routing | Hyperdimensional Computing (Kanerva, Gayler) | ✅ Shipped |
+| **v6.5** | Cognitive Observability — route distribution, confidence/distance tracking, ambiguity warnings | Production reliability engineering | ✅ Shipped |
 | **v6.1** | Prism-Port Vault Export — Obsidian/Logseq `.zip` with YAML frontmatter & `[[Wikilinks]]` | Data sovereignty, PKM interop | ✅ Shipped |
 | **v6.1** | Cognitive Load & Semantic Search — dynamic graph thinning, search highlights | Contextual working memory | ✅ Shipped |
 | **v6.2** | Synthesize & Prune — automated edge synthesis, graph pruning, SLO observability | Implicit associative memory | ✅ Shipped |
@@ -710,8 +736,12 @@ Prism is evolving from smart session logging toward a **cognitive memory archite
 ### v6.2: The "Synthesize & Prune" Phase ✅
 Shipped in v6.2.0. Edge synthesis, graph pruning with SLO observability, temporal decay heatmaps, active recall prompt generation, and full dashboard metrics integration.
 
-### v7.x: Affect-Tagged Memory
-Sentiment and emotional valence shape what gets recalled — bringing affect-modulated retrieval from neuroscience into agentic memory.
+### v6.5: Cognitive Architecture (Primary)
+Full Superposed Memory (SDM) + Hyperdimensional Computing (HDC/VSA) becomes the next major implementation phase, targeting compositional memory states and faster associative retrieval at scale.
+
+### After v6.5: Future Tracks
+- **v7.x: Affect-Tagged Memory** — Recall prioritization improves by weighting memories with affective/contextual valence, making surfaced context more behaviorally useful.
+- **v8+: Zero-Search Retrieval** — Direct vector-addressed recall (“just ask the vector”) reduces retrieval indirection and moves Prism toward truly native associative memory.
 
 ---
 

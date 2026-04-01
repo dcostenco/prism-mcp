@@ -18,6 +18,7 @@ import {
   recordSchedulerSynthesis,
   recordPruningRun,
   recordSweepDuration,
+  recordCognitiveRoute,
   getGraphMetricsSnapshot,
   resetGraphMetricsForTests,
 } from "../../src/observability/graphMetrics.js";
@@ -306,6 +307,16 @@ describe("resetGraphMetricsForTests", () => {
     expect(snap.warnings.synthesis_quality_warning).toBe(false);
     expect(snap.warnings.testme_provider_warning).toBe(false);
     expect(snap.warnings.synthesis_failure_warning).toBe(false);
+    expect(snap.warnings.cognitive_fallback_rate_warning).toBe(false);
+    expect(snap.warnings.cognitive_ambiguity_rate_warning).toBe(false);
+
+    // Cognitive must reset
+    expect(snap.cognitive.evaluations_total).toBe(0);
+    expect(snap.cognitive.route_auto_total).toBe(0);
+    expect(snap.cognitive.last_run_at).toBeNull();
+    expect(snap.cognitive.last_route).toBeNull();
+    expect(snap.cognitive.ambiguity_rate).toBeNull();
+    expect(snap.cognitive.duration_p50_ms).toBeNull();
   });
 });
 
@@ -320,6 +331,7 @@ describe("Snapshot shape contract", () => {
     expect(snap).toHaveProperty("testMe");
     expect(snap).toHaveProperty("scheduler");
     expect(snap).toHaveProperty("pruning");
+    expect(snap).toHaveProperty("cognitive");
     expect(snap).toHaveProperty("slo");
     expect(snap).toHaveProperty("warnings");
   });
@@ -519,5 +531,200 @@ describe("SLO derivations", () => {
 
     const snap = getGraphMetricsSnapshot();
     expect(snap.slo.scheduler_sweep_duration_ms_last).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 7. Cognitive Routing Metrics (v6.5)
+// ═══════════════════════════════════════════════════════════════════
+
+describe("Cognitive routing metrics", () => {
+  it("increments counters on AUTO route", () => {
+    recordCognitiveRoute({
+      project: "test",
+      route: "ACTION_AUTO_ROUTE",
+      concept: "State:ActiveSession",
+      confidence: 0.97,
+      distance: 3,
+      ambiguous: false,
+      steps: 2,
+      duration_ms: 5,
+    });
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.cognitive.evaluations_total).toBe(1);
+    expect(snap.cognitive.route_auto_total).toBe(1);
+    expect(snap.cognitive.route_clarify_total).toBe(0);
+    expect(snap.cognitive.route_fallback_total).toBe(0);
+    expect(snap.cognitive.ambiguous_total).toBe(0);
+    expect(snap.cognitive.last_route).toBe("ACTION_AUTO_ROUTE");
+    expect(snap.cognitive.last_concept).toBe("State:ActiveSession");
+    expect(snap.cognitive.last_confidence).toBe(0.97);
+    expect(snap.cognitive.last_run_at).not.toBeNull();
+  });
+
+  it("increments fallback and ambiguity counters", () => {
+    recordCognitiveRoute({
+      project: "test",
+      route: "ACTION_FALLBACK",
+      concept: null,
+      confidence: 0.3,
+      distance: 12,
+      ambiguous: true,
+      steps: 5,
+      duration_ms: 8,
+    });
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.cognitive.route_fallback_total).toBe(1);
+    expect(snap.cognitive.ambiguous_total).toBe(1);
+  });
+
+  it("increments CLARIFY route", () => {
+    recordCognitiveRoute({
+      project: "test",
+      route: "ACTION_CLARIFY",
+      concept: "State:Reviewing",
+      confidence: 0.88,
+      distance: 5,
+      ambiguous: true,
+      steps: 3,
+      duration_ms: 4,
+    });
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.cognitive.route_clarify_total).toBe(1);
+  });
+
+  it("accumulates convergence steps across runs", () => {
+    recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "A", confidence: 0.99, distance: 1, ambiguous: false, steps: 3, duration_ms: 2 });
+    recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "B", confidence: 0.98, distance: 2, ambiguous: false, steps: 5, duration_ms: 3 });
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.cognitive.convergence_steps_total).toBe(8);
+    expect(snap.cognitive.median_convergence_steps).toBe(4); // 8/2 = 4.0
+  });
+
+  it("computes derived rates correctly", () => {
+    // 3 auto, 1 clarify, 1 fallback, 2 ambiguous
+    recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "X", confidence: 0.99, distance: 1, ambiguous: false, steps: 1, duration_ms: 1 });
+    recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "Y", confidence: 0.98, distance: 2, ambiguous: false, steps: 1, duration_ms: 1 });
+    recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "Z", confidence: 0.97, distance: 3, ambiguous: false, steps: 1, duration_ms: 1 });
+    recordCognitiveRoute({ project: "p", route: "ACTION_CLARIFY", concept: "Q", confidence: 0.88, distance: 5, ambiguous: true, steps: 2, duration_ms: 2 });
+    recordCognitiveRoute({ project: "p", route: "ACTION_FALLBACK", concept: null, confidence: 0.3, distance: 10, ambiguous: true, steps: 4, duration_ms: 5 });
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.cognitive.ambiguity_rate).toBe(0.4); // 2/5
+    expect(snap.cognitive.fallback_rate).toBe(0.2);  // 1/5
+  });
+
+  it("returns null rates when no evaluations", () => {
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.cognitive.ambiguity_rate).toBeNull();
+    expect(snap.cognitive.fallback_rate).toBeNull();
+    expect(snap.cognitive.median_convergence_steps).toBeNull();
+  });
+
+  it("computes duration p50", () => {
+    recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "A", confidence: 0.99, distance: 1, ambiguous: false, steps: 1, duration_ms: 10 });
+    recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "B", confidence: 0.98, distance: 2, ambiguous: false, steps: 1, duration_ms: 30 });
+    recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "C", confidence: 0.97, distance: 3, ambiguous: false, steps: 1, duration_ms: 20 });
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.cognitive.duration_p50_ms).toBe(20);
+  });
+
+  it("snapshot has all cognitive fields", () => {
+    const snap = getGraphMetricsSnapshot();
+    const c = snap.cognitive;
+    expect(typeof c.evaluations_total).toBe("number");
+    expect(typeof c.route_auto_total).toBe("number");
+    expect(typeof c.route_clarify_total).toBe("number");
+    expect(typeof c.route_fallback_total).toBe("number");
+    expect(typeof c.ambiguous_total).toBe("number");
+    expect(typeof c.convergence_steps_total).toBe("number");
+    expect(["number", "object"]).toContain(typeof c.median_convergence_steps);
+    expect(["number", "object"]).toContain(typeof c.ambiguity_rate);
+    expect(["number", "object"]).toContain(typeof c.fallback_rate);
+    expect(["number", "object"]).toContain(typeof c.last_run_at);
+    expect(["string", "object"]).toContain(typeof c.last_route);
+    expect(["string", "object"]).toContain(typeof c.last_concept);
+    expect(["number", "object"]).toContain(typeof c.last_confidence);
+    expect(["number", "object"]).toContain(typeof c.duration_p50_ms);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 8. Cognitive Warning Flags (v6.5)
+// ═══════════════════════════════════════════════════════════════════
+
+describe("Cognitive warning flags", () => {
+  it("cognitive warnings false on fresh state", () => {
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.warnings.cognitive_fallback_rate_warning).toBe(false);
+    expect(snap.warnings.cognitive_ambiguity_rate_warning).toBe(false);
+  });
+
+  it("cognitive warnings false under 10 evaluations", () => {
+    // 5 fallback routes, but only 5 total — under the 10-evaluation minimum
+    for (let i = 0; i < 5; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_FALLBACK", concept: null, confidence: 0.2, distance: 10, ambiguous: true, steps: 3, duration_ms: 5 });
+    }
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.warnings.cognitive_fallback_rate_warning).toBe(false);
+    expect(snap.warnings.cognitive_ambiguity_rate_warning).toBe(false);
+  });
+
+  it("cognitive_fallback_rate_warning triggers at >30% with >=10 evaluations", () => {
+    // 6 auto + 4 fallback = 40% fallback rate
+    for (let i = 0; i < 6; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "X", confidence: 0.99, distance: 1, ambiguous: false, steps: 1, duration_ms: 1 });
+    }
+    for (let i = 0; i < 4; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_FALLBACK", concept: null, confidence: 0.2, distance: 10, ambiguous: false, steps: 5, duration_ms: 5 });
+    }
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.warnings.cognitive_fallback_rate_warning).toBe(true);
+  });
+
+  it("cognitive_fallback_rate_warning does NOT trigger at exactly 30%", () => {
+    // 7 auto + 3 fallback = 30% — boundary case (> 0.3 not >= 0.3)
+    for (let i = 0; i < 7; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "X", confidence: 0.99, distance: 1, ambiguous: false, steps: 1, duration_ms: 1 });
+    }
+    for (let i = 0; i < 3; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_FALLBACK", concept: null, confidence: 0.2, distance: 10, ambiguous: false, steps: 5, duration_ms: 5 });
+    }
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.warnings.cognitive_fallback_rate_warning).toBe(false);
+  });
+
+  it("cognitive_ambiguity_rate_warning triggers at >40% with >=10 evaluations", () => {
+    // 5 clear + 5 ambiguous = 50%
+    for (let i = 0; i < 5; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "X", confidence: 0.99, distance: 1, ambiguous: false, steps: 1, duration_ms: 1 });
+    }
+    for (let i = 0; i < 5; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_CLARIFY", concept: "Y", confidence: 0.88, distance: 5, ambiguous: true, steps: 2, duration_ms: 3 });
+    }
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.warnings.cognitive_ambiguity_rate_warning).toBe(true);
+  });
+
+  it("cognitive_ambiguity_rate_warning does NOT trigger at exactly 40%", () => {
+    // 6 clear + 4 ambiguous = 40% — boundary
+    for (let i = 0; i < 6; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_AUTO_ROUTE", concept: "X", confidence: 0.99, distance: 1, ambiguous: false, steps: 1, duration_ms: 1 });
+    }
+    for (let i = 0; i < 4; i++) {
+      recordCognitiveRoute({ project: "p", route: "ACTION_CLARIFY", concept: "Y", confidence: 0.88, distance: 5, ambiguous: true, steps: 2, duration_ms: 3 });
+    }
+
+    const snap = getGraphMetricsSnapshot();
+    expect(snap.warnings.cognitive_ambiguity_rate_warning).toBe(false);
   });
 });

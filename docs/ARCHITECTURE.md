@@ -2,7 +2,7 @@
 
 > **A local-first, self-improving memory engine for AI agents.**
 > 
-> Prism MCP provides persistent state, semantic search, multimodal capabilities, and observability for AI agents. This document details the architectural decisions, math, and data flows powering Prism v5.4+.
+> Prism MCP provides persistent state, semantic search, multimodal capabilities, and observability for AI agents. This document details the architectural decisions, math, and data flows powering Prism v5.4–v6.5.
 
 ---
 
@@ -17,6 +17,7 @@
 8. [Agent Hivemind Mode (v5.3)](#8-agent-hivemind-mode-v53)
 9. [Background Purge Scheduler (v5.4)](#9-background-purge-scheduler-v54)
 10. [Autonomous Web Scholar (v5.4)](#10-autonomous-web-scholar-v54)
+11. [HDC Cognitive Routing (v6.5)](#11-hdc-cognitive-routing-v65)
 
 ---
 
@@ -319,5 +320,85 @@ The pipeline is fully instrumented with OpenTelemetry. Each `runWebScholar()` ex
 
 ---
 
-*Prism MCP Architecture Guide — Last Updated: v5.4*
+## 11. HDC Cognitive Routing (v6.5)
+
+Prism v6.5 introduces **Hyperdimensional Computing (HDC)** as a compositional state-machine layer for cognitive routing. Instead of flat keyword lookup, the system superimposes the agent's current **state**, **role**, and **action** into a single high-dimensional vector and resolves it to a semantic concept — enabling context-aware routing decisions.
+
+### Pipeline Architecture
+
+```mermaid
+graph LR
+    A["MCP Tool Call"] --> B["Concept Dictionary"]
+    B --> C["HDC State Machine"]
+    C --> D["Compose State Vector"]
+    D --> E["Resolve Nearest Concept"]
+    E --> F["Policy Gateway"]
+    F --> G{"Route Decision"}
+    G -->|"High confidence"| H["✅ Direct Route"]
+    G -->|"Ambiguous"| I["⚠️ Clarify / Fallback"]
+```
+
+1.  **Concept Dictionary** (`src/sdm/conceptDictionary.ts`) — Maps semantic tokens (e.g., `State:ActiveSession`, `Role:Dev`, `Action:Save`) to 768-dim binary hypervectors. Concepts are generated on first use and cached.
+2.  **HDC State Machine** (`src/sdm/stateMachine.ts`) — Composes a superposition vector from the three input concepts using element-wise XOR binding. The result is a single 768-dim vector that encodes the *compositional meaning* of the current context.
+3.  **Concept Resolution** — The composed vector is compared against all known concepts via Hamming distance. The nearest match is returned with a confidence score (inversely proportional to normalized distance).
+4.  **Policy Gateway** (`src/sdm/policyGateway.ts`) — Evaluates the resolved concept against configurable thresholds to produce a route decision:
+    *   **`direct`** — High confidence; route proceeds normally
+    *   **`clarify`** — Moderate confidence; the system requests disambiguation
+    *   **`fallback`** — Low confidence; falls back to default behavior
+
+### Threshold Configuration
+
+Two thresholds control route sensitivity:
+
+```
+fallback_threshold ≤ clarify_threshold ≤ 1.0
+```
+
+*   `fallback_threshold` (default: 0.3) — Below this confidence, the policy returns `fallback`
+*   `clarify_threshold` (default: 0.7) — Below this confidence, the policy returns `clarify`
+
+Thresholds can be overridden per-project via tool arguments. When provided, overrides are **persisted** in the storage layer under keys `hdc:fallback_threshold:<project>` and `hdc:clarify_threshold:<project>`.
+
+### Phase 2 Storage Parity Rationale
+
+Cognitive routing requires **no new storage migrations**. Thresholds are persisted via the existing `getSetting(key)` / `setSetting(key, value)` interface, which stores values as plain strings in the `prism_settings` table. This abstraction already handles SQLite and Supabase backends identically — new columns, RPCs, or migrations are unnecessary. Threshold values are encoded as decimal strings (e.g., `"0.45"`) and parsed back to `Number` on read.
+
+### Explainability
+
+When `PRISM_HDC_EXPLAINABILITY_ENABLED=true` (default) and the caller passes `explain: true`, the response includes:
+
+*   `convergence_steps` — Number of iterations the state machine performed
+*   `distance` — Raw Hamming distance to the matched concept
+*   `ambiguity` — Whether the match was within the ambiguity zone (distance > 50% of vector dimensions)
+
+### Observability Integration
+
+The `recordCognitiveRoute()` function in `graphMetrics.ts` tracks:
+
+| Metric | Description |
+|--------|-------------|
+| `total_routes` | Total cognitive route evaluations |
+| `direct_count` / `clarify_count` / `fallback_count` | Route distribution |
+| `avg_confidence` | Rolling average confidence across all routes |
+| `avg_distance` | Rolling average Hamming distance |
+| `ambiguous_count` | Routes flagged as ambiguous |
+| `null_concept_count` | Routes where concept resolution failed |
+
+Warning heuristics trigger when `fallback_rate > 30%` or `ambiguous_resolution_rate > 40%`.
+
+### Feature Gating
+
+The entire v6.5 pipeline is gated behind `PRISM_HDC_ENABLED` (default: `true`). When disabled, `session_cognitive_route` returns a clear error and records no telemetry.
+
+### Dashboard Integration
+
+The Mind Palace dashboard exposes:
+*   **Cognitive Metrics Card** — Route distribution bar, confidence/distance averages, warning badges
+*   **Cognitive Route Button** — On-demand route evaluation from the Node Editor panel
+
+**Key files:** `src/tools/graphHandlers.ts` (`sessionCognitiveRouteHandler`), `src/sdm/conceptDictionary.ts`, `src/sdm/stateMachine.ts`, `src/sdm/policyGateway.ts`, `src/observability/graphMetrics.ts`, `src/dashboard/graphRouter.ts` (`/api/graph/cognitive-route`)
+
+---
+
+*Prism MCP Architecture Guide — Last Updated: v6.5*
 
