@@ -366,6 +366,64 @@ export async function handleGraphRoutes(
     }
   }
 
+  // ─── API: Cognitive Route Explainability (v6.5) ───
+  if (url.pathname === "/api/graph/cognitive-route" && req.method === "GET") {
+    const project = url.searchParams.get("project");
+    const state = url.searchParams.get("state");
+    const role = url.searchParams.get("role");
+    const action = url.searchParams.get("action");
+    const explain = url.searchParams.get("explain");
+    const fallbackThresholdRaw = url.searchParams.get("fallback_threshold");
+    const clarifyThresholdRaw = url.searchParams.get("clarify_threshold");
+
+    if (!project || !state || !role || !action) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        error: "project, state, role, and action are required",
+      }));
+      return true;
+    }
+
+    try {
+      const { sessionCognitiveRouteHandler } = await import("../tools/graphHandlers.js");
+
+      const args: any = {
+        project,
+        state,
+        role,
+        action,
+        explain: explain === null ? true : explain !== "false",
+      };
+
+      if (fallbackThresholdRaw !== null) {
+        const parsed = Number(fallbackThresholdRaw);
+        if (!Number.isNaN(parsed)) args.fallback_threshold = parsed;
+      }
+      if (clarifyThresholdRaw !== null) {
+        const parsed = Number(clarifyThresholdRaw);
+        if (!Number.isNaN(parsed)) args.clarify_threshold = parsed;
+      }
+
+      const result = await sessionCognitiveRouteHandler(args);
+      const contentText = result.content && result.content.length > 0
+        ? result.content[0].text
+        : "";
+
+      res.writeHead(result.isError ? 400 : 200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        ok: !result.isError,
+        isError: !!result.isError,
+        text: contentText,
+      }));
+      return true;
+    } catch (err) {
+      console.error("[Dashboard] Cognitive route error:", err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: err instanceof Error ? err.message : "Cognitive route failed" }));
+      return true;
+    }
+  }
+
   // ─── API: Graph Metrics (v6.0 Observability) ───
   if (url.pathname === "/api/graph/metrics" && req.method === "GET") {
     const snapshot = getGraphMetricsSnapshot();

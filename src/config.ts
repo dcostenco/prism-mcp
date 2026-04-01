@@ -224,6 +224,46 @@ export const PRISM_LINK_DECAY_DAYS = parseInt(
   process.env.PRISM_LINK_DECAY_DAYS || "30", 10
 );
 
+// ─── v6.5: Cognitive Architecture (HDC Policy Gateway) ─────────────
+// Master feature flag for HDC-driven cognitive routing APIs.
+export const PRISM_HDC_ENABLED = process.env.PRISM_HDC_ENABLED === "true";
+
+// Explainability payload toggle for cognitive routing responses.
+export const PRISM_HDC_EXPLAINABILITY_ENABLED =
+  process.env.PRISM_HDC_EXPLAINABILITY_ENABLED !== "false"; // default true
+
+const DEFAULT_HDC_FALLBACK_THRESHOLD = 0.85;
+const DEFAULT_HDC_CLARIFY_THRESHOLD = 0.95;
+
+const rawHdcFallbackThreshold = parseFloat(
+  process.env.PRISM_HDC_POLICY_FALLBACK_THRESHOLD || String(DEFAULT_HDC_FALLBACK_THRESHOLD)
+);
+const rawHdcClarifyThreshold = parseFloat(
+  process.env.PRISM_HDC_POLICY_CLARIFY_THRESHOLD || String(DEFAULT_HDC_CLARIFY_THRESHOLD)
+);
+
+const hdcThresholdsValid =
+  Number.isFinite(rawHdcFallbackThreshold) &&
+  Number.isFinite(rawHdcClarifyThreshold) &&
+  rawHdcFallbackThreshold >= 0 &&
+  rawHdcFallbackThreshold < rawHdcClarifyThreshold &&
+  rawHdcClarifyThreshold <= 1;
+
+if (!hdcThresholdsValid) {
+  console.error(
+    "Warning: Invalid HDC policy thresholds. Falling back to defaults " +
+    `(fallback=${DEFAULT_HDC_FALLBACK_THRESHOLD}, clarify=${DEFAULT_HDC_CLARIFY_THRESHOLD}).`
+  );
+}
+
+export const PRISM_HDC_POLICY_FALLBACK_THRESHOLD = hdcThresholdsValid
+  ? rawHdcFallbackThreshold
+  : DEFAULT_HDC_FALLBACK_THRESHOLD;
+
+export const PRISM_HDC_POLICY_CLARIFY_THRESHOLD = hdcThresholdsValid
+  ? rawHdcClarifyThreshold
+  : DEFAULT_HDC_CLARIFY_THRESHOLD;
+
 // ─── v6.2: Graph Soft-Pruning ───────────────────────────────
 // Soft-pruning filters weak links from graph/retrieval reads while preserving
 // underlying rows for provenance. This does NOT delete links.

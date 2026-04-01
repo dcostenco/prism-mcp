@@ -19,6 +19,7 @@ import { formatRulesBlock, applySentinelBlock, SENTINEL_START, SENTINEL_END, RED
  */
 
 import { debugLog } from "../utils/logger.js";
+import { recordCognitiveRoute } from "../observability/graphMetrics.js";
 import { getStorage } from "../storage/index.js";
 import { toKeywordArray } from "../utils/keywordExtractor.js";
 import { getLLMProvider } from "../utils/llm/factory.js";
@@ -58,6 +59,7 @@ import {
   isDeepStoragePurgeArgs,
   isSessionIntuitiveRecallArgs,
   isSessionSynthesizeEdgesArgs,
+  isSessionCognitiveRouteArgs,
 } from "./sessionMemoryDefinitions.js";
 
 // v4.2: File system access for knowledge_sync_rules
@@ -86,6 +88,16 @@ import { notifyResourceUpdate } from "../server.js";
  * After saving, generates an embedding vector for the entry via fire-and-forget.
  */
 import { computeEffectiveImportance, updateLastAccessed } from "../utils/cognitiveMemory.js";
+import { HdcStateMachine } from "../sdm/stateMachine.js";
+import { ConceptDictionary } from "../sdm/conceptDictionary.js";
+import { PolicyGateway } from "../sdm/policyGateway.js";
+import { getSdmEngine } from "../sdm/sdmEngine.js";
+import {
+  PRISM_HDC_ENABLED,
+  PRISM_HDC_EXPLAINABILITY_ENABLED,
+  PRISM_HDC_POLICY_FALLBACK_THRESHOLD,
+  PRISM_HDC_POLICY_CLARIFY_THRESHOLD,
+} from "../config.js";
 export async function knowledgeSearchHandler(args: unknown) {
   if (!isKnowledgeSearchArgs(args)) {
     throw new Error("Invalid arguments for knowledge_search");
@@ -792,7 +804,6 @@ export async function sessionIntuitiveRecallHandler(
   }
 
   try {
-    const { getSdmEngine } = await import("../sdm/sdmEngine.js");
     const { decodeSdmVector } = await import("../sdm/sdmDecoder.js");
 
     const queryVector = await getLLMProvider().generateEmbedding(args.query);
@@ -824,6 +835,133 @@ export async function sessionIntuitiveRecallHandler(
     debugLog(`[session_intuitive_recall] Failed: ${err instanceof Error ? err.message : String(err)}`);
     return {
       content: [{ type: "text", text: `Error triggering Intuitive Recall: ${err instanceof Error ? err.message : String(err)}` }],
+      isError: true,
+    };
+  }
+}
+
+export async function sessionCognitiveRouteHandler(
+  args: unknown
+): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
+  if (!isSessionCognitiveRouteArgs(args)) {
+    return {
+      content: [{ type: "text", text: "Invalid arguments for session_cognitive_route" }],
+      isError: true,
+    };
+  }
+
+  if (!PRISM_HDC_ENABLED) {
+    return {
+      content: [{
+        type: "text",
+        text: "⚠️ session_cognitive_route is disabled. Set PRISM_HDC_ENABLED=true to enable v6.5 cognitive routing.",
+      }],
+      isError: true,
+    };
+  }
+
+  try {
+    const storage = await getStorage();
+    const sdmEngine = getSdmEngine(args.project);
+    const dict = new ConceptDictionary(storage);
+
+    const stateVector = await dict.getConcept(args.state);
+    const roleVector = await dict.getConcept(args.role);
+    const actionVector = await dict.getConcept(args.action);
+
+    const machine = new HdcStateMachine(stateVector, sdmEngine);
+    machine.transition(roleVector, actionVector);
+
+    const fallbackKey = `hdc:fallback_threshold:${args.project}`;
+    const clarifyKey = `hdc:clarify_threshold:${args.project}`;
+
+    const persistedFallbackRaw = await storage.getSetting(fallbackKey);
+    const persistedClarifyRaw = await storage.getSetting(clarifyKey);
+
+    const persistedFallback = persistedFallbackRaw !== null ? Number(persistedFallbackRaw) : NaN;
+    const persistedClarify = persistedClarifyRaw !== null ? Number(persistedClarifyRaw) : NaN;
+
+    const baseFallbackThreshold = Number.isFinite(persistedFallback)
+      ? persistedFallback
+      : PRISM_HDC_POLICY_FALLBACK_THRESHOLD;
+    const baseClarifyThreshold = Number.isFinite(persistedClarify)
+      ? persistedClarify
+      : PRISM_HDC_POLICY_CLARIFY_THRESHOLD;
+
+    const fallbackThreshold = args.fallback_threshold ?? baseFallbackThreshold;
+    const clarifyThreshold = args.clarify_threshold ?? baseClarifyThreshold;
+    const explain = args.explain !== undefined ? args.explain : true;
+
+    if (!(fallbackThreshold >= 0 && fallbackThreshold < clarifyThreshold && clarifyThreshold <= 1)) {
+      return {
+        content: [{
+          type: "text",
+          text:
+            `Invalid policy thresholds for project "${args.project}": ` +
+            `fallback=${fallbackThreshold}, clarify=${clarifyThreshold}. ` +
+            "Expected 0 <= fallback < clarify <= 1.",
+        }],
+        isError: true,
+      };
+    }
+
+    // Phase 2 parity hook: persist project-specific threshold overrides via storage settings.
+    // This works on both SQLite and Supabase backends through the shared StorageBackend API.
+    if (args.fallback_threshold !== undefined || args.clarify_threshold !== undefined) {
+      await storage.setSetting(fallbackKey, String(fallbackThreshold));
+      await storage.setSetting(clarifyKey, String(clarifyThreshold));
+    }
+
+    const gateway = new PolicyGateway(dict, {
+      fallbackThreshold,
+      clarifyThreshold,
+    });
+
+    const cogStart = Date.now();
+    const result = await gateway.evaluateIntent(machine);
+    const cogDuration = Date.now() - cogStart;
+
+    // Phase 4: Record cognitive route telemetry
+    recordCognitiveRoute({
+      project: args.project,
+      route: result.route,
+      concept: result.concept || null,
+      confidence: result.confidence,
+      distance: result.distance,
+      ambiguous: result.ambiguous,
+      steps: result.steps,
+      duration_ms: cogDuration,
+    });
+
+    const lines: string[] = [];
+    lines.push(`🧠 Cognitive Route — project \"${args.project}\"`);
+    lines.push("");
+    lines.push(`State: ${args.state}`);
+    lines.push(`Role: ${args.role}`);
+    lines.push(`Action: ${args.action}`);
+    lines.push("");
+    lines.push(`Route: ${result.route}`);
+    lines.push(`Concept: ${result.concept || "(none)"}`);
+    lines.push(`Confidence: ${(result.confidence * 100).toFixed(2)}%`);
+    lines.push(`Distance: ${result.distance}`);
+    lines.push(`Ambiguous: ${result.ambiguous ? "yes" : "no"}`);
+    lines.push(`Convergence Steps: ${result.steps}`);
+
+    if (PRISM_HDC_EXPLAINABILITY_ENABLED && explain) {
+      lines.push("");
+      lines.push("Explainability:");
+      lines.push(`- Policy thresholds: fallback=${fallbackThreshold}, clarify=${clarifyThreshold}`);
+      lines.push("- Routing logic: below fallback => FALLBACK, ambiguous/below clarify => CLARIFY, else AUTO_ROUTE");
+    }
+
+    return {
+      content: [{ type: "text", text: lines.join("\n") }],
+      isError: false,
+    };
+  } catch (err) {
+    debugLog(`[session_cognitive_route] Failed: ${err instanceof Error ? err.message : String(err)}`);
+    return {
+      content: [{ type: "text", text: `Error triggering cognitive route: ${err instanceof Error ? err.message : String(err)}` }],
       isError: true,
     };
   }

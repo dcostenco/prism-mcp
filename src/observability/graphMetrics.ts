@@ -3,11 +3,12 @@
  *
  * ═══════════════════════════════════════════════════════════════════
  * PURPOSE:
- *   Lightweight, zero-dependency metrics collection for graph synthesis
- *   and test-me flows. All state is in-memory (resets on restart).
+ *   Lightweight, zero-dependency metrics collection for graph synthesis,
+ *   test-me flows, and v6.5 cognitive routing.
+ *   All state is in-memory (resets on restart).
  *
  * DESIGN:
- *   - Singleton counters + timestamps for synthesis and test-me
+ *   - Singleton counters + timestamps for synthesis, test-me, and cognitive
  *   - Bounded ring buffer (100 entries) for duration p50 approximation
  *   - Warning flags computed on snapshot (not continuously)
  *   - Structured JSON log emission via debugLog channel
@@ -16,8 +17,9 @@
  * METRICS MODEL:
  *   A) Synthesis: runs, failures, links created, candidates, below-threshold, duration
  *   B) Test-Me: requests, success, no_api_key, generation_failed, bad_request, duration
- *   C) Warning flags: quality drift, provider issues, failure rate
+ *   C) Warning flags: quality drift, provider issues, failure rate, cognitive fallback/ambiguity
  *   D) SLO derivations: success rate, net new links, prune ratio, sweep duration (WS4)
+ *   E) Cognitive (v6.5): intent evaluations, route distribution, ambiguity rate, convergence steps
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -116,10 +118,26 @@ interface PruningMetrics {
   last_run_at: string | null;
 }
 
+interface CognitiveMetrics {
+  evaluations_total: number;
+  route_auto_total: number;
+  route_clarify_total: number;
+  route_fallback_total: number;
+  ambiguous_total: number;
+  convergence_steps_total: number;
+  last_run_at: string | null;
+  last_route: string | null;
+  last_concept: string | null;
+  last_confidence: number | null;
+  duration_buffer: DurationBuffer;
+}
+
 interface WarningFlags {
   synthesis_quality_warning: boolean;
   testme_provider_warning: boolean;
   synthesis_failure_warning: boolean;
+  cognitive_fallback_rate_warning: boolean;
+  cognitive_ambiguity_rate_warning: boolean;
 }
 
 
@@ -134,6 +152,7 @@ let synthesis: SynthesisMetrics = createFreshSynthesisMetrics();
 let testMe: TestMeMetrics = createFreshTestMeMetrics();
 let schedulerSynthesis: SchedulerSynthesisMetrics = createFreshSchedulerMetrics();
 let pruning: PruningMetrics = createFreshPruningMetrics();
+let cognitive: CognitiveMetrics = createFreshCognitiveMetrics();
 
 function createFreshSynthesisMetrics(): SynthesisMetrics {
   return {
@@ -192,6 +211,22 @@ function createFreshPruningMetrics(): PruningMetrics {
     skipped_cooldown_last: 0,
     skipped_budget_last: 0,
     last_run_at: null,
+  };
+}
+
+function createFreshCognitiveMetrics(): CognitiveMetrics {
+  return {
+    evaluations_total: 0,
+    route_auto_total: 0,
+    route_clarify_total: 0,
+    route_fallback_total: 0,
+    ambiguous_total: 0,
+    convergence_steps_total: 0,
+    last_run_at: null,
+    last_route: null,
+    last_concept: null,
+    last_confidence: null,
+    duration_buffer: new DurationBuffer(),
   };
 }
 
@@ -381,6 +416,55 @@ export function recordSweepDuration(duration_ms: number): void {
   });
 }
 
+// ─── Cognitive Route Recording (v6.5) ────────────────────────────
+
+export interface CognitiveRouteData {
+  project: string;
+  route: string;
+  concept: string | null;
+  confidence: number;
+  distance: number;
+  ambiguous: boolean;
+  steps: number;
+  duration_ms: number;
+}
+
+export function recordCognitiveRoute(data: CognitiveRouteData): void {
+  const now = new Date().toISOString();
+  cognitive.evaluations_total++;
+  cognitive.last_run_at = now;
+  cognitive.last_route = data.route;
+  cognitive.last_concept = data.concept;
+  cognitive.last_confidence = data.confidence;
+  cognitive.duration_buffer.push(data.duration_ms);
+  cognitive.convergence_steps_total += data.steps;
+
+  if (data.ambiguous) {
+    cognitive.ambiguous_total++;
+  }
+
+  // Route distribution — match ActionRoute enum values
+  if (data.route === "ACTION_AUTO_ROUTE") {
+    cognitive.route_auto_total++;
+  } else if (data.route === "ACTION_CLARIFY") {
+    cognitive.route_clarify_total++;
+  } else if (data.route === "ACTION_FALLBACK") {
+    cognitive.route_fallback_total++;
+  }
+
+  emitGraphEvent({
+    event: "cognitive_route_evaluation",
+    project: data.project,
+    route: data.route,
+    concept: data.concept,
+    confidence: data.confidence,
+    distance: data.distance,
+    ambiguous: data.ambiguous,
+    steps: data.steps,
+    duration_ms: data.duration_ms,
+  });
+}
+
 // ─── Warning Flag Computation ────────────────────────────────────
 
 function computeWarningFlags(): WarningFlags {
@@ -398,10 +482,22 @@ function computeWarningFlags(): WarningFlags {
     synthesis.runs_total >= 5 &&
     synthesis.runs_failed / synthesis.runs_total > 0.2;
 
+  // Cognitive fallback rate warning: >30% routes go to FALLBACK (min 10 evaluations)
+  const cognitive_fallback_rate_warning =
+    cognitive.evaluations_total >= 10 &&
+    cognitive.route_fallback_total / cognitive.evaluations_total > 0.3;
+
+  // Cognitive ambiguity rate warning: >40% evaluations are ambiguous (min 10 evaluations)
+  const cognitive_ambiguity_rate_warning =
+    cognitive.evaluations_total >= 10 &&
+    cognitive.ambiguous_total / cognitive.evaluations_total > 0.4;
+
   return {
     synthesis_quality_warning,
     testme_provider_warning,
     synthesis_failure_warning,
+    cognitive_fallback_rate_warning,
+    cognitive_ambiguity_rate_warning,
   };
 }
 
@@ -491,11 +587,39 @@ export interface GraphMetricsSnapshot {
     skipped_budget_last: number;
     last_run_at: string | null;
   };
+  cognitive: {
+    evaluations_total: number;
+    route_auto_total: number;
+    route_clarify_total: number;
+    route_fallback_total: number;
+    ambiguous_total: number;
+    convergence_steps_total: number;
+    median_convergence_steps: number | null;
+    ambiguity_rate: number | null;
+    fallback_rate: number | null;
+    last_run_at: string | null;
+    last_route: string | null;
+    last_concept: string | null;
+    last_confidence: number | null;
+    duration_p50_ms: number | null;
+  };
   slo: SloMetrics;
   warnings: WarningFlags;
 }
 
 export function getGraphMetricsSnapshot(): GraphMetricsSnapshot {
+  // Derived cognitive rates
+  const cogEvalTotal = cognitive.evaluations_total;
+  const ambiguity_rate = cogEvalTotal > 0
+    ? parseFloat((cognitive.ambiguous_total / cogEvalTotal).toFixed(4))
+    : null;
+  const fallback_rate = cogEvalTotal > 0
+    ? parseFloat((cognitive.route_fallback_total / cogEvalTotal).toFixed(4))
+    : null;
+  const median_convergence_steps = cogEvalTotal > 0
+    ? parseFloat((cognitive.convergence_steps_total / cogEvalTotal).toFixed(2))
+    : null;
+
   return {
     synthesis: {
       runs_total: synthesis.runs_total,
@@ -545,6 +669,22 @@ export function getGraphMetricsSnapshot(): GraphMetricsSnapshot {
       skipped_budget_last: pruning.skipped_budget_last,
       last_run_at: pruning.last_run_at,
     },
+    cognitive: {
+      evaluations_total: cognitive.evaluations_total,
+      route_auto_total: cognitive.route_auto_total,
+      route_clarify_total: cognitive.route_clarify_total,
+      route_fallback_total: cognitive.route_fallback_total,
+      ambiguous_total: cognitive.ambiguous_total,
+      convergence_steps_total: cognitive.convergence_steps_total,
+      median_convergence_steps,
+      ambiguity_rate,
+      fallback_rate,
+      last_run_at: cognitive.last_run_at,
+      last_route: cognitive.last_route,
+      last_concept: cognitive.last_concept,
+      last_confidence: cognitive.last_confidence,
+      duration_p50_ms: cognitive.duration_buffer.getP50(),
+    },
     slo: computeSloMetrics(),
     warnings: computeWarningFlags(),
   };
@@ -557,6 +697,7 @@ export function resetGraphMetricsForTests(): void {
   testMe = createFreshTestMeMetrics();
   schedulerSynthesis = createFreshSchedulerMetrics();
   pruning = createFreshPruningMetrics();
+  cognitive = createFreshCognitiveMetrics();
   sweepDurationMsLast = 0;
   sweepLastAt = null;
 }
