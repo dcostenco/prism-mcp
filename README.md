@@ -396,7 +396,7 @@ Soft/hard delete (Art. 17), full export in JSON, Markdown, or Obsidian vault `.z
 ## 🆕 What's New
 
 ### v6.2 — The "Synthesize & Prune" Phase ✅
-> **Current stable release (v6.2.0).** The Mind Palace becomes self-organizing.
+> **Current stable release (v6.2.1).** The Mind Palace becomes self-organizing.
 
 - 🕸️ **Edge Synthesis ("The Dream Procedure")** — Automated background linker discovers semantically similar but disconnected memory nodes via cosine similarity (≥ 0.7 threshold). Batch-limited to 50 sources × 3 neighbors. New `session_synthesize_edges` tool for on-demand graph enrichment.
 - ✂️ **Graph Pruning (Soft-Prune)** — Configurable strength-based pruning soft-deletes weak links. Includes per-project cooldown, backpressure guards, and sweep budget controls. Enable with `PRISM_GRAPH_PRUNING_ENABLED=true`.

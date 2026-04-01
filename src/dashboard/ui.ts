@@ -1323,6 +1323,17 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
   <div class="toast-fixed" id="fixedToast"></div>
 
   <script>
+    // ═══════════════════════════════════════════════════════════════════
+    // COMPATIBILITY RULE: This entire <script> block MUST use ES5 only.
+    //   - Use 'var' (NEVER 'const' or 'let')
+    //   - Use 'function(){}' (NEVER '=>' arrow functions)
+    //   - NO optional chaining '?.'
+    //   - NO template literals (backticks) — use string concatenation
+    //   - NO destructuring, spread, or other ES6+ syntax
+    // This HTML is served as a raw template literal; mixing ES6 in the
+    // inline script causes SyntaxError in some browser/context combos.
+    // ═══════════════════════════════════════════════════════════════════
+
     // ─── TABS & SEARCH (v6.0) ───
     function switchMainTab(tabId) {
       document.getElementById('mtab-project').classList.toggle('active', tabId === 'project');
@@ -1338,14 +1349,14 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       }
     }
 
-    let searchTimeout = null;
-    let searchAbortController = null;
+    var searchTimeout = null;
+    var searchAbortController = null;
     
     async function performSearch() {
-      const input = document.getElementById('searchInput');
-      const boost = document.getElementById('searchContextBoost');
-      const resultsDiv = document.getElementById('searchResults');
-      const query = input.value.trim();
+      var input = document.getElementById('searchInput');
+      var boost = document.getElementById('searchContextBoost');
+      var resultsDiv = document.getElementById('searchResults');
+      var query = input.value.trim();
       
       if (!query) {
         if (searchAbortController) searchAbortController.abort();
@@ -1355,17 +1366,17 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       
       resultsDiv.innerHTML = '<div class="loading" style="padding:2rem;"><span class="spinner"></span> Searching neural memory via embeddings...</div>';
       
-      const project = document.getElementById('projectSelect').value;
-      let url = \`/api/search?q=\${encodeURIComponent(query)}\`;
-      if (project) url += \`&project=\${encodeURIComponent(project)}\`;
-      if (boost.checked) url += \`&boost=true\`;
+      var project = document.getElementById('projectSelect').value;
+      var url = '/api/search?q=' + encodeURIComponent(query);
+      if (project) url += '&project=' + encodeURIComponent(project);
+      if (boost.checked) url += '&boost=true';
       
       if (searchAbortController) searchAbortController.abort();
       searchAbortController = new AbortController();
       
       try {
-        const res = await fetch(url, { signal: searchAbortController.signal });
-        const data = await res.json();
+        var res = await fetch(url, { signal: searchAbortController.signal });
+        var data = await res.json();
         if (data.error) throw new Error(data.error);
         
         if (!data.results || data.results.length === 0) {
@@ -1374,55 +1385,58 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
         }
         
         // Extract searchable terms for highlighting (length > 2)
-        const queryTerms = query.split(/\\s+/).filter(w => w.length > 2);
-        const termRegex = queryTerms.length > 0 
-          ? new RegExp(\`(\${queryTerms.map(w => w.replace(/[.*+?^$()|[\\]\\\\{}]/g, '\\\\$&')).join('|')})\`, 'gi')
+        var queryTerms = query.split(/\\s+/).filter(function(w) { return w.length > 2; });
+        var termRegex = queryTerms.length > 0 
+          ? new RegExp('(' + queryTerms.map(function(w) { return w.replace(/[.*+?^$()|[\\]\\\\{}]/g, '\\\\$&'); }).join('|') + ')', 'gi')
           : null;
 
         function highlight(text) {
-          let escaped = escapeHtml(text || '');
+          var escaped = escapeHtml(text || '');
           if (termRegex) {
             escaped = escaped.replace(termRegex, '<mark style="background: rgba(168, 85, 247, 0.4); color: inherit; padding: 0 0.1rem; border-radius: 2px;">$1</mark>');
           }
           return escaped;
         }
         
-        resultsDiv.innerHTML = data.results.map(r => {
-          const isGraduated = r.importance >= 7;
-          const opacity = isGraduated ? 1 : 0.8;
-          const borderStyle = isGraduated ? 'border-left: 3px solid var(--accent-purple); padding-left: 0.8rem;' : '';
-          
-          return \`<div class="entry" style="opacity: \${opacity}; \${borderStyle}">
-            <div class="entry-meta" style="justify-content:space-between; margin-bottom:0.5rem;">
-              <span>📁 \${escapeHtml(r.project)} • 🕒 \${new Date(r.session_date || r.created_at || Date.now()).toLocaleDateString()}</span>
-              <div style="display:flex; gap:0.5rem; font-size:0.75rem;">
-                <!-- Similarity is how closely the vector matches the conceptual query -->
-                <span class="badge" title="Similarity Score (Semantic Match)" style="background:rgba(6,182,212,0.1); color:var(--accent-cyan); border:1px solid rgba(6,182,212,0.3);">
-                  🎯 \${(r.similarity * 100).toFixed(1)}%
-                </span>
-                <!-- Importance is our Ebbinghaus decaying stat (frequency vs recency) -->
-                <span class="badge badge-purple" title="Ebbinghaus Importance (Recency/Reinforcement)">
-                  ⭐ \${(r.importance || 0).toFixed(1)}
-                </span>
-              </div>
-            </div>
-            <div class="entry-summary" style="font-size:0.9rem; line-height: 1.5;">\${highlight(r.summary)}</div>
-            \${r.decisions && r.decisions.length > 0 
-              ? \`<ul class="tag-list" style="margin-top:0.75rem;">\${r.decisions.map(d => \`<li class="tag">💡 \${highlight(d)}</li>\`).join('')}</ul>\`
-              : ''}
-          </div>\`;
+        resultsDiv.innerHTML = data.results.map(function(r) {
+          var isGraduated = r.importance >= 7;
+          var opacity = isGraduated ? 1 : 0.8;
+          var borderStyle = isGraduated ? 'border-left: 3px solid var(--accent-purple); padding-left: 0.8rem;' : '';
+          var decisionsHtml = '';
+          if (r.decisions && r.decisions.length > 0) {
+            decisionsHtml = '<ul class="tag-list" style="margin-top:0.75rem;">' +
+              r.decisions.map(function(d) { return '<li class="tag">💡 ' + highlight(d) + '</li>'; }).join('') +
+              '</ul>';
+          }
+          return '<div class="entry" style="opacity: ' + opacity + '; ' + borderStyle + '">' +
+            '<div class="entry-meta" style="justify-content:space-between; margin-bottom:0.5rem;">' +
+              '<span>📁 ' + escapeHtml(r.project) + ' • 🕒 ' + new Date(r.session_date || r.created_at || Date.now()).toLocaleDateString() + '</span>' +
+              '<div style="display:flex; gap:0.5rem; font-size:0.75rem;">' +
+                '<span class="badge" title="Similarity Score (Semantic Match)" style="background:rgba(6,182,212,0.1); color:var(--accent-cyan); border:1px solid rgba(6,182,212,0.3);">' +
+                  '🎯 ' + (r.similarity * 100).toFixed(1) + '%' +
+                '</span>' +
+                '<span class="badge badge-purple" title="Ebbinghaus Importance (Recency/Reinforcement)">' +
+                  '⭐ ' + (r.importance || 0).toFixed(1) +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="entry-summary" style="font-size:0.9rem; line-height: 1.5;">' + highlight(r.summary) + '</div>' +
+            decisionsHtml +
+          '</div>';
         }).join('');
       } catch (err) {
         if (err.name === 'AbortError') return; // Ignore aborted fetches
-        resultsDiv.innerHTML = \`<div style="padding:1rem; color:var(--accent-rose);">❌ Failed to search memory: \${escapeHtml(err.message)}</div>\`;
+        resultsDiv.innerHTML = '<div style="padding:1rem; color:var(--accent-rose);">❌ Failed to search memory: ' + escapeHtml(err.message) + '</div>';
       }
     }
 
-    document.getElementById('searchInput')?.addEventListener('input', () => {
+    var _searchInput = document.getElementById('searchInput');
+    if (_searchInput) _searchInput.addEventListener('input', function() {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(performSearch, 300);
     });
-    document.getElementById('searchContextBoost')?.addEventListener('change', performSearch);
+    var _searchBoost = document.getElementById('searchContextBoost');
+    if (_searchBoost) _searchBoost.addEventListener('change', performSearch);
 
 
     // Role icon map
@@ -1452,9 +1466,9 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
     // Auto-load project list on page load
     (async function() {
       try {
-        const res = await fetch('/api/projects');
-        const data = await res.json();
-        const select = document.getElementById('projectSelect');
+        var res = await fetch('/api/projects');
+        var data = await res.json();
+        var select = document.getElementById('projectSelect');
         if (data.projects && data.projects.length > 0) {
           select.innerHTML = '<option value="">— Select a project —</option>' +
             data.projects.map(function(p) { return '<option value="' + p + '">' + p + '</option>'; }).join('');
@@ -2319,25 +2333,27 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
     }
 
     async function triggerEdgeSynthesis() {
-      const project = document.getElementById('graphProjectFilter')?.value || document.getElementById('projectSelect')?.value;
+      var gpf = document.getElementById('graphProjectFilter');
+      var ps = document.getElementById('projectSelect');
+      var project = (gpf ? gpf.value : '') || (ps ? ps.value : '');
       if (!project) {
         alert("Please select an active project first.");
         return;
       }
       
-      const btn = document.querySelector('button[onclick="triggerEdgeSynthesis()"]');
-      const status = document.getElementById('synthesisStatus');
+      var btn = document.querySelector('button[onclick="triggerEdgeSynthesis()"]');
+      var status = document.getElementById('synthesisStatus');
       if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
       if (status) status.textContent = 'running...';
       
       try {
-        const res = await fetch('/api/graph/synthesize', {
+        var res = await fetch('/api/graph/synthesize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ project: project, randomize_selection: true, max_entries: 50 })
         });
         
-        const data = await res.json();
+        var data = await res.json();
         if (res.ok && data.success) {
           if (status) status.textContent = '✅ Created ' + data.newLinks + ' links (Scanned: ' + data.entriesScanned + ')';
           setTimeout(loadGraph, 1000); // Reload graph to show new edges
@@ -2361,7 +2377,9 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
     async function triggerTestMe() {
       var input = document.getElementById('nodeEditorInput');
       var oldId = input.dataset.oldId;
-      var project = document.getElementById('graphProjectFilter')?.value || document.getElementById('projectSelect')?.value;
+      var _gpf = document.getElementById('graphProjectFilter');
+      var _ps = document.getElementById('projectSelect');
+      var project = (_gpf ? _gpf.value : '') || (_ps ? _ps.value : '');
       
       if (!oldId || !project) return;
       
@@ -2411,7 +2429,7 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
               '<div class="testme-ans" style="display:none; font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; padding-top:0.4rem; border-top:1px dashed var(--border-subtle);">' +
                 escapeHtml(qa.a) + 
               '</div>' +
-              '<button onclick="this.previousElementSibling.style.display=\'block\'; this.style.display=\'none\'" style="background:transparent; border:none; color:var(--accent-purple); font-size:0.7rem; cursor:pointer; padding:0; margin-top:0.3rem;">Show Answer</button>';
+              '<button onclick="this.previousElementSibling.style.display=&apos;block&apos;; this.style.display=&apos;none&apos;" style="background:transparent; border:none; color:var(--accent-purple); font-size:0.7rem; cursor:pointer; padding:0; margin-top:0.3rem;">Show Answer</button>';
               
             container.appendChild(card);
           });

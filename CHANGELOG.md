@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.2.1] - 2026-04-01
+
+### Fixed
+- **Dashboard ES5 Compatibility** — Refactored all inline `<script>` code in the Mind Palace dashboard to strict ES5 syntax. Replaced `const`/`let`, arrow functions, optional chaining (`?.`), and template literals with ES5 equivalents (`var`, `function` expressions, manual null checks, string concatenation). Fixes `SyntaxError: Unexpected identifier 'block'` that prevented the dashboard from initializing in certain browser environments.
+- **Compatibility Rule Enforcement** — Added a mandatory ES5-only compatibility comment block at the top of the inline `<script>` tag to prevent future regressions.
+
+### Engineering
+- 510 tests across 28 suites (all passing)
+- TypeScript strict mode: zero errors
+
+---
+
 ## [6.2.0] - 2026-03-31
 
 ### Added
