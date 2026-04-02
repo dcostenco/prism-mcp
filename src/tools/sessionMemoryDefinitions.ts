@@ -982,7 +982,8 @@ export const SESSION_SAVE_EXPERIENCE_TOOL: Tool = {
     "- **correction**: Agent was corrected by user\n" +
     "- **success**: Task completed successfully\n" +
     "- **failure**: Task failed\n" +
-    "- **learning**: New knowledge acquired",
+    "- **learning**: New knowledge acquired\n" +
+    "- **validation_result**: Verification sandbox passed or failed",
   inputSchema: {
     type: "object",
     properties: {
@@ -992,7 +993,7 @@ export const SESSION_SAVE_EXPERIENCE_TOOL: Tool = {
       },
       event_type: {
         type: "string",
-        enum: ["correction", "success", "failure", "learning"],
+        enum: ["correction", "success", "failure", "learning", "validation_result"],
         description: "Type of behavioral event.",
       },
       context: {
@@ -1030,7 +1031,7 @@ export function isSessionSaveExperienceArgs(
   args: unknown
 ): args is {
   project: string;
-  event_type: "correction" | "success" | "failure" | "learning";
+  event_type: "correction" | "success" | "failure" | "learning" | "validation_result";
   context: string;
   action: string;
   outcome: string;
@@ -1046,7 +1047,8 @@ export function isSessionSaveExperienceArgs(
     (a.event_type !== "correction" &&
      a.event_type !== "success" &&
      a.event_type !== "failure" &&
-     a.event_type !== "learning")
+     a.event_type !== "learning" &&
+     a.event_type !== "validation_result")
   ) return false;
   if (typeof a.context !== "string") return false;
   if (typeof a.action !== "string") return false;

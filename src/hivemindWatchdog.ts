@@ -1,5 +1,5 @@
 /**
- * Hivemind Watchdog (v5.3) — Active Agent Health Monitoring
+ * Hivemind Watchdog (v7.2) — Active Agent Health Monitoring
  *
  * Server-side health monitor for multi-agent coordination.
  * Runs every WATCHDOG_INTERVAL_MS when PRISM_ENABLE_HIVEMIND=true.
@@ -23,8 +23,20 @@
  */
 
 import { getStorage } from "./storage/index.js";
-import { PRISM_USER_ID } from "./config.js";
+import {
+  PRISM_USER_ID,
+  PRISM_VERIFICATION_HARNESS_ENABLED,
+  PRISM_VERIFICATION_LAYERS,
+  PRISM_VERIFICATION_DEFAULT_SEVERITY
+} from "./config.js";
 import type { AgentRegistryEntry, AgentHealthStatus } from "./storage/interface.js";
+import * as fs from "fs";
+import * as path from "path";
+import { VerificationRunner } from "./verification/runner.js";
+import type { VerificationConfig } from "./verification/schema.js";
+import { TestSuiteSchema } from "./verification/schema.js";
+import { validateWithClaw } from "./verification/clawValidator.js";
+import { sessionSaveExperienceHandler } from "./tools/ledgerHandlers.js";
 
 // ─── Configuration ───────────────────────────────────────────
 
@@ -65,6 +77,12 @@ export interface WatchdogAlert {
  * Only one alert per agent per status is kept until drained.
  */
 const pendingAlerts: Map<string, WatchdogAlert> = new Map();
+
+/**
+ * Deduplicates concurrent verification jobs per agent.
+ * Key format: project:user_id:role
+ */
+const inFlightVerifications: Map<string, Promise<void>> = new Map();
 
 /**
  * Drain all pending alerts for a project.
@@ -168,7 +186,8 @@ export async function runWatchdogSweep(
     let newStatus: AgentHealthStatus | null = null;
 
     if (minutesSinceHeartbeat >= cfg.offlineThresholdMin) {
-      // OFFLINE → prune the agent
+      // OFFLINE → prune the agent and clean up assertion files
+      cleanupAssertionFiles(agent);
       try {
         await storage.deregisterAgent(agent.project, agent.user_id, agent.role);
         queueAlert(agent, "OFFLINE",
@@ -227,6 +246,185 @@ export async function runWatchdogSweep(
       }
     }
 
+    // ── State Transition: Verification Phase (v7.2.0 Enhanced) ──
+    // ARCHITECTURE: Verification is fire-and-forget. The sweep transitions the agent
+    // to 'verifying' synchronously and spawns a detached async closure. This prevents
+    // long-running Claw/Runner calls (10-70s) from blocking heartbeat checks for
+    // other agents.
+    
+    if (!newStatus && (currentStatus === "active" || currentStatus === "failed_validation")) {
+      // v7.2.0 FIX: Scope assertion file per project+role to prevent multi-agent collision
+      const scopedFile = path.join(
+        ".prism-mcp",
+        `test_assertions_${agent.project}_${agent.role}.json`
+      );
+      // Also check the legacy global path for backward compat
+      const legacyFile = "test_assertions.json";
+      const activeFile = fs.existsSync(scopedFile) ? scopedFile
+        : fs.existsSync(legacyFile) ? legacyFile
+        : null;
+
+      if (activeFile) {
+        const flightKey = `${agent.project}:${agent.user_id}:${agent.role}`;
+
+        // Skip if a verification is already in-flight for this agent
+        if (!inFlightVerifications.has(flightKey)) {
+          // Set verifying state synchronously (non-blocking for the sweep)
+          console.error(`[Watchdog] 🔬 Verifying agent "${agent.role}" on "${agent.project}"`);
+          newStatus = "verifying" as AgentHealthStatus;
+
+          // Capture values for the async closure
+          const capturedAgent = { ...agent };
+          const capturedFile = activeFile;
+          const capturedFailCount = agent.loop_count || 0;
+
+          // Spawn detached verification — does NOT block the sweep
+          const verificationJob = (async () => {
+            try {
+              const assertionsContent = fs.readFileSync(capturedFile, "utf8");
+              const innerStorage = await getStorage();
+
+              // v7.2.0: Build verification config from env vars
+              const vConfig: VerificationConfig = {
+                enabled: PRISM_VERIFICATION_HARNESS_ENABLED,
+                layers: PRISM_VERIFICATION_LAYERS,
+                default_severity: PRISM_VERIFICATION_DEFAULT_SEVERITY,
+              };
+
+              // v7.2.0: Claw-as-Validator adversarial pre-check (fail-open)
+              if (PRISM_VERIFICATION_HARNESS_ENABLED) {
+                try {
+                  const suite = TestSuiteSchema.parse(JSON.parse(assertionsContent));
+                  const clawResult = await validateWithClaw(
+                    {
+                      suite,
+                      project: capturedAgent.project,
+                      files_changed: [],
+                      change_summary: `Automated verification for ${capturedAgent.role}`,
+                    },
+                    async (prompt: string, cwd: string) => {
+                      // @ts-ignore: Optional runtime dependency; handled by .catch()
+                      const mod = await import("./tools/clawHandlers.js").catch(() => null);
+                      if (!mod?.clawRunTaskHandler) throw new Error("claw-agent not available");
+                      return mod.clawRunTaskHandler({ prompt, cwd });
+                    }
+                  );
+                  if (!clawResult.accepted) {
+                    console.error(`[Watchdog] ⚠️ Claw validator flagged ${clawResult.issues.length} issues`);
+                  }
+                } catch (clawErr) {
+                  console.error(`[Watchdog] Claw validator skipped: ${clawErr instanceof Error ? clawErr.message : String(clawErr)}`);
+                }
+              }
+
+              // v7.2.0: Use enhanced runner with layer filtering
+              const result = await VerificationRunner.runSuite(
+                assertionsContent,
+                PRISM_VERIFICATION_HARNESS_ENABLED
+                  ? { layers: PRISM_VERIFICATION_LAYERS, config: vConfig }
+                  : undefined
+              );
+
+              let resolvedStatus: AgentHealthStatus;
+              let resolvedLoopCount = capturedFailCount;
+
+              if (!result.passed) {
+                // Emit structured experience event
+                try {
+                  await sessionSaveExperienceHandler({
+                    project: capturedAgent.project,
+                    event_type: "validation_result",
+                    context: `Verification run for ${capturedAgent.role}`,
+                    action: "automated_verification",
+                    outcome: `${result.failed_count}/${result.total} failed — gate: ${result.severity_gate.action}`,
+                    role: capturedAgent.role,
+                    confidence_score: Math.round((result.passed_count / Math.max(result.total, 1)) * 100)
+                  });
+                } catch (err) {
+                  console.error(`[Watchdog] Error saving failure experience: ${err}`);
+                }
+
+                // Severity gate enforcement
+                if (PRISM_VERIFICATION_HARNESS_ENABLED && result.severity_gate.action === "abort") {
+                  resolvedStatus = "failed_validation";
+                  resolvedLoopCount = capturedFailCount + 1;
+                  queueAlert(capturedAgent, "FAILED_VALIDATION",
+                    `[ABORT] ${result.severity_gate.summary}`);
+                  console.error(`[Watchdog] 🛑 ABORT gate triggered for "${capturedAgent.role}" — ${result.severity_gate.summary}`);
+                } else if (PRISM_VERIFICATION_HARNESS_ENABLED && result.severity_gate.action === "block") {
+                  resolvedStatus = "failed_validation";
+                  resolvedLoopCount = capturedFailCount + 1;
+                  queueAlert(capturedAgent, "FAILED_VALIDATION",
+                    `[BLOCKED] ${result.severity_gate.summary}`);
+                  console.error(`[Watchdog] 🚫 Gate BLOCKED for "${capturedAgent.role}" — ${result.severity_gate.summary}`);
+                } else if (capturedFailCount >= 3) {
+                  resolvedStatus = "looping";
+                  // FIX: Clean up orphaned assertion file on LOOPING
+                  cleanupAssertionFiles(capturedAgent);
+                  queueAlert(capturedAgent, "LOOPING", `Validation failed ${capturedFailCount} times. Bailing out.`);
+                } else {
+                  resolvedStatus = "failed_validation";
+                  resolvedLoopCount = capturedFailCount + 1;
+                  const failSummary = result.assertion_results
+                    .filter(a => !a.passed && !a.skipped)
+                    .map(a => `[${a.layer}] ${a.description}: ${a.error}`)
+                    .join(" | ");
+                  queueAlert(capturedAgent, "FAILED_VALIDATION", `[Verification Failed] ${failSummary}`);
+                }
+              } else {
+                // Passed! Clean up assertion file
+                cleanupAssertionFiles(capturedAgent);
+                resolvedStatus = "active";
+                resolvedLoopCount = 0;
+                queueAlert(capturedAgent, "SUCCESS", "All test assertions passed successfully.");
+                console.error(`[Watchdog] ✅ Verification PASSED for "${capturedAgent.role}" on "${capturedAgent.project}"`);
+
+                try {
+                  await sessionSaveExperienceHandler({
+                    project: capturedAgent.project,
+                    event_type: "validation_result",
+                    context: `Verification run for ${capturedAgent.role}`,
+                    action: "automated_verification",
+                    outcome: `Passed all ${result.total} assertions (${result.duration_ms}ms)`,
+                    role: capturedAgent.role,
+                    confidence_score: 100
+                  });
+                } catch (err) {
+                  console.error(`[Watchdog] Error saving success experience: ${err}`);
+                }
+              }
+
+              // Persist final status
+              try {
+                await innerStorage.updateAgentStatus(
+                  capturedAgent.project, capturedAgent.user_id, capturedAgent.role, resolvedStatus,
+                  { loop_count: resolvedLoopCount }
+                );
+              } catch (err) {
+                console.error(`[Watchdog] Failed to update status after verification: ${err}`);
+              }
+            } catch (e: any) {
+              // Verification script error — mark as failed_validation
+              try {
+                const innerStorage = await getStorage();
+                await innerStorage.updateAgentStatus(
+                  capturedAgent.project, capturedAgent.user_id, capturedAgent.role, "failed_validation",
+                  { loop_count: capturedFailCount + 1 }
+                );
+              } catch { /* best-effort */ }
+              queueAlert(capturedAgent, "FAILED_VALIDATION", `[Verification Script Error] ${e.message}`);
+            } finally {
+              inFlightVerifications.delete(flightKey);
+            }
+          })();
+
+          inFlightVerifications.set(flightKey, verificationJob);
+        }
+      }
+    } else if (!newStatus && currentStatus === "verifying") {
+      // Agent is already verifying — don't re-trigger, just skip
+    }
+
     // ── State Transition: LOOPING confirmation ─────────────
     // Loop detection is primarily done in heartbeatAgent().
     // The watchdog just confirms and queues alerts for it.
@@ -238,6 +436,8 @@ export async function runWatchdogSweep(
       currentStatus !== "looping"
     ) {
       newStatus = "looping";
+      // FIX: Clean up orphaned assertion files on LOOPING
+      cleanupAssertionFiles(agent);
       queueAlert(agent, "LOOPING",
         `Same task repeated ${agent.loop_count} times — possible infinite loop.`);
       console.error(
@@ -251,7 +451,8 @@ export async function runWatchdogSweep(
     if (newStatus && newStatus !== currentStatus) {
       try {
         await storage.updateAgentStatus(
-          agent.project, agent.user_id, agent.role, newStatus
+          agent.project, agent.user_id, agent.role, newStatus,
+          { loop_count: agent.loop_count }
         );
       } catch (err) {
         console.error(`[Watchdog] Status update failed for ${agent.project}/${agent.role}: ${err instanceof Error ? err.message : String(err)}`);
@@ -284,4 +485,27 @@ function queueAlert(
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   return str.slice(0, maxLen - 3) + "...";
+}
+
+/**
+ * Clean up assertion files for an agent (scoped + legacy).
+ * Prevents orphaned files from triggering phantom verifications on restart.
+ */
+function cleanupAssertionFiles(agent: AgentRegistryEntry): void {
+  const scopedFile = path.join(
+    ".prism-mcp",
+    `test_assertions_${agent.project}_${agent.role}.json`
+  );
+  const legacyFile = "test_assertions.json";
+
+  for (const filePath of [scopedFile, legacyFile]) {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.error(`[Watchdog] 🧹 Cleaned up assertion file: ${filePath}`);
+      }
+    } catch (err) {
+      console.error(`[Watchdog] Failed to clean up ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 }
