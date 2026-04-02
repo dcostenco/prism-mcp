@@ -331,3 +331,21 @@ export const PRISM_ACTR_BUFFER_FLUSH_MS = parseInt(
 export const PRISM_ACTR_ACCESS_LOG_RETENTION_DAYS = parseInt(
   process.env.PRISM_ACTR_ACCESS_LOG_RETENTION_DAYS || "90", 10
 );
+
+// ─── v7.1: Task Router Configuration ─────────────────────────
+// Deterministic heuristic-based routing for delegating coding tasks
+// between the host cloud model and the local claw-code-agent.
+// Set PRISM_TASK_ROUTER_ENABLED=true to unlock the session_task_route tool.
+
+/** Master switch for the task router tool. */
+export const PRISM_TASK_ROUTER_ENABLED = process.env.PRISM_TASK_ROUTER_ENABLED === "true";
+
+/** Confidence threshold below which routing defaults to the host model. (Default: 0.6) */
+export const PRISM_TASK_ROUTER_CONFIDENCE_THRESHOLD = parseFloat(
+  process.env.PRISM_TASK_ROUTER_CONFIDENCE_THRESHOLD || "0.6"
+);
+
+/** Maximum complexity score (1-10) that Claw can handle. Tasks above this → host. (Default: 4) */
+export const PRISM_TASK_ROUTER_MAX_CLAW_COMPLEXITY = parseInt(
+  process.env.PRISM_TASK_ROUTER_MAX_CLAW_COMPLEXITY || "4", 10
+);
