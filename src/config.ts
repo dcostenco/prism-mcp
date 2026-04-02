@@ -365,3 +365,21 @@ export const PRISM_VERIFICATION_LAYERS = (
 export const PRISM_VERIFICATION_DEFAULT_SEVERITY =
   (process.env.PRISM_VERIFICATION_DEFAULT_SEVERITY || "warn") as "warn" | "gate" | "abort";
 
+// ─── v7.3: Dark Factory Orchestration ─────────────────────────
+// Autonomous pipeline runner: PLAN → EXECUTE → VERIFY → iterate.
+// Opt-in because it executes LLM calls in the background.
+
+/** Master switch for the Dark Factory background runner. */
+export const PRISM_DARK_FACTORY_ENABLED =
+  process.env.PRISM_DARK_FACTORY_ENABLED === "true"; // Opt-in
+
+/** Poll interval for the runner loop (ms). Default: 30s. */
+export const PRISM_DARK_FACTORY_POLL_MS = parseInt(
+  process.env.PRISM_DARK_FACTORY_POLL_MS || "30000", 10
+);
+
+/** Default max wall-clock time per pipeline (ms). Default: 15 minutes. */
+export const PRISM_DARK_FACTORY_MAX_RUNTIME_MS = parseInt(
+  process.env.PRISM_DARK_FACTORY_MAX_RUNTIME_MS || "900000", 10
+);
+

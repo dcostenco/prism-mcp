@@ -827,6 +827,17 @@ export interface StorageBackend {
    * @returns Number of rows pruned
    */
   pruneAccessLog(olderThanDays: number): Promise<number>;
+
+  // ─── Dark Factory (v7.3) ───────────────────────────────────
+
+  /** Save or update a pipeline state */
+  savePipeline(state: PipelineState): Promise<void>;
+  
+  /** Retrieve a pipeline by ID */
+  getPipeline(id: string, userId: string): Promise<PipelineState | null>;
+  
+  /** List pipelines, optionally filtered by project and status */
+  listPipelines(project: string | undefined, status: PipelineStatus | undefined, userId: string): Promise<PipelineState[]>;
 }
 
 // ─── v6.0: Memory Link Type ───────────────────────────────────
@@ -870,4 +881,22 @@ export interface AnalyticsData {
   avgSummaryLength: number;
   /** Session count per day for the last 14 days */
   sessionsByDay: Array<{ date: string; count: number }>;
+}
+
+// ─── v7.3: Dark Factory Pipeline ──────────────────────────────
+
+export type PipelineStatus = 'RUNNING' | 'PAUSED' | 'ABORTED' | 'COMPLETED' | 'FAILED';
+
+export interface PipelineState {
+  id: string;
+  project: string;
+  user_id: string;
+  status: PipelineStatus;
+  current_step: string;
+  iteration: number;
+  started_at: string;
+  updated_at: string;
+  spec: string; // JSON string of PipelineSpec
+  error?: string | null;
+  last_heartbeat?: string | null;
 }

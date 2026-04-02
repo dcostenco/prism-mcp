@@ -69,4 +69,6 @@ export type {
   ContextResult,
   KnowledgeSearchResult,
   SemanticSearchResult,
+  PipelineState,
+  PipelineStatus,
 } from "./interface.js";

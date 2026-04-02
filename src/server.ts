@@ -76,9 +76,11 @@ import {
   PRISM_SCHOLAR_ENABLED,
   PRISM_HDC_ENABLED,
   PRISM_TASK_ROUTER_ENABLED_ENV,
+  PRISM_DARK_FACTORY_ENABLED,
 } from "./config.js";
 import { startWatchdog, drainAlerts } from "./hivemindWatchdog.js";
 import { startScheduler, startScholarScheduler } from "./backgroundScheduler.js";
+import { startDarkFactoryRunner } from "./darkfactory/runner.js";
 import { getSyncBus } from "./sync/factory.js";
 import type { SyncBus, SyncEvent } from "./sync/index.js";
 import { startDashboardServer } from "./dashboard/server.js";
@@ -1286,6 +1288,18 @@ export async function startServer() {
       startScholarScheduler();
     }).catch(err => {
       console.error(`[WebScholar] Startup failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }
+
+  // ─── v7.3: Dark Factory Background Runner ────────────────
+  // Autonomous pipeline orchestration engine. Picks up RUNNING
+  // pipelines and advances them through PLAN → EXECUTE → VERIFY
+  // cycles. Non-blocking — uses setInterval to yield between ticks.
+  if (PRISM_DARK_FACTORY_ENABLED && SESSION_MEMORY_ENABLED) {
+    storageReady?.then(() => {
+      startDarkFactoryRunner();
+    }).catch(err => {
+      console.error(`[DarkFactory] Startup failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
     });
   }
 

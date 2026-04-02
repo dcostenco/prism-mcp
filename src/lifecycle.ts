@@ -166,7 +166,15 @@ export function registerShutdownHandlers() {
     log(`Shutting down gracefully (${reason})...`);
 
     try {
-      // 0. Await pending background tasks FIRST (max 5s timeout)
+      // 0. Stop the Dark Factory background runner first (prevents new DB writes)
+      try {
+        const { stopDarkFactoryRunner } = await import("./darkfactory/runner.js");
+        stopDarkFactoryRunner();
+      } catch {
+        // Runner may not be initialized — safe to ignore
+      }
+
+      // 0.5 Await pending background tasks (max 5s timeout)
       await BackgroundTaskRegistry.awaitAll(5000);
 
       // 0.5. Flush OTel span buffer FIRST — before any DBs are closed.

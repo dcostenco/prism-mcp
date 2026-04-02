@@ -38,6 +38,8 @@ import type {
   AgentRegistryEntry,      // v3.0: Agent Hivemind registry
   AnalyticsData,           // v3.1: Memory Analytics
   MemoryLink,              // v6.0: Associative Memory Graph
+  PipelineState,           // v7.3: Dark Factory Pipeline
+  PipelineStatus,          // v7.3: Dark Factory Pipeline
 } from "./interface.js";
 
 import { debugLog } from "../utils/logger.js";
@@ -639,6 +641,27 @@ export class SqliteStorage implements StorageBackend {
     await this.db.execute(
       `CREATE INDEX IF NOT EXISTS idx_access_log_time
        ON memory_access_log(accessed_at)`
+    );
+
+    // ─── v7.3 Migration: Dark Factory Pipelines ───────────────
+    await this.db.execute(`
+      CREATE TABLE IF NOT EXISTS dark_factory_pipelines (
+        id TEXT PRIMARY KEY,
+        project TEXT NOT NULL,
+        user_id TEXT NOT NULL DEFAULT 'default',
+        status TEXT NOT NULL,
+        current_step TEXT NOT NULL,
+        iteration INTEGER NOT NULL,
+        started_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        spec TEXT NOT NULL,
+        error TEXT,
+        last_heartbeat TEXT
+      )
+    `);
+    
+    await this.db.execute(
+      `CREATE INDEX IF NOT EXISTS idx_pipelines_status ON dark_factory_pipelines(user_id, project, status)`
     );
 
     // ─── v6.1 Migration: Integrity Check ──────────────────────
@@ -3225,6 +3248,79 @@ export class SqliteStorage implements StorageBackend {
     const pruned = result.rowsAffected;
     debugLog(`[SqliteStorage] pruneAccessLog: removed ${pruned} entries older than ${olderThanDays} days`);
     return pruned;
+  }
+
+  // ─── Dark Factory (v7.3) ───────────────────────────────────
+
+  async savePipeline(state: PipelineState): Promise<void> {
+    const now = new Date().toISOString();
+    const updatedState = { ...state, updated_at: now };
+
+    // Status Guard: prevent overwriting a terminated pipeline
+    const existing = await this.getPipeline(state.id, state.user_id);
+    if (existing) {
+      if (existing.status === 'ABORTED' || existing.status === 'COMPLETED') {
+        throw new Error(`Cannot update pipeline ${state.id} because it is already ${existing.status}.`);
+      }
+    }
+
+    await this.db.execute({
+      sql: `
+        INSERT INTO dark_factory_pipelines (id, project, user_id, status, current_step, iteration, started_at, updated_at, spec, error, last_heartbeat)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          status = excluded.status,
+          current_step = excluded.current_step,
+          iteration = excluded.iteration,
+          updated_at = excluded.updated_at,
+          spec = excluded.spec,
+          error = excluded.error,
+          last_heartbeat = excluded.last_heartbeat
+      `,
+      args: [
+        updatedState.id,
+        updatedState.project,
+        updatedState.user_id,
+        updatedState.status,
+        updatedState.current_step,
+        updatedState.iteration,
+        updatedState.started_at,
+        updatedState.updated_at,
+        updatedState.spec,
+        updatedState.error || null,
+        updatedState.last_heartbeat || null
+      ]
+    });
+  }
+
+  async getPipeline(id: string, userId: string): Promise<PipelineState | null> {
+    const result = await this.db.execute({
+      sql: `SELECT * FROM dark_factory_pipelines WHERE id = ? AND user_id = ?`,
+      args: [id, userId]
+    });
+    
+    if (result.rows.length === 0) return null;
+    return result.rows[0] as unknown as PipelineState;
+  }
+
+  async listPipelines(project: string | undefined, status: PipelineStatus | undefined, userId: string): Promise<PipelineState[]> {
+    const conditions: string[] = ['user_id = ?'];
+    const args: any[] = [userId];
+    
+    if (project) {
+      conditions.push('project = ?');
+      args.push(project);
+    }
+    if (status) {
+      conditions.push('status = ?');
+      args.push(status);
+    }
+    
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT * FROM dark_factory_pipelines ${where} ORDER BY updated_at DESC`;
+    
+    const result = await this.db.execute({ sql, args });
+    return result.rows as unknown as PipelineState[];
   }
 }
 

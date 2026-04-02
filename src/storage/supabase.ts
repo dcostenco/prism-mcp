@@ -36,6 +36,8 @@ import {
   AgentRegistryEntry,      // v3.0: Agent Hivemind registry
   AnalyticsData,           // v3.1: Memory Analytics
   MemoryLink,              // v6.0: Associative Memory Graph
+  PipelineState,           // v7.3: Dark Factory Pipeline
+  PipelineStatus,          // v7.3: Dark Factory Pipeline
 } from "./interface.js";
 
 import { debugLog } from "../utils/logger.js";
@@ -1452,9 +1454,6 @@ export class SupabaseStorage implements StorageBackend {
           return Number(first.prism_prune_access_log) || 0;
         }
       }
-      if (rpcResult && typeof (rpcResult as any).deleted_count !== "undefined") {
-        return Number((rpcResult as any).deleted_count) || 0;
-      }
       if (rpcResult && typeof (rpcResult as any).prism_prune_access_log !== "undefined") {
         return Number((rpcResult as any).prism_prune_access_log) || 0;
       }
@@ -1463,6 +1462,82 @@ export class SupabaseStorage implements StorageBackend {
     } catch (e: any) {
       debugLog(`[SupabaseStorage] pruneAccessLog fallback/no-op: ${e.message}`);
       return 0;
+    }
+  }
+
+  // ─── Dark Factory (v7.3) ───────────────────────────────────
+
+  async savePipeline(state: PipelineState): Promise<void> {
+    const now = new Date().toISOString();
+    const updatedState = { ...state, updated_at: now };
+
+    // Status Guard: prevent overwriting a terminated pipeline
+    const existing = await this.getPipeline(state.id, state.user_id);
+    if (existing) {
+      if (existing.status === 'ABORTED' || existing.status === 'COMPLETED') {
+        throw new Error(`Cannot update pipeline ${state.id} because it is already ${existing.status}.`);
+      }
+    }
+
+    try {
+      await supabasePost(
+        "dark_factory_pipelines",
+        {
+          id: updatedState.id,
+          project: updatedState.project,
+          user_id: updatedState.user_id,
+          status: updatedState.status,
+          current_step: updatedState.current_step,
+          iteration: updatedState.iteration,
+          started_at: updatedState.started_at,
+          updated_at: updatedState.updated_at,
+          spec: updatedState.spec,
+          error: updatedState.error || null,
+          last_heartbeat: updatedState.last_heartbeat || null
+        },
+        { on_conflict: "id" },
+        { Prefer: "return=minimal,resolution=merge-duplicates" }
+      );
+    } catch (e: any) {
+      // PGRST202 fallback if the table doesn't exist yet
+      if (e.message?.includes("PGRST202") || e.message?.includes("Could not find the relation")) {
+        debugLog("[SupabaseStorage] dark_factory_pipelines missing — please run migration 038");
+        return;
+      }
+      throw e;
+    }
+  }
+
+  async getPipeline(id: string, userId: string): Promise<PipelineState | null> {
+    try {
+      const result = await supabaseGet("dark_factory_pipelines", {
+        id: `eq.${id}`,
+        user_id: `eq.${userId}`,
+        limit: "1"
+      });
+      const rows = Array.isArray(result) ? result : [];
+      if (rows.length === 0) return null;
+      return rows[0] as unknown as PipelineState;
+    } catch (e: any) {
+      if (e.message?.includes("PGRST202") || e.message?.includes("Could not find the relation")) return null;
+      throw e;
+    }
+  }
+
+  async listPipelines(project: string | undefined, status: PipelineStatus | undefined, userId: string): Promise<PipelineState[]> {
+    try {
+      const query: Record<string, string> = {
+        user_id: `eq.${userId}`,
+        order: "updated_at.desc"
+      };
+      if (project) query.project = `eq.${project}`;
+      if (status) query.status = `eq.${status}`;
+      
+      const result = await supabaseGet("dark_factory_pipelines", query);
+      return (Array.isArray(result) ? result : []) as unknown as PipelineState[];
+    } catch (e: any) {
+      if (e.message?.includes("PGRST202") || e.message?.includes("Could not find the relation")) return [];
+      throw e;
     }
   }
 }
