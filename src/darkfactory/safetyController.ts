@@ -1,5 +1,5 @@
 import { PipelineState, PipelineStatus } from '../storage/interface.js';
-import { PipelineSpec, DarkFactoryStep } from './schema.js';
+import { PipelineSpec, DarkFactoryStep, ActionPayload, VALID_ACTION_TYPES } from './schema.js';
 import { PRISM_DARK_FACTORY_MAX_RUNTIME_MS } from '../config.js';
 import { debugLog } from '../utils/logger.js';
 import path from 'path';
@@ -28,6 +28,7 @@ export class SafetyController {
    * Any transition not listed here is rejected by validateTransition().
    */
   private static readonly LEGAL_TRANSITIONS: Record<PipelineStatus, PipelineStatus[]> = {
+    'PENDING': ['RUNNING', 'ABORTED'],  // Queued → Runner promotes or user aborts
     'RUNNING': ['PAUSED', 'ABORTED', 'COMPLETED', 'FAILED'],
     'PAUSED':  ['RUNNING', 'ABORTED'],
     'ABORTED': [],  // Terminal — no exits
@@ -73,6 +74,51 @@ export class SafetyController {
   }
 
   /**
+   * Batch-validate an array of ActionPayload objects against the pipeline spec.
+   *
+   * Checks:
+   *   1. Each action has a valid ActionType
+   *   2. Each action's targetPath is non-empty
+   *   3. Each action's targetPath resolves within workingDirectory (via isPathWithinScope)
+   *
+   * Returns the first violation message (string) if any action fails,
+   * or null if all actions are valid and in-scope.
+   *
+   * Used by runner.ts after parsing EXECUTE step output — any non-null return
+   * terminates the pipeline immediately (fail closed).
+   */
+  static validateActionsInScope(actions: ActionPayload[], spec: PipelineSpec): string | null {
+    if (!Array.isArray(actions) || actions.length === 0) {
+      return 'Actions array is empty or not an array';
+    }
+
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+
+      // Validate action type is in the restricted set
+      if (!action.type || !VALID_ACTION_TYPES.includes(action.type)) {
+        return `Action[${i}]: invalid type "${action.type}" (allowed: ${VALID_ACTION_TYPES.join(', ')})`;
+      }
+
+      // Validate targetPath is non-empty
+      if (!action.targetPath || typeof action.targetPath !== 'string' || action.targetPath.trim() === '') {
+        return `Action[${i}]: targetPath is empty or missing`;
+      }
+
+      // Resolve targetPath relative to workingDirectory for scope check
+      const resolvedTarget = spec.workingDirectory
+        ? path.resolve(spec.workingDirectory, action.targetPath)
+        : path.resolve(action.targetPath);
+
+      if (!SafetyController.isPathWithinScope(resolvedTarget, spec)) {
+        return `Action[${i}]: path "${action.targetPath}" resolves outside permitted scope`;
+      }
+    }
+
+    return null; // All actions valid and in-scope
+  }
+
+  /**
    * Determine whether a pipeline has timed out based on its recorded heartbeat.
    */
   static isHeartbeatLapsed(state: PipelineState, timeoutOverrideMs?: number): boolean {
@@ -94,6 +140,14 @@ export class SafetyController {
     const legal = SafetyController.LEGAL_TRANSITIONS[from];
     if (!legal) return false;
     return legal.includes(to);
+  }
+
+  /**
+   * Return the list of legal target statuses for a given source status.
+   * Used to build descriptive error messages in storage backends.
+   */
+  static getLegalTransitions(from: PipelineStatus): PipelineStatus[] {
+    return SafetyController.LEGAL_TRANSITIONS[from] ?? [];
   }
 
   /**

@@ -44,6 +44,7 @@ import { debugLog } from "../utils/logger.js";
 import { PRISM_USER_ID } from "../config.js";
 import { getSetting as cfgGet, setSetting as cfgSet, getAllSettings as cfgGetAll } from "./configStorage.js";
 import { runAutoMigrations } from "./supabaseMigrations.js";
+import { SafetyController } from "../darkfactory/safetyController.js";
 
 export class SupabaseStorage implements StorageBackend {
   // ─── Lifecycle ─────────────────────────────────────────────
@@ -1476,6 +1477,14 @@ export class SupabaseStorage implements StorageBackend {
     if (existing) {
       if (existing.status === 'ABORTED' || existing.status === 'COMPLETED') {
         throw new Error(`Cannot update pipeline ${state.id} because it is already ${existing.status}.`);
+      }
+      // Validate state machine transition
+      if (!SafetyController.validateTransition(existing.status as PipelineStatus, updatedState.status as PipelineStatus)) {
+        throw new Error(
+          `Illegal pipeline transition: ${existing.status} → ${updatedState.status} ` +
+          `for pipeline ${state.id}. Legal transitions from ${existing.status}: ` +
+          `${SafetyController.getLegalTransitions(existing.status as PipelineStatus).join(', ') || 'NONE (terminal)'}.`
+        );
       }
     }
 

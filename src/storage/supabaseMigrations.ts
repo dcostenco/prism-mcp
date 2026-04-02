@@ -733,6 +733,58 @@ export const MIGRATIONS: Migration[] = [
       GRANT EXECUTE ON FUNCTION public.prism_seed_access_log_on_ledger_insert() TO service_role, authenticated;
     `
   },
+  {
+    // ─── v7.3: Dark Factory Pipelines ─────────────────────────────
+    //
+    // Creates the dark_factory_pipelines table for autonomous Plan-Execute-Verify
+    // pipeline orchestration. Includes status CHECK constraint for the canonical set.
+    //
+    // EXISTING DEPLOYMENT GUARD: If the table already exists (e.g., from running
+    // 038_dark_factory_pipelines.sql directly), CREATE TABLE IF NOT EXISTS is a no-op.
+    // We then ALTER TABLE to add the CHECK constraint for existing deployments.
+    version: 38,
+    name: "dark_factory_pipelines",
+    sql: `
+      -- Create the table if fresh install
+      CREATE TABLE IF NOT EXISTS public.dark_factory_pipelines (
+        id TEXT PRIMARY KEY,
+        project TEXT NOT NULL,
+        user_id TEXT NOT NULL DEFAULT 'default',
+        status TEXT NOT NULL,
+        current_step TEXT NOT NULL,
+        iteration INTEGER NOT NULL,
+        started_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL,
+        spec TEXT NOT NULL,
+        error TEXT,
+        last_heartbeat TIMESTAMPTZ
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_pipelines_status
+        ON public.dark_factory_pipelines(user_id, project, status);
+
+      ALTER TABLE public.dark_factory_pipelines ENABLE ROW LEVEL SECURITY;
+
+      -- Idempotent policy creation
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies WHERE tablename = 'dark_factory_pipelines' AND policyname = 'allow_all_dark_factory'
+        ) THEN
+          CREATE POLICY allow_all_dark_factory
+            ON public.dark_factory_pipelines AS PERMISSIVE FOR ALL USING (true);
+        END IF;
+      END $$;
+
+      -- Retrofit CHECK constraint for existing deployments.
+      -- DROP first (idempotent) then ADD — covers both fresh and upgraded tables.
+      ALTER TABLE public.dark_factory_pipelines
+        DROP CONSTRAINT IF EXISTS chk_pipeline_status;
+      ALTER TABLE public.dark_factory_pipelines
+        ADD CONSTRAINT chk_pipeline_status
+        CHECK (status IN ('PENDING', 'RUNNING', 'PAUSED', 'ABORTED', 'COMPLETED', 'FAILED'));
+    `
+  },
 
 ];
 

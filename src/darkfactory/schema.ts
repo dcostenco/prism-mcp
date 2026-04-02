@@ -31,3 +31,46 @@ export interface IterationResult {
   success: boolean;
   notes?: string;
 }
+
+// ─── v7.3.1: Structured Action Contract ────────────────────────
+
+/**
+ * Restricted set of side-effecting operations allowed in EXECUTE steps.
+ * Anything not in this union is rejected at parse-time — fail closed.
+ */
+export type ActionType = 'READ_FILE' | 'WRITE_FILE' | 'PATCH_FILE' | 'RUN_TEST';
+
+/** All valid action type strings for runtime validation */
+export const VALID_ACTION_TYPES: readonly ActionType[] = [
+  'READ_FILE', 'WRITE_FILE', 'PATCH_FILE', 'RUN_TEST'
+] as const;
+
+/**
+ * The machine-validated payload for a single EXECUTE action.
+ *
+ * Every action MUST have a `type` and `targetPath`. The remaining
+ * fields are action-specific:
+ *   - WRITE_FILE:  requires `content`
+ *   - PATCH_FILE:  requires `patch`
+ *   - RUN_TEST:    requires `command`
+ *   - READ_FILE:   targetPath only
+ */
+export interface ActionPayload {
+  type: ActionType;
+  targetPath: string;
+  content?: string;
+  patch?: string;
+  command?: string;
+}
+
+/**
+ * The expected shape of ALL EXECUTE step LLM output.
+ *
+ * The runner parses the raw LLM text as JSON, then validates this shape.
+ * If parsing fails OR actions contains out-of-scope paths, the pipeline
+ * is terminated — fail closed, never fail open.
+ */
+export interface ExecutionStepResult {
+  actions: ActionPayload[];
+  notes?: string;
+}

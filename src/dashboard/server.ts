@@ -823,7 +823,14 @@ return false;}
             return res.end(JSON.stringify({ error: "Storage initializing..." }));
           }
 
-          const statusFilter = (url.searchParams.get("status") || undefined) as import("../storage/interface.js").PipelineState["status"] | undefined;
+          // Validate status filter against canonical set
+          var rawStatus = url.searchParams.get("status") || undefined;
+          var VALID_STATUSES = ['PENDING', 'RUNNING', 'PAUSED', 'ABORTED', 'COMPLETED', 'FAILED'];
+          if (rawStatus && VALID_STATUSES.indexOf(rawStatus) === -1) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            return res.end(JSON.stringify({ error: 'Invalid status filter: "' + rawStatus + '". Valid: ' + VALID_STATUSES.join(', ') }));
+          }
+          var statusFilter = rawStatus as import("../storage/interface.js").PipelineState["status"] | undefined;
           const projectFilter = url.searchParams.get("project") || undefined;
 
           const pipelines = await s.listPipelines(projectFilter, statusFilter, PRISM_USER_ID);

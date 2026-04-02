@@ -20,11 +20,14 @@
 
 import { getStorage } from '../storage/index.js';
 import type { PipelineState, PipelineStatus } from '../storage/interface.js';
-import type { PipelineSpec, DarkFactoryStep, IterationResult } from './schema.js';
+import type { PipelineSpec, DarkFactoryStep, IterationResult, ExecutionStepResult, ActionPayload } from './schema.js';
+import { VALID_ACTION_TYPES } from './schema.js';
 import { SafetyController } from './safetyController.js';
 import { invokeClawAgent } from './clawInvocation.js';
-import { PRISM_DARK_FACTORY_POLL_MS, PRISM_USER_ID } from '../config.js';
+import { PRISM_DARK_FACTORY_POLL_MS, PRISM_DARK_FACTORY_MAX_RUNTIME_MS, PRISM_USER_ID } from '../config.js';
 import { debugLog } from '../utils/logger.js';
+import path from 'path';
+import fs from 'fs';
 
 /** Interval handle for graceful shutdown */
 let runnerInterval: ReturnType<typeof setInterval> | null = null;
@@ -183,16 +186,116 @@ async function emitExperienceEvent(
   }
 }
 
+// ─── EXECUTE Output Parsing ────────────────────────────────────
+
+/**
+ * Defensively parse raw LLM output into an ExecutionStepResult.
+ *
+ * The LLM is instructed to return pure JSON, but in practice may:
+ *   - Wrap JSON in markdown code fences (```json ... ```)
+ *   - Include preamble text before the JSON ("Here's my output:\n{...}")
+ *   - Include trailing commentary after the JSON
+ *
+ * Extraction strategy (ordered from most to least precise):
+ *   1. Try raw input as-is (pure JSON)
+ *   2. Strip markdown code fences and try the inner content
+ *   3. Extract first { ... last } and try as JSON (brace extraction)
+ *   4. Give up — return parse error
+ *
+ * After successful JSON parse, validates shape:
+ *   - Root must be an object with `actions` array
+ *   - Each action must have a valid ActionType and non-empty targetPath
+ *
+ * Returns { parsed, error } — exactly one will be non-null.
+ *
+ * @internal Exported for unit testing only. Not part of the public API.
+ */
+export function parseExecuteOutput(raw: string): { parsed: ExecutionStepResult | null; error: string | null } {
+  if (!raw || typeof raw !== 'string' || raw.trim() === '') {
+    return { parsed: null, error: 'JSON Parse Error: empty or non-string input' };
+  }
+
+  const cleaned = raw.trim();
+  let jsonCandidate: string | null = null;
+
+  // Strategy 1: Try raw trimmed input as-is
+  if (cleaned.startsWith('{')) {
+    jsonCandidate = cleaned;
+  }
+
+  // Strategy 2: Strip markdown code fences
+  if (!jsonCandidate) {
+    // Match ```json or ``` blocks anywhere in the text (not just start/end of string)
+    const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (fenceMatch) {
+      jsonCandidate = fenceMatch[1].trim();
+    }
+  }
+
+  // Strategy 3: Brace extraction — find first { to last }
+  if (!jsonCandidate) {
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      jsonCandidate = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+  }
+
+  if (!jsonCandidate) {
+    return { parsed: null, error: 'JSON Parse Error: no JSON object found in LLM output' };
+  }
+
+  // Attempt JSON parse
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonCandidate);
+  } catch {
+    return { parsed: null, error: 'JSON Parse Error: LLM output is not valid JSON' };
+  }
+
+  // Shape validation: must be an object with an 'actions' array
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { parsed: null, error: 'Shape Error: output is not a JSON object' };
+  }
+
+  if (!Array.isArray((parsed as any).actions)) {
+    return { parsed: null, error: 'Shape Error: output missing required "actions" array' };
+  }
+
+  const result = parsed as ExecutionStepResult;
+
+  // Validate each action in the array
+  for (let i = 0; i < result.actions.length; i++) {
+    const action = result.actions[i];
+    if (!action || typeof action !== 'object' || Array.isArray(action)) {
+      return { parsed: null, error: `Shape Error: actions[${i}] is not an object` };
+    }
+    if (!action.type || !VALID_ACTION_TYPES.includes(action.type as any)) {
+      return { parsed: null, error: `Shape Error: actions[${i}].type "${action.type}" is not a valid ActionType` };
+    }
+    if (!action.targetPath || typeof action.targetPath !== 'string' || action.targetPath.trim() === '') {
+      return { parsed: null, error: `Shape Error: actions[${i}].targetPath is empty or missing` };
+    }
+  }
+
+  return { parsed: result, error: null };
+}
+
 // ─── Step Execution ────────────────────────────────────────────
 
 /**
  * Execute a single step of the pipeline.
  * Returns an IterationResult with success/failure status.
+ *
+ * v7.3.1: EXECUTE steps are parsed as structured JSON. Malformed output
+ * or out-of-scope actions cause immediate step failure (fail closed).
+ * The `scopeViolation` field on the result signals the runner to
+ * terminate the entire pipeline (not just the step).
  */
 async function executeStep(
   pipeline: PipelineState,
   spec: PipelineSpec
-): Promise<IterationResult> {
+): Promise<IterationResult & { scopeViolation?: string }> {
   const stepStart = new Date().toISOString();
   const step = pipeline.current_step as DarkFactoryStep;
 
@@ -208,13 +311,82 @@ async function executeStep(
     // - Timeout enforcement
     const { success, resultText } = await invokeClawAgent(spec, pipeline);
 
+    // For non-EXECUTE steps, return as-is (free-form text)
+    if (step !== 'EXECUTE') {
+      return {
+        iteration: pipeline.iteration,
+        step,
+        started_at: stepStart,
+        completed_at: new Date().toISOString(),
+        success,
+        notes: resultText.slice(0, 2000),
+      };
+    }
+
+    // ── v7.3.1: EXECUTE step — parse and validate structured output ──
+
+    if (!success) {
+      // LLM invocation itself failed (timeout, error, etc.)
+      return {
+        iteration: pipeline.iteration,
+        step,
+        started_at: stepStart,
+        completed_at: new Date().toISOString(),
+        success: false,
+        notes: `LLM invocation failed: ${resultText.slice(0, 500)}`,
+      };
+    }
+
+    // Parse the structured JSON output
+    const { parsed, error: parseError } = parseExecuteOutput(resultText);
+
+    if (parseError || !parsed) {
+      debugLog(`[DarkFactory] EXECUTE output parse failure: ${parseError}`);
+      return {
+        iteration: pipeline.iteration,
+        step,
+        started_at: stepStart,
+        completed_at: new Date().toISOString(),
+        success: false,
+        notes: parseError || 'Unknown parse error',
+      };
+    }
+
+    // Empty actions array is valid (LLM decided nothing needs doing)
+    if (parsed.actions.length === 0) {
+      return {
+        iteration: pipeline.iteration,
+        step,
+        started_at: stepStart,
+        completed_at: new Date().toISOString(),
+        success: true,
+        notes: parsed.notes || 'No actions taken',
+      };
+    }
+
+    // Validate ALL actions are within scope BEFORE any execution
+    const scopeError = SafetyController.validateActionsInScope(parsed.actions, spec);
+    if (scopeError) {
+      debugLog(`[DarkFactory] EXECUTE scope violation: ${scopeError}`);
+      return {
+        iteration: pipeline.iteration,
+        step,
+        started_at: stepStart,
+        completed_at: new Date().toISOString(),
+        success: false,
+        notes: `Scope Violation: ${scopeError}`,
+        scopeViolation: scopeError,
+      };
+    }
+
+    // All actions validated — return success with structured notes
     return {
       iteration: pipeline.iteration,
       step,
       started_at: stepStart,
       completed_at: new Date().toISOString(),
-      success,
-      notes: resultText.slice(0, 2000), // Cap notes to prevent DB bloat
+      success: true,
+      notes: parsed.notes || `Executed ${parsed.actions.length} action(s) successfully`,
     };
   } finally {
     stopHeartbeat();
@@ -243,8 +415,20 @@ async function runnerTick(): Promise<void> {
     // Phase 1: Zombie sweep (cheap — just DB reads)
     await sweepZombies();
 
-    // Phase 2: Find a RUNNING pipeline to advance
+    // Phase 2: Promote PENDING → RUNNING, then find a RUNNING pipeline to advance
     const storage = await getStorage();
+
+    // Pick up PENDING pipelines and promote to RUNNING (queue → active)
+    const pending = await storage.listPipelines(undefined, 'PENDING', PRISM_USER_ID);
+    if (pending.length > 0) {
+      // Promote oldest PENDING pipeline (FIFO)
+      const toPromote = pending.sort(
+        (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
+      )[0];
+      debugLog(`[DarkFactory] Promoting PENDING pipeline ${toPromote.id} → RUNNING`);
+      await storage.savePipeline({ ...toPromote, status: 'RUNNING' });
+    }
+
     const running = await storage.listPipelines(undefined, 'RUNNING', PRISM_USER_ID);
 
     if (running.length === 0) {
@@ -285,7 +469,7 @@ async function runnerTick(): Promise<void> {
         await storage.savePipeline({
           ...pipeline,
           status: 'FAILED',
-          error: `Pipeline exceeded maximum runtime (${PRISM_DARK_FACTORY_POLL_MS}ms). Aborted by safety controller.`,
+          error: `Pipeline exceeded maximum runtime (${PRISM_DARK_FACTORY_MAX_RUNTIME_MS}ms). Aborted by safety controller.`,
         });
       } catch {
         // Status guard — already terminated
@@ -293,6 +477,41 @@ async function runnerTick(): Promise<void> {
 
       await emitExperienceEvent(pipeline, 'failure', 'Exceeded maximum runtime.');
       return;
+    }
+
+    // Safety check: runtime path-scope enforcement
+    // Validates that the working directory exists and is a real path.
+    // isPathWithinScope() is called later during actual file operations,
+    // but we gate-check the workspace root here to fail fast.
+    if (spec.workingDirectory) {
+      const resolvedDir = path.resolve(spec.workingDirectory);
+      if (!fs.existsSync(resolvedDir)) {
+        debugLog(`[DarkFactory] Pipeline ${pipeline.id} working directory does not exist: ${spec.workingDirectory}`);
+        try {
+          await storage.savePipeline({
+            ...pipeline,
+            status: 'FAILED',
+            error: `Working directory does not exist: ${spec.workingDirectory}`,
+          });
+        } catch { /* Status guard */ }
+        await emitExperienceEvent(pipeline, 'failure', `Working directory not found: ${spec.workingDirectory}`);
+        return;
+      }
+
+      // Verify path scope — prevents path traversal attacks where
+      // a crafted spec.workingDirectory escapes the intended scope.
+      if (!SafetyController.isPathWithinScope(resolvedDir, spec)) {
+        debugLog(`[DarkFactory] Pipeline ${pipeline.id} working directory out of scope: ${spec.workingDirectory}`);
+        try {
+          await storage.savePipeline({
+            ...pipeline,
+            status: 'FAILED',
+            error: `Working directory out of permitted scope: ${spec.workingDirectory}`,
+          });
+        } catch { /* Status guard */ }
+        await emitExperienceEvent(pipeline, 'failure', `Path scope violation: ${spec.workingDirectory}`);
+        return;
+      }
     }
 
     // Safety check: iteration limit exceeded?
@@ -315,6 +534,22 @@ async function runnerTick(): Promise<void> {
 
     // Execute the current step
     const result = await executeStep(pipeline, spec);
+
+    // v7.3.1: Scope violation in EXECUTE step → immediate pipeline termination
+    if ('scopeViolation' in result && result.scopeViolation) {
+      debugLog(`[DarkFactory] Pipeline ${pipeline.id} terminated: scope violation in EXECUTE step.`);
+
+      try {
+        await storage.savePipeline({
+          ...pipeline,
+          status: 'FAILED',
+          error: `Scope violation during EXECUTE: ${result.scopeViolation}`,
+        });
+      } catch { /* Status guard */ }
+
+      await emitExperienceEvent(pipeline, 'failure', `Scope violation: ${result.scopeViolation}`);
+      return;
+    }
 
     // Determine next step based on result
     const currentStep = pipeline.current_step as DarkFactoryStep;

@@ -885,7 +885,7 @@ export interface AnalyticsData {
 
 // ─── v7.3: Dark Factory Pipeline ──────────────────────────────
 
-export type PipelineStatus = 'RUNNING' | 'PAUSED' | 'ABORTED' | 'COMPLETED' | 'FAILED';
+export type PipelineStatus = 'PENDING' | 'RUNNING' | 'PAUSED' | 'ABORTED' | 'COMPLETED' | 'FAILED';
 
 export interface PipelineState {
   id: string;

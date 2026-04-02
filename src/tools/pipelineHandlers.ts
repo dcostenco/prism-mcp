@@ -41,7 +41,9 @@ export async function sessionStartPipelineHandler(args: unknown) {
   // Resolve working directory: explicit arg > dashboard repo_path > reject
   let resolvedWorkDir = working_directory;
   if (!resolvedWorkDir) {
-    resolvedWorkDir = getSettingSync("repo_path", "");
+    // Project-scoped key first (dashboard stores "repo_path:<project>"),
+    // then fall back to global "repo_path"
+    resolvedWorkDir = getSettingSync(`repo_path:${project}`, "") || getSettingSync("repo_path", "");
     if (!resolvedWorkDir) {
       return {
         content: [{ type: "text" as const, text: "❌ No working_directory provided and no repo_path configured for this project. Either pass working_directory or configure repo_path in the dashboard." }],
@@ -65,7 +67,7 @@ export async function sessionStartPipelineHandler(args: unknown) {
     id: pipelineId,
     project,
     user_id: PRISM_USER_ID,
-    status: 'RUNNING',
+    status: 'PENDING',
     current_step: 'INIT',
     iteration: 0,
     spec: JSON.stringify(spec),
@@ -92,7 +94,7 @@ export async function sessionStartPipelineHandler(args: unknown) {
           `**Objective:** ${objective.slice(0, 200)}`,
           `**Working Directory:** ${resolvedWorkDir}`,
           `**Max Iterations:** ${spec.maxIterations}`,
-          `**Status:** RUNNING`,
+          `**Status:** PENDING (queued for runner pickup)`,
           ``,
           `The pipeline is now executing autonomously in the background.`,
           `Use \`session_check_pipeline_status\` with the pipeline ID to poll for results.`,
@@ -156,7 +158,8 @@ export async function sessionCheckPipelineStatusHandler(args: unknown) {
     const emoji = pipeline.status === 'COMPLETED' ? '✅' :
                   pipeline.status === 'FAILED' ? '❌' :
                   pipeline.status === 'ABORTED' ? '🛑' :
-                  pipeline.status === 'RUNNING' ? '⏳' : '📋';
+                  pipeline.status === 'RUNNING' ? '⏳' :
+                  pipeline.status === 'PENDING' ? '⏸' : '📋';
 
     const lines = [
       `${emoji} **Pipeline Status: ${pipeline.status}**`,

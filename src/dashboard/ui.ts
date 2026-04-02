@@ -943,6 +943,7 @@ export function renderDashboardHTML(version: string): string {
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
           <select id="factoryStatusFilter" class="input-modern" style="font-size:0.75rem;padding:0.3rem 0.5rem" onchange="loadPipelines()">
             <option value="">All Statuses</option>
+            <option value="PENDING">⏸ Pending</option>
             <option value="RUNNING">⏳ Running</option>
             <option value="COMPLETED">✅ Completed</option>
             <option value="FAILED">❌ Failed</option>
@@ -1413,9 +1414,9 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
           var html = '<div style="display:flex;flex-direction:column;gap:0.5rem">';
           for (var i = 0; i < pipelines.length; i++) {
             var p = pipelines[i];
-            var emoji = p.status === 'COMPLETED' ? '✅' : p.status === 'FAILED' ? '❌' : p.status === 'ABORTED' ? '🛑' : p.status === 'RUNNING' ? '⏳' : '📋';
-            var statusColor = p.status === 'COMPLETED' ? 'var(--accent-green)' : p.status === 'FAILED' ? 'var(--accent-rose)' : p.status === 'ABORTED' ? 'var(--accent-amber)' : p.status === 'RUNNING' ? 'var(--accent-purple)' : 'var(--text-muted)';
-            var isActive = p.status === 'RUNNING';
+            var emoji = p.status === 'COMPLETED' ? '✅' : p.status === 'FAILED' ? '❌' : p.status === 'ABORTED' ? '🛑' : p.status === 'RUNNING' ? '⏳' : p.status === 'PENDING' ? '⏸' : '📋';
+            var statusColor = p.status === 'COMPLETED' ? 'var(--accent-green)' : p.status === 'FAILED' ? 'var(--accent-rose)' : p.status === 'ABORTED' ? 'var(--accent-amber)' : p.status === 'RUNNING' ? 'var(--accent-purple)' : p.status === 'PENDING' ? 'var(--accent-blue, #3b82f6)' : 'var(--text-muted)';
+            var isActive = p.status === 'RUNNING' || p.status === 'PENDING';
             var objective = (p.parsedSpec && p.parsedSpec.objective) ? p.parsedSpec.objective : '(unknown)';
             if (objective.length > 120) objective = objective.slice(0, 120) + '…';
             var maxIter = (p.parsedSpec && p.parsedSpec.maxIterations) ? p.parsedSpec.maxIterations : '?';
@@ -1444,9 +1445,9 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
           list.innerHTML = html;
 
           // Auto-poll if any pipeline is running
-          var hasRunning = pipelines.some(function(p) { return p.status === 'RUNNING'; });
+          var hasActive = pipelines.some(function(p) { return p.status === 'RUNNING' || p.status === 'PENDING'; });
           clearInterval(factoryPollTimer);
-          if (hasRunning) {
+          if (hasActive) {
             factoryPollTimer = setInterval(function() {
               if (document.getElementById('factory-content').style.display !== 'none') loadPipelines();
               else clearInterval(factoryPollTimer);

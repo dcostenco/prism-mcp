@@ -28,7 +28,8 @@ Works with **Claude Desktop · Claude Code · Cursor · Windsurf · Cline · Gem
 - [What Makes Prism Different](#-what-makes-prism-different)
 - [Use Cases](#-use-cases)
 - [What's New](#-whats-new)
-  - [v7.2 Executive Function (Roadmap)](#v720--the-executive-function-update-)
+  - [v7.3.1 Dark Factory (Fail-Closed Execution)](#v731--dark-factory-fail-closed-execution-)
+  - [v7.2.0 The "Executive Function" Update (Planned)](#v720--the-executive-function-update-)
 - [How Prism Compares](#-how-prism-compares)
 - [Tool Reference](#-tool-reference)
 - [Environment Variables](#environment-variables)
@@ -440,6 +441,68 @@ Then continue a specific thread with a follow-up message to the selected agent, 
 
 ## 🆕 What's New
 
+### v7.3.1 — Dark Factory (Fail-Closed Execution) 🏭
+> **Current stable release.** Hardened autonomous pipeline execution with a structured JSON action contract.
+
+When an AI agent executes code autonomously — no human watching, no approval step — a single hallucinated file path can write outside your project, corrupt sibling repos, or hit system files. This is the "dark factory" problem: **lights-out execution demands machine-enforced safety, not LLM good behavior.**
+
+> *"I started building testing harnesses with programmatic checks in the planning phase across 3 layers. I got this idea when I was doing a complex ETL process across 3 databases and I needed to stack 9's on data accuracy, but also across the agent layer. After a considerable amount of hair pulling, I started to front load. It's now part of my lifecycle harness that my dark factory uses by default."*
+> — [Stephen Driggs](https://linkedin.com/in/stephendriggs), VP Product AI at Shift4
+
+Prism v7.3.1 implements exactly this: a **3-gate fail-closed pipeline** where every `EXECUTE` step must pass parse, type, and scope validation before any filesystem side effect occurs.
+
+- 🔒 **Structured Action Contract** — `EXECUTE` steps must return machine-parseable JSON conforming to `{ actions: [{ type, targetPath, content? }] }`. Free-form text is rejected at the gate.
+- 🛡️ **3-Strategy Defensive Parser** — Raw JSON → fenced code block extraction → brace extraction. Handles adversarial LLM output (preamble text, markdown fences, trailing commentary) without ever executing malformed payloads.
+- ✅ **Type Validation** — Only `READ_FILE | WRITE_FILE | PATCH_FILE | RUN_TEST` are permitted. Novel action types invented by the LLM are rejected.
+- 📏 **Scope Validation** — Every `targetPath` is resolved against the pipeline's `workingDirectory` via `SafetyController.validateActionsInScope()`. Path traversal (`../`), sibling-prefix bypasses, and absolute paths outside the boundary are blocked.
+- 🚫 **Pipeline-Level Termination** — A scope violation doesn't just fail the step — it **terminates the entire pipeline** with `status: FAILED` and emits a `failure` experience event for the ML routing layer.
+
+<details>
+<summary><strong>🔬 The 3-Gate Architecture: How a Path Traversal Attack Fails</strong></summary>
+
+**Scenario:** An LLM running autonomously in a Dark Factory pipeline targeting `/home/user/my-app` produces this output for an EXECUTE step:
+
+```json
+{
+  "actions": [
+    { "type": "WRITE_FILE", "targetPath": "src/utils.ts", "content": "// valid" },
+    { "type": "WRITE_FILE", "targetPath": "../../.ssh/authorized_keys", "content": "ssh-rsa ATTACK..." }
+  ]
+}
+```
+
+**Gate 1 — Parse:** ✅ Valid JSON. The 3-strategy parser extracts it cleanly.
+
+**Gate 2 — Type:** ✅ Both actions use `WRITE_FILE`, a valid `ActionType`.
+
+**Gate 3 — Scope:** 🚫 **BLOCKED.** `SafetyController.validateActionsInScope()` resolves `../../.ssh/authorized_keys` to `/home/user/.ssh/authorized_keys` — which is **outside** `/home/user/my-app`. The violation is detected *before* any write occurs.
+
+**Result:** The entire pipeline is terminated immediately. No files are written — not even the valid `src/utils.ts`. A `failure` experience event is emitted so the ML router can learn to avoid this pattern.
+
+```
+ Pipeline FAILED: Scope violation — action[1] targetPath
+ "../../.ssh/authorized_keys" resolves outside workingDirectory
+```
+
+**Without v7.3.1:** The LLM's raw text output would be interpreted as instructions, and the agent runtime would attempt the write — potentially succeeding depending on filesystem permissions.
+
+**With v7.3.1:** The structured contract makes this class of attack impossible. The LLM never touches the filesystem directly; every action is validated through the 3-gate pipeline first.
+
+</details>
+
+<details>
+<summary><strong>🧪 Edge Cases Covered (67 tests)</strong></summary>
+
+| Category | Examples |
+|----------|----------|
+| **Parse adversarial output** | Prose preamble + JSON, nested fences, empty input, non-string input |
+| **Type coercion** | `"DELETE_FILE"`, `"EXEC_CMD"`, numeric types, null types |
+| **Path traversal** | `../`, `../../`, `/etc/passwd`, null bytes, unicode normalization, embedded newlines |
+| **Shape validation** | Missing `actions` array, non-object actions, empty `targetPath`, root-type coercion |
+| **Stress payloads** | 100-action arrays, 100KB content strings, 500-segment deep paths |
+
+</details>
+
 ### v7.2.0 — The "Executive Function" Update 🔭
 > **Planned roadmap release.** Extends Prism from persistent memory toward autonomous plan execution.
 
@@ -739,6 +802,19 @@ Requires `PRISM_TASK_ROUTER_ENABLED=true` (or dashboard toggle).
 </details>
 
 <details>
+<summary><strong>Dark Factory Orchestration (3 tools)</strong></summary>
+
+Requires `PRISM_DARK_FACTORY_ENABLED=true`.
+
+| Tool | Purpose |
+|------|---------|
+| `session_start_pipeline` | Create and enqueue a background autonomous pipeline |
+| `session_check_pipeline_status` | Poll the current step, iteration, and status of a pipeline |
+| `session_abort_pipeline` | Emergency kill switch to halt a running background pipeline |
+
+</details>
+
+<details>
 <summary><strong>Executive Planning (Planned for v7.2)</strong></summary>
 
 | Tool | Purpose |
@@ -797,6 +873,7 @@ Requires `PRISM_TASK_ROUTER_ENABLED=true` (or dashboard toggle).
 | `PRISM_ACTR_WEIGHT_SIMILARITY` | No | Composite score similarity weight (default: `0.7`) |
 | `PRISM_ACTR_WEIGHT_ACTIVATION` | No | Composite score ACT-R activation weight (default: `0.3`) |
 | `PRISM_ACTR_ACCESS_LOG_RETENTION_DAYS` | No | Days before access logs are pruned by background scheduler (default: `90`) |
+| `PRISM_DARK_FACTORY_ENABLED` | No | `"true"` to enable Dark Factory autonomous pipeline tools (`session_start_pipeline`, `session_check_pipeline_status`, `session_abort_pipeline`) |
 
 </details>
 
@@ -827,6 +904,7 @@ Prism is a **stdio-based MCP server** that manages persistent agent memory. Here
 │         ↕                                                │
 │  ┌────────────────────────────────────────────────────┐  │
 │  │  Background Workers                                │  │
+│  │  • Dark Factory (3-gate fail-closed pipelines)     │  │
 │  │  • Scheduler (TTL, decay, compaction, purge)       │  │
 │  │  • Web Scholar (Brave → Firecrawl → LLM → Ledger)  │  │
 │  │  • Hivemind heartbeats & Telepathy broadcasts      │  │
@@ -891,6 +969,7 @@ Prism is evolving from smart session logging toward a **cognitive memory archite
 | **v7.0** | Candidate-Scoped Spreading Activation — `S_i = Σ(W × strength)` bounded to search result set; prevents God-node dominance | Spreading activation networks (Collins & Loftus, 1975) | ✅ Shipped |
 | **v7.0** | Composite Retrieval Scoring — `0.7 × similarity + 0.3 × σ(activation)`; configurable via `PRISM_ACTR_WEIGHT_*` | Hybrid cognitive-neural retrieval models | ✅ Shipped |
 | **v7.0** | AccessLogBuffer — in-memory batch-write buffer with 5s flush; prevents SQLite `SQLITE_BUSY` under parallel agents | Production reliability engineering | ✅ Shipped |
+| **v7.3** | Dark Factory — 3-gate fail-closed EXECUTE pipeline (parse → type → scope) with structured JSON action contract | Industrial safety systems (defense-in-depth, fail-closed valves) | ✅ Shipped |
 | **v7.2** | Executive Planning & DAG tracking | Prefrontal cortex executive control + Directed Acyclic Graph planning | 🔭 Horizon |
 | **v7.x** | Affect-Tagged Memory — sentiment shapes what gets recalled | Affect-modulated retrieval (neuroscience) | 🔭 Horizon |
 | **v8+** | Zero-Search Retrieval — no index, no ANN, just ask the vector | Holographic Reduced Representations | 🔭 Horizon |
@@ -908,6 +987,9 @@ Shipped in v6.2.0. Edge synthesis, graph pruning with SLO observability, tempora
 
 ### v6.5: Cognitive Architecture ✅
 Shipped. Full Superposed Memory (SDM) + Hyperdimensional Computing (HDC/VSA) cognitive routing pipeline. Compositional memory states via XOR binding, Hamming resolution, and policy-gated routing (direct / clarify / fallback). 705 tests passing.
+
+### v7.3: Dark Factory — Fail-Closed Execution ✅
+Shipped. Structured JSON action contract for autonomous `EXECUTE` steps. 3-gate validation pipeline (parse → type → scope) terminates pipelines on any violation before filesystem side effects. 67 edge-case tests covering adversarial LLM output, path traversal, and type coercion.
 
 ### v7.1: Prism Task Router ✅
 Shipped. Deterministic task routing (`session_task_route`) with optional experience-based confidence adjustment for host vs. local Claw delegation.
