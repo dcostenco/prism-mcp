@@ -31,7 +31,7 @@ import { mergeHandoff, dbToHandoffSchema, sanitizeForMerge } from "../utils/crdt
 // containing: strategy, scores, latency breakdown (embedding/storage/total), and metadata.
 // See src/utils/tracing.ts for full type definitions and design decisions.
 import { createMemoryTrace, traceToContentBlock } from "../utils/tracing.js";
-import { GOOGLE_API_KEY, PRISM_USER_ID, PRISM_AUTO_CAPTURE, PRISM_CAPTURE_PORTS } from "../config.js";
+import { PRISM_USER_ID, PRISM_AUTO_CAPTURE, PRISM_CAPTURE_PORTS } from "../config.js";
 import { captureLocalEnvironment } from "../utils/autoCapture.js";
 import { fireCaptionAsync } from "../utils/imageCaptioner.js";
 import {
@@ -91,11 +91,15 @@ export async function backfillEmbeddingsHandler(args: unknown) {
     throw new Error("Invalid arguments for session_backfill_embeddings");
   }
 
-  if (!GOOGLE_API_KEY) {
+  // Validate that an embedding provider is available (supports Gemini, OpenAI, etc.)
+  try {
+    getLLMProvider();
+  } catch (providerErr) {
     return {
       content: [{
         type: "text",
-        text: "❌ Cannot backfill: GOOGLE_API_KEY is not configured.",
+        text: "❌ Cannot backfill: No embedding provider available. " +
+              "Configure an API key in the dashboard Settings → AI Providers tab.",
       }],
       isError: true,
     };

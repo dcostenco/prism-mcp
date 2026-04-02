@@ -380,9 +380,10 @@ return false;}
             message,
           }));
         } catch (err) {
+          const errMsg = err instanceof Error ? err.message : "Cleanup failed";
           console.error("[Dashboard] Health cleanup error:", err);
           res.writeHead(500, { "Content-Type": "application/json" });
-          return res.end(JSON.stringify({ ok: false, error: "Cleanup failed" }));
+          return res.end(JSON.stringify({ ok: false, error: errMsg, message: errMsg }));
         }
       }
 

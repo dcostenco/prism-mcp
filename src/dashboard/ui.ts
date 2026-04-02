@@ -3290,8 +3290,10 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
       try {
         var res  = await fetch('/api/health/cleanup', { method: 'POST' });
         var data = await res.json();
-        finishProgress(data.ok, data.message);
-        showFixedToast(data.message || (data.ok ? 'Cleanup complete.' : 'Cleanup failed.'), data.ok);
+        var msg  = data.message || data.error || (data.ok ? 'Cleanup complete.' : 'Cleanup failed.');
+        finishProgress(data.ok, msg);
+        showFixedToast(msg, data.ok);
+        if (btn) { btn.disabled = false; btn.textContent = '🧹 Fix Issues'; }
         // Re-run health check to refresh the card
         setTimeout(async function() {
           try {
@@ -3318,7 +3320,10 @@ Example:\n## Dev Rules\n- Always write tests first\n- Use TypeScript strict mode
               healthIssues.innerHTML = '<div style="color:var(--accent-green);font-size:0.8rem">🎉 No issues found</div>';
               if (cleanupBtn) cleanupBtn.style.display = 'none';
             }
-          } catch(e) {}
+          } catch(e) {
+            // Health re-check failed — ensure button is usable
+            if (btn) { btn.disabled = false; btn.textContent = '🧹 Fix Issues'; }
+          }
         }, 400);
       } catch(e) {
         finishProgress(false, 'Request failed');
