@@ -75,6 +75,7 @@ import {
   PRISM_SCHEDULER_ENABLED, PRISM_SCHEDULER_INTERVAL_MS,
   PRISM_SCHOLAR_ENABLED,
   PRISM_HDC_ENABLED,
+  PRISM_TASK_ROUTER_ENABLED,
 } from "./config.js";
 import { startWatchdog, drainAlerts } from "./hivemindWatchdog.js";
 import { startScheduler, startScholarScheduler } from "./backgroundScheduler.js";
@@ -145,6 +146,8 @@ import {
   SESSION_BACKFILL_LINKS_TOOL,
   SESSION_SYNTHESIZE_EDGES_TOOL,
   SESSION_COGNITIVE_ROUTE_TOOL,
+  // v7.1: Task Router
+  SESSION_TASK_ROUTE_TOOL,
 
   sessionSaveLedgerHandler,
   sessionSaveHandoffHandler,
@@ -190,6 +193,8 @@ import {
   agentRegisterHandler,
   agentHeartbeatHandler,
   agentListTeamHandler,
+  // v7.1: Task Router
+  sessionTaskRouteHandler,
 } from "./tools/index.js";
 
 // ─── Dynamic Tool Registration ───────────────────────────────────
@@ -361,6 +366,8 @@ export function createServer() {
     ...SESSION_MEMORY_TOOLS,
     // v3.0: Agent Hivemind tools — only when PRISM_ENABLE_HIVEMIND=true
     ...(PRISM_ENABLE_HIVEMIND ? AGENT_REGISTRY_TOOLS : []),
+    // v7.1: Task Router tool — only when PRISM_TASK_ROUTER_ENABLED=true
+    ...(PRISM_TASK_ROUTER_ENABLED ? [SESSION_TASK_ROUTE_TOOL] : []),
   ];
 
   const server = new Server(
@@ -901,6 +908,13 @@ export function createServer() {
             if (!PRISM_ENABLE_HIVEMIND) throw new Error("Hivemind not enabled. Set PRISM_ENABLE_HIVEMIND=true.");
             result = await agentListTeamHandler(args); break;
 
+          // ─── v7.1: Task Router ───
+
+          case "session_task_route":
+            if (!SESSION_MEMORY_ENABLED) throw new Error("Session memory not configured.");
+            if (!PRISM_TASK_ROUTER_ENABLED) throw new Error("Task router not enabled. Set PRISM_TASK_ROUTER_ENABLED=true.");
+            result = await sessionTaskRouteHandler(args); break;
+
           default:
             result = {
               content: [{ type: "text", text: `Unknown tool: ${name}` }],
@@ -994,7 +1008,7 @@ export function createSandboxServer() {
 
   // Register all tool listings unconditionally
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [...BASE_TOOLS, ...buildSessionMemoryTools([]), ...AGENT_REGISTRY_TOOLS],
+    tools: [...BASE_TOOLS, ...buildSessionMemoryTools([]), ...AGENT_REGISTRY_TOOLS, SESSION_TASK_ROUTE_TOOL],
   }));
 
   // Register prompts listing so scanners see resume_session

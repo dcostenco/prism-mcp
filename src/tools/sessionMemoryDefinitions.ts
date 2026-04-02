@@ -1451,3 +1451,78 @@ export function isSessionCognitiveRouteArgs(
   ) return false;
   return true;
 }
+
+// ─── v7.1: Task Router Tool ──────────────────────────────────
+
+export const SESSION_TASK_ROUTE_TOOL: Tool = {
+  name: "session_task_route",
+  description:
+    "Analyze a coding task and recommend whether it should be handled by the host " +
+    "cloud model or delegated to the local claw-code-agent (Qwen3).\n\n" +
+    "**How to use:**\n" +
+    "1. Call this tool BEFORE writing code or executing a complex task\n" +
+    "2. Read the `target` field in the response\n" +
+    "3. If target is `claw`, call `claw_run_task` with the task description\n" +
+    "4. If target is `host`, handle the task yourself\n\n" +
+    "**v7.1.0:** Uses deterministic keyword/scope heuristics. " +
+    "Experience-based ML routing is planned for v7.2.0.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      task_description: {
+        type: "string",
+        description: "The raw prompt or task description to analyze for routing.",
+      },
+      files_involved: {
+        type: "array",
+        items: { type: "string" },
+        description: "Expected files to be created or modified by this task.",
+      },
+      estimated_scope: {
+        type: "string",
+        enum: ["minor_edit", "new_feature", "refactor", "bug_fix"],
+        description:
+          "Pre-categorize the task scope to improve routing accuracy. " +
+          "'minor_edit' for small changes, 'new_feature' for scaffolding, " +
+          "'refactor' for restructuring, 'bug_fix' for debugging.",
+      },
+      project: {
+        type: "string",
+        description: "Optional project identifier for context-aware routing.",
+      },
+    },
+    required: ["task_description"],
+  },
+};
+
+export interface SessionTaskRouteArgs {
+  task_description: string;
+  files_involved?: string[];
+  estimated_scope?: "minor_edit" | "new_feature" | "refactor" | "bug_fix";
+  project?: string;
+}
+
+export function isSessionTaskRouteArgs(
+  args: unknown
+): args is SessionTaskRouteArgs {
+  if (typeof args !== "object" || args === null) return false;
+  const a = args as Record<string, unknown>;
+  if (typeof a.task_description !== "string") return false;
+  if (
+    a.files_involved !== undefined &&
+    (!Array.isArray(a.files_involved) ||
+      !a.files_involved.every((f: unknown) => typeof f === "string"))
+  )
+    return false;
+  if (
+    a.estimated_scope !== undefined &&
+    a.estimated_scope !== "minor_edit" &&
+    a.estimated_scope !== "new_feature" &&
+    a.estimated_scope !== "refactor" &&
+    a.estimated_scope !== "bug_fix"
+  )
+    return false;
+  if (a.project !== undefined && typeof a.project !== "string") return false;
+  return true;
+}
+
