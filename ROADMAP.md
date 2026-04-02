@@ -3,7 +3,6 @@
 > Full release history: [`CHANGELOG.md`](CHANGELOG.md) · Issue tracking: [GitHub Issues](../../issues)
 
 ---
-
 ## 🏆 Shipped
 
 Prism has evolved from a simple SQLite session logger into a **Quantized, Multimodal, Multi-Agent, Self-Learning, Observable AI Operating System**.
@@ -19,7 +18,6 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 | 🧪 **Test Coverage** | Comprehensive suite spanning 33 tests across `task-router.test.ts` and `router-experience.test.ts`, verifying cold starts, structural biases, and signal weighting. |
 
 ---
-
 ### ✅ v7.0.0 — ACT-R Cognitive Activation Memory
 
 | Feature | Detail |
@@ -35,16 +33,14 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 | 🧪 **705 Tests** | 32 suites (49 new ACT-R tests across activation math, access log buffer, SQLite/Supabase parity). Zero regressions. |
 
 ---
-
 ### ✅ v6.5.1 — Dashboard Project-Load Hotfix
 
 | Fix | Detail |
 |-----|--------|
-| 🩹 **Project Selector Bootstrap** | Fixed a startup failure where unresolved Supabase env placeholders (`${SUPABASE_URL}` / `${SUPABASE_KEY}`) could break `/api/projects` and leave the selector stuck on "Loading projects...". |
+| 🩹 **Project Selector Bootstrap** | Fixed a startup failure where unresolved Supabase env placeholders (`$` / `$`) could break `/api/projects` and leave the selector stuck on "Loading projects...". |
 | 🔄 **Backend Fallback Safety** | Added guardrails to auto-fallback to local SQLite when Supabase backend is requested but env config is invalid/unresolved. |
 
 ---
-
 ### ✅ v6.5.0 — HDC Cognitive Routing
 
 | Feature | Detail |
@@ -58,7 +54,6 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 | 🧪 **566 Tests** | 30 suites (42 new tests: 26 handler integration + 16 dashboard API). TypeScript strict mode, zero errors, zero regressions. |
 
 ---
-
 ### ✅ v6.2.0 — Autonomous Cognitive Loop ("Synthesize & Prune")
 
 | Feature | Detail |
@@ -75,7 +70,22 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 | 🧪 **510 Tests** | 28 suites, TypeScript strict mode, zero errors. |
 
 ---
+### ✅ v6.1.5–v6.1.8 — Production Hardening Series
 
+| Version | Feature | Detail |
+|---------|---------|--------|
+| v6.1.5 | 🗜️ **`maintenance_vacuum` Tool** | New MCP tool to run SQLite `VACUUM` after large purge operations — reclaims page allocations that SQLite retains until explicitly vacuumed. |
+| v6.1.5 | 🔒 **Prototype Pollution Guards** | CRDT merge pipeline hardened against `__proto__` / `constructor` injection via `Object.create(null)` scratchpads. |
+| v6.1.5 | 🧪 **425-Test Suite** | Edge-case suite across 20 files: CRDT merges, TurboQuant math invariants, prototype pollution, SQLite TTL boundary conditions. |
+| v6.1.6 | 🛡️ **11 Type Guards Hardened (Round 1)** | All MCP tool argument guards audited; explicit `typeof` validation added for every optional field. Prevents LLM-hallucinated payloads from bypassing type safety. |
+| v6.1.7 | 🔄 **Toggle Rollback on Failure** | `saveSetting()` returns `Promise<boolean>`; Hivemind and Auto-Capture toggles roll back optimistic UI state on server error. |
+| v6.1.7 | 🚫 **Settings Cache-Busting** | `loadSettings()` appends `?t=<timestamp>` to bypass stale browser/service-worker caches. |
+| v6.1.8 | 🛡️ **Missing Guard: `isSessionCompactLedgerArgs`** | `SESSION_COMPACT_LEDGER_TOOL` existed with no type guard — added with full optional field validation. |
+| v6.1.8 | ✅ **Array Field Validation** | `isSessionSaveLedgerArgs` now guards `todos`, `files_changed`, `decisions` with `Array.isArray`. |
+| v6.1.8 | 🔖 **Enum Literal Guard** | `isSessionExportMemoryArgs` rejects unknown `format` values at the MCP boundary. |
+| v6.1.8 | 🔢 **Numeric Guards** | `isSessionIntuitiveRecallArgs` validates `limit` and `threshold` as numbers. |
+
+---
 ### ✅ v6.1.0 — Prism-Port, Security Hardening & Dashboard Healing
 
 | Feature | Detail |
@@ -93,23 +103,6 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 
 ---
 
-### ✅ v6.1.5–v6.1.8 — Production Hardening Series
-
-| Version | Feature | Detail |
-|---------|---------|--------|
-| v6.1.5 | 🗜️ **`maintenance_vacuum` Tool** | New MCP tool to run SQLite `VACUUM` after large purge operations — reclaims page allocations that SQLite retains until explicitly vacuumed. |
-| v6.1.5 | 🔒 **Prototype Pollution Guards** | CRDT merge pipeline hardened against `__proto__` / `constructor` injection via `Object.create(null)` scratchpads. |
-| v6.1.5 | 🧪 **425-Test Suite** | Edge-case suite across 20 files: CRDT merges, TurboQuant math invariants, prototype pollution, SQLite TTL boundary conditions. |
-| v6.1.6 | 🛡️ **11 Type Guards Hardened (Round 1)** | All MCP tool argument guards audited; explicit `typeof` validation added for every optional field. Prevents LLM-hallucinated payloads from bypassing type safety. |
-| v6.1.7 | 🔄 **Toggle Rollback on Failure** | `saveSetting()` returns `Promise<boolean>`; Hivemind and Auto-Capture toggles roll back optimistic UI state on server error. |
-| v6.1.7 | 🚫 **Settings Cache-Busting** | `loadSettings()` appends `?t=<timestamp>` to bypass stale browser/service-worker caches. |
-| v6.1.8 | 🛡️ **Missing Guard: `isSessionCompactLedgerArgs`** | `SESSION_COMPACT_LEDGER_TOOL` existed with no type guard — added with full optional field validation. |
-| v6.1.8 | ✅ **Array Field Validation** | `isSessionSaveLedgerArgs` now guards `todos`, `files_changed`, `decisions` with `Array.isArray`. |
-| v6.1.8 | 🔖 **Enum Literal Guard** | `isSessionExportMemoryArgs` rejects unknown `format` values at the MCP boundary. |
-| v6.1.8 | 🔢 **Numeric Guards** | `isSessionIntuitiveRecallArgs` validates `limit` and `threshold` as numbers. |
-
----
-
 <details>
 <summary><strong>📜 Earlier releases (v5.5 → v3.0) — click to expand</strong></summary>
 
@@ -119,7 +112,7 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 |---------|----------|------------|
 | **v5.5.0** | Architectural Hardening | Transactional migrations, graceful shutdown registry, thundering herd prevention, zero-thrashing SDM scans. 374 tests. |
 | **v5.4.0** | Concurrency & Autonomous Research | CRDT OR-Map handoff merging, background purge scheduler, autonomous Web Scholar, Scholar ↔ Hivemind integration. |
-| **v5.3.0** | Hivemind Health Watchdog | State-machine agent lifecycle, loop detection, Telepathy alert injection. |
+| **v5.3.0** | Verification Watchdog | Active pipeline orchestrator, declarative/sandboxed test assertions, `validation_result` logging, and programmatic gating. |
 | **v5.2.0** | Cognitive Memory & Universal Migration | Ebbinghaus importance decay, context-weighted retrieval, Universal History Migration (Claude/Gemini/ChatGPT), SQL injection prevention. |
 | **v5.1.0** | Knowledge Graph Editor & Deep Storage | Deep storage purge (~90% vector savings), interactive graph editor with filtering and node surgery. |
 | **v5.0.0** | Quantized Agentic Memory | TurboQuant ~7× embedding compression, three-tier search (FTS5 → sqlite-vec → JS fallback), atomic backfill. |
@@ -132,11 +125,11 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 </details>
 
 ---
+## 📊 The State of Prism (v7.1.0)
 
-## 📊 The State of Prism (v7.0.0)
+With v7.1.0 shipped, Prism is a **production-hardened, scientifically-grounded, self-organizing AI Operating System**:
 
-With v7.0.0 shipped, Prism is a **production-hardened, scientifically-grounded, self-organizing AI Operating System**:
-
+- **Intelligently Routed** — Heuristic and ML-driven Task Router dynamically delegates to host cloud models or local agents (Claw) based on complexity, scope, and cold-start protected historical win rates.
 - **Scientifically-Grounded** — ACT-R activation model (`B_i = ln(Σ t_j^{-d})`) ranks memories by recency × frequency, mirroring human cognitive decay. Candidate-scoped spreading activation prevents centrality bias.
 - **Cognitively-Routed** — HDC state machine composes agent context into binary hypervectors and resolves semantic concepts via Hamming distance. Policy gateway routes with configurable thresholds.
 - **Self-Organizing** — Edge Synthesis + Graph Pruning form an autonomous cognitive loop: the graph grows connective tissue overnight and prunes dead weight on schedule.
@@ -155,15 +148,42 @@ With v7.0.0 shipped, Prism is a **production-hardened, scientifically-grounded, 
 - **Security** — SQL injection prevention, path traversal guard, GDPR Art. 17+20 compliance.
 
 ---
-
 ## 🗺️ Next on the Horizon
 
+### 🧪 v7.2.0 — Verification Harness (Front-Loaded Testing) `[Planned]`
+**Problem:** Agents plan and execute but have no structured, programmatically enforced verification layer. Test assertions are afterthoughts, not first-class planning artifacts. Complex multi-database ETL, data migrations, and agentic pipelines require "stacking 9's" on accuracy — which demands front-loaded, machine-parseable validation at every layer.
+**Solution:** A planning-phase verification harness that forces the agent to emit programmatically verifiable test assertions *before* execution begins, then automatically validates them post-execution.
+
+| Feature | Detail |
+|---------|--------|
+| 📋 **Planning-Phase Test Generation** | New planning skill that requires the agent to emit machine-parseable test specifications (JSON test specs) during `implementation_plan.md` creation. Tests define expected outcomes, data invariants, and acceptance criteria *before* any code is written. |
+| 🔬 **Multi-Layer Verification Framework** | Structured verification across 3 layers: **Data Accuracy** (schema validation, row-count checks, referential integrity), **Agent Behavior** (output format, tool call correctness, state transitions), and **Pipeline Integrity** (end-to-end flow completion, idempotency, error handling). |
+| 🤖 **Claw-as-Validator (Adversarial Loop)** | After execution, a second `claw_run_task` call runs the generated test specs against the actual output — creating a generate → execute → validate adversarial loop between host and local agent. |
+| 📊 **`validation_result` Experience Event** | New experience event type that records test pass/fail results with per-layer granularity. Feeds directly into the v7.1.0 ML routing feedback loop, enabling the router to learn which task types need tighter validation. |
+| 🚦 **Verification Gates** | Configurable pass/fail gates that block progression when critical assertions fail. Supports `warn` (log and continue), `gate` (block until resolved), and `abort` (rollback) severity levels. |
+| ⚙️ **Configuration** | `PRISM_VERIFICATION_HARNESS_ENABLED` (default: `false`), `PRISM_VERIFICATION_LAYERS` (comma-separated: `data,agent,pipeline`), `PRISM_VERIFICATION_DEFAULT_SEVERITY` (default: `warn`). |
+
+**Dependency:** Builds on v7.1.0 experience-based ML routing for the feedback loop integration.
+
+---
+### 🏭 v7.3.0 — Dark Factory Orchestration `[Exploring]`
+**Problem:** Even with verification harnesses, Prism remains session-based and human-triggered. Autonomous "dark factory" pipelines — where agents execute, validate, and iterate without human intervention — require a continuous orchestration layer that doesn't exist today.
+**Solution:** A lightweight pipeline runner that chains plan → execute → verify → iterate cycles autonomously, gated by the verification harness and bounded by configurable safety limits.
+
+| Feature | Detail |
+|---------|--------|
+| 🔄 **Autonomous Pipeline Runner** | Continuous loop that chains `plan → execute (host/claw) → verify (claw-as-validator) → iterate` cycles. Bounded by configurable max iterations and time budget. |
+| 🛡️ **Safety Boundaries** | Hard limits on iteration count (`PRISM_DARK_FACTORY_MAX_ITERATIONS`), wall-clock time (`PRISM_DARK_FACTORY_TIMEOUT_MINUTES`), and file mutation scope. Emergency kill switch via dashboard. |
+| 📊 **Pipeline Telemetry** | OpenTelemetry spans for each pipeline stage. Dashboard card showing active pipelines, iteration count, pass/fail rates, and estimated completion. |
+| 🔀 **Multi-Agent Coordination** | Orchestrate host model + multiple Claw instances for parallel verification. Hivemind integration for cross-agent state awareness. |
+| 📈 **Accuracy Stacking ("9's Dashboard")** | Real-time accuracy metrics across verification layers. Visual indicator showing current confidence level (e.g., "99.7% — 2.5σ") inspired by Six Sigma methodology. |
+
+**Dependency:** Requires v7.2.0 Verification Harness as the safety net. Without front-loaded testing, autonomous execution is unsafe.
+
+---
 ### 📱 Mind Palace Mobile PWA `[Backlog]`
-
 **Problem:** The dashboard is desktop-only. Quick check-ins on mobile require a laptop.
-
 **Solution:** Progressive Web App with responsive glassmorphism layout, offline-first IndexedDB cache, and push notifications for agent activity.
-
 **Phases:**
 1. Responsive CSS breakpoints for the existing dashboard
 2. Service worker + offline cache for read-only access
@@ -182,7 +202,6 @@ With v7.0.0 shipped, Prism is a **production-hardened, scientifically-grounded, 
 - **Dependency:** Requires stable SDM/HDC primitives, ACT-R activation calibration, and production-grade retrieval from v7.x/v8.x.
 
 ---
-
 ## 🧰 Infrastructure Backlog
 
 > 🤝 **Want to contribute?** These items are great entry points for new contributors. Most are self-contained and don't require deep knowledge of the cognitive pipeline. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines.

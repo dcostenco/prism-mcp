@@ -174,7 +174,9 @@ export type AgentHealthStatus =
   | "stale"
   | "frozen"
   | "overdue"
-  | "looping";
+  | "looping"
+  | "verifying"
+  | "failed_validation";
 
 /**
  * Tracks an active agent in the Hivemind coordination registry.

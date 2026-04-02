@@ -349,3 +349,19 @@ export const PRISM_TASK_ROUTER_CONFIDENCE_THRESHOLD = parseFloat(
 export const PRISM_TASK_ROUTER_MAX_CLAW_COMPLEXITY = parseInt(
   process.env.PRISM_TASK_ROUTER_MAX_CLAW_COMPLEXITY || "4", 10
 );
+
+// ─── v7.2: Verification Harness ──────────────────────────────
+
+/** Master switch for the v7.2.0 enhanced verification harness. */
+export const PRISM_VERIFICATION_HARNESS_ENABLED =
+  process.env.PRISM_VERIFICATION_HARNESS_ENABLED === "true";
+
+/** Comma-separated list of verification layers to run. */
+export const PRISM_VERIFICATION_LAYERS = (
+  process.env.PRISM_VERIFICATION_LAYERS || "data,agent,pipeline"
+).split(",").map(l => l.trim()).filter(Boolean);
+
+/** Default severity floor for all assertions. Overrides individual assertion severity when higher. */
+export const PRISM_VERIFICATION_DEFAULT_SEVERITY =
+  (process.env.PRISM_VERIFICATION_DEFAULT_SEVERITY || "warn") as "warn" | "gate" | "abort";
+
