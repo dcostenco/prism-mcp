@@ -16,9 +16,9 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 |---------|--------|
 | 🧭 **`PLAN_CONTRACT` Step** | Before any code execution, the generator commits to a machine-parseable rubric (`ContractPayload`). Each criterion has a string `id` and `description`. Contract is written to `contract_rubric.json` and locked before any code changes. |
 | ⚔️ **`EVALUATE` Step** | After `EXECUTE`, an isolated adversarial evaluator scores the output against the contract. Findings include `severity`, `criterion_id`, `pass_fail`, and evidence pointers (`file`, `line {number}`, `description`). |
-| 🔁 **Intelligent Revision Flow** | Fail + `plan_viable=true` → EXECUTE retry (burns `eval_revisions`). Fail + `plan_viable=false` → full PLAN re-plan (resets revisions, increments iteration). Pass → VERIFY. |
+| 🔁 **Intelligent Revision Flow** | Fail + `plan_viable=true` → EXECUTE retry (burns `eval_revisions` and injects the Evaluator's detailed findings into the Generator's prompt — the Generator is never flying blind). Fail + `plan_viable=false` → full PLAN re-plan (resets revisions, increments iteration). Pass → VERIFY. |
 | 🔒 **Conservative Parse Failure Handling** | Malformed LLM output defaults `plan_viable=false` — escalates to PLAN instead of burning revision budget on a broken response format. |
-| 📐 **Per-Criterion Shape Validation** | `parseContractOutput` rejects criteria missing `id`/`description` fields or containing primitives. `parseEvaluationOutput` rejects non-array `findings`. |
+| 📐 **Per-Criterion Shape Validation** | `parseContractOutput` rejects criteria missing `id`/`description` fields or containing primitives. `parseEvaluationOutput` strictly validates the `findings` array, immediately rejecting any LLM claims that fail to provide a structured `evidence` pointer (file/line/description). |
 | 🛡️ **Disk-Error Pipeline Guard** | `contract_rubric.json` write failures now immediately mark the pipeline `FAILED` — prevents infinite loops on disk/permission errors. |
 | 🗄️ **Storage Parity** | New `eval_revisions`, `contract_payload`, `notes` columns on `dark_factory_pipelines` (SQLite + Supabase). SQLite backfill migration included for existing rows. |
 | 🧠 **Experience Ledger Integration** | Evaluation outcomes emitted as `learning` events — feeds the ML routing feedback loop. |
