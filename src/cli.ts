@@ -22,13 +22,14 @@ verifyCmd
   .option('-p, --project <name>', 'Project name', path.basename(process.cwd()))
   .option('-f, --force', 'Bypass verification failures and drift tracking constraints')
   .option('-u, --user <id>', 'User ID for tenant isolation', 'default')
+  .option('--json', 'Emit machine-readable JSON output with stable keys')
   .action(async (options) => {
     const storage = new SqliteStorage();
     await storage.initialize('./prism-local.db');
-    
+
     // H4 fix: Ensure storage is closed on exit to flush WAL and prevent data loss
     try {
-      await handleVerifyStatus(storage, options.project, !!options.force, options.user);
+      await handleVerifyStatus(storage, options.project, !!options.force, options.user, !!options.json);
     } finally {
       await storage.close();
     }
@@ -40,13 +41,14 @@ verifyCmd
   .option('-p, --project <name>', 'Project name', path.basename(process.cwd()))
   .option('-f, --force', 'Bypass verification failures and drift tracking constraints')
   .option('-u, --user <id>', 'User ID for tenant isolation', 'default')
+  .option('--json', 'Emit machine-readable JSON output with stable keys')
   .action(async (options) => {
     const storage = new SqliteStorage();
     await storage.initialize('./prism-local.db');
-    
+
     // H4 fix: Ensure storage is closed on exit to flush WAL and prevent data loss
     try {
-      await handleGenerateHarness(storage, options.project, !!options.force, options.user);
+      await handleGenerateHarness(storage, options.project, !!options.force, options.user, !!options.json);
     } finally {
       await storage.close();
     }

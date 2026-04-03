@@ -72,7 +72,7 @@ describe('CLI Handler - handleGenerateHarness', () => {
     expect(savedArg.tests.length).toBe(1);
     expect(savedArg.created_at).toBeDefined();
 
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Success'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Harness registered successfully'));
   });
 
   // ── File Not Found ──
@@ -125,7 +125,7 @@ describe('CLI Handler - handleGenerateHarness', () => {
 
     // --force should skip the duplicate check and persist anyway
     expect(mockStorage.saveVerificationHarness).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Success'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Harness registered successfully'));
   });
 
   // ── Backend Without getVerificationHarness ──
@@ -142,7 +142,7 @@ describe('CLI Handler - handleGenerateHarness', () => {
     await handleGenerateHarness(limitedStorage, 'test-project');
 
     expect(limitedStorage.saveVerificationHarness).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Success'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Harness registered successfully'));
   });
 
   // ── Metadata Stamping ──
