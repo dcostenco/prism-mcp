@@ -28,8 +28,10 @@ Works with **Claude Desktop · Claude Code · Cursor · Windsurf · Cline · Gem
 - [What Makes Prism Different](#-what-makes-prism-different)
 - [Use Cases](#-use-cases)
 - [What's New](#-whats-new)
+  - [v7.3.3 Dashboard Stability Hotfix](#v733--dashboard-stability-hotfix)
+  - [v7.3.2 Verification Diagnostics v2](#v732--verification-diagnostics-v2)
   - [v7.3.1 Dark Factory (Fail-Closed Execution)](#v731--dark-factory-fail-closed-execution-)
-  - [v7.2.0 Verification Harness (Planned)](#v720--verification-harness-front-loaded-testing-)
+  - [v7.2.0 Verification Harness](#v720--verification-harness-front-loaded-testing-)
   - [v7.4.0 Adversarial Dev Harness (Planned)](#v740--adversarial-dev-harness-anti-sycophancy-)
 - [How Prism Compares](#-how-prism-compares)
 - [Tool Reference](#-tool-reference)
@@ -413,7 +415,7 @@ Soft/hard delete (Art. 17), full export in JSON, Markdown, or Obsidian vault `.z
 
 **Consulting / multi-project** — Switch between client projects with progressive loading: `quick` (~50 tokens), `standard` (~200), or `deep` (~1000+).
 
-**Complex refactoring (v7.2 planned)** — Prism’s roadmap adds verification-first execution for multi-step changes with contract-frozen assertions and gated finalization.
+**Autonomous execution (v7.3)** — Dark Factory pipelines run `plan → execute → verify → iterate` lights-out. Every LLM action passes 3 safety gates before touching the filesystem. Scope violations terminate the entire pipeline.
 
 **Team onboarding** — New team member's agent loads the full project history instantly.
 
@@ -442,8 +444,29 @@ Then continue a specific thread with a follow-up message to the selected agent, 
 
 ## 🆕 What's New
 
+### v7.3.3 — Dashboard Stability Hotfix
+> **Current stable release (v7.3.3).** Zero-downtime patch to the Mind Palace dashboard.
+
+A lone `\'` escape inside the dashboard's template literal was consumed as a JS escape sequence — producing bare `''` (not `\'`) in the served HTML. The browser's JS parser saw two adjacent string literals → `SyntaxError: Unexpected string` → the entire inline IIFE silently failed → the project dropdown froze at "Loading projects..." **forever**, with no error surfaced to the user.
+
+- 🐛 **Root cause:** Multi-layer escaping trap: TypeScript string → template literal → HTML attribute → browser JS parser, each consuming one backslash level.
+- ✅ **Fix:** Replaced the `onclick='abortPipeline(\' + id + \')'` pattern with a `data-id` attribute approach — eliminating the escaping chain entirely.
+- 🛡️ **Prevention:** `scripts/lint-dashboard-es5.cjs` (`npm run lint:dashboard`) now scans the inline `<script>` block for ES6+ syntax *and* the lone-backslash escape trap at CI/pre-commit time.
+
+---
+
+### v7.3.2 — Verification Diagnostics v2
+> **Shipped.** Machine-readable verification output with schema-versioned JSON contract.
+
+- 📊 **`diff_counts` per layer** — `verify status --json` now emits `{ checked, passed, failed, warned }` per verification layer alongside the existing `status` field. Additive, non-breaking (`schema_version: 1`).
+- 🔑 **`changed_keys` per layer** — Reports exactly which assertion keys drifted from baseline — enabling CI scripts to `jq` for specific failures without parsing human text.
+- 📃 **JSON Compatibility Contract** — `docs/verification-json-contract.md` formally specifies the output schema. A process-level integration test enforces it — any breaking JSON change fails CI *before shipping*.
+- 🔀 **Compute/Render Separation** — `computeVerificationStatus()` and `renderVerificationStatus()` are now separate functions. `--json` bypasses the renderer entirely, guaranteeing clean machine output regardless of future UI changes.
+
+---
+
 ### v7.3.1 — Dark Factory (Fail-Closed Execution) 🏭
-> **Current stable release.** Hardened autonomous pipeline execution with a structured JSON action contract.
+> **Shipped.** Hardened autonomous pipeline execution with a structured JSON action contract.
 
 When an AI agent executes code autonomously — no human watching, no approval step — a single hallucinated file path can write outside your project, corrupt sibling repos, or hit system files. This is the "dark factory" problem: **lights-out execution demands machine-enforced safety, not LLM good behavior.**
 
@@ -505,14 +528,14 @@ Prism v7.3.1 implements exactly this: a **3-gate fail-closed pipeline** where ev
 </details>
 
 ### v7.2.0 — Verification Harness (Front-Loaded Testing) 🔭
-> **Planned roadmap release.** Extends Prism from passive validation to contract-frozen, machine-verifiable execution gates.
+> **Shipped.** Contract-frozen, machine-verifiable execution gates for autonomous pipelines.
 
-- 📋 **Spec-Freeze Contract (planned)** — v7.2 formalizes three artifacts with strict responsibilities: `implementation_plan.md` (**how**), `verification_harness.json` (**proof contract**), and `validation_result` (**immutable outcome record**).
-- 🔐 **Rubric Hash Lock (planned)** — `verification_harness.json` is generated before execution and hash-locked (`rubric_hash`) so criteria cannot drift mid-sprint.
-- 🔬 **Multi-Layer Verification (planned)** — Structured checks across **Data Accuracy**, **Agent Behavior**, and **Pipeline Integrity** using machine-parseable assertions.
-- 🤖 **Adversarial Validation Loop (planned)** — A second validation pass evaluates execution outputs against the frozen contract before progression.
-- 🚦 **Finalization Gates (planned)** — Gate policies (`warn` / `gate` / `abort`) evaluate `validation_result` against the frozen rubric before pipeline completion.
-- 🧠 **Routing Feedback Signals (planned)** — Router learning ingests raw verification signals (`pass_rate`, `critical_failures`, `coverage_score`, `rubric_hash`) for downstream confidence adjustment.
+- 📋 **Spec-Freeze Contract** — Three artifacts with strict responsibilities: `implementation_plan.md` (**how**), `verification_harness.json` (**proof contract**), `validation_result` (**immutable outcome record**). Generated before execution; criteria cannot drift mid-sprint.
+- 🔐 **Rubric Hash Lock** — `verification_harness.json` is hash-locked (`rubric_hash`) at generation time. Finalization gates evaluate `validation_result` against the *frozen* rubric, not regenerated criteria.
+- 🔬 **Multi-Layer Verification** — Structured checks across **Data Accuracy**, **Agent Behavior**, and **Pipeline Integrity** using machine-parseable assertions.
+- 🚦 **Finalization Gates** — Gate policies (`warn` / `gate` / `abort`) enforce progression by rubric score. Autonomous pipelines cannot finalize when blocking criteria fail.
+- ⌨️ **CLI: `verify generate` · `verify status`** — Both with `--json` for machine-readable CI output (exit `0` for pass/warn/bypassed; `1` for blocked drift).
+- 🧠 **Routing Feedback Signals** — Router learning ingests raw verification signals (`pass_rate`, `critical_failures`, `coverage_score`, `rubric_hash`) for downstream confidence adjustment.
 
 <details>
 <summary><strong>🔬 Concept Example: Before vs. After v7.2</strong></summary>
@@ -526,7 +549,7 @@ Prism v7.3.1 implements exactly this: a **3-gate fail-closed pipeline** where ev
 </details>
 
 ### v7.1.0 — Prism Task Router (Heuristic + ML Experience) ✅
-> **Current stable release.** Multi-agent task routing with dynamic local vs host model delegation.
+> **Shipped.** Multi-agent task routing with dynamic local vs host model delegation.
 
 - 🚦 **Heuristic Routing Engine** — Deterministic `session_task_route` tool dynamically routes tasks to either the host cloud model or local agent (Claw) based on task description, file count, and scope. Evaluated over 5 core signals.
 - 🤖 **Experience-Based ML Routing** — Cold-start protected ML layer leverages the historical performance (Win Rate) extracted by the `routerExperience` system to apply dynamic confidence boosts or penalties into the routing score.
@@ -971,7 +994,7 @@ Prism is evolving from smart session logging toward a **cognitive memory archite
 | **v7.0** | Composite Retrieval Scoring — `0.7 × similarity + 0.3 × σ(activation)`; configurable via `PRISM_ACTR_WEIGHT_*` | Hybrid cognitive-neural retrieval models | ✅ Shipped |
 | **v7.0** | AccessLogBuffer — in-memory batch-write buffer with 5s flush; prevents SQLite `SQLITE_BUSY` under parallel agents | Production reliability engineering | ✅ Shipped |
 | **v7.3** | Dark Factory — 3-gate fail-closed EXECUTE pipeline (parse → type → scope) with structured JSON action contract | Industrial safety systems (defense-in-depth, fail-closed valves) | ✅ Shipped |
-| **v7.2** | Verification-first harness & contract-gated execution | Programmatic verification systems + adversarial validation loops | 🔭 Horizon |
+| **v7.2** | Verification-first harness — spec-freeze contract, rubric hash lock, multi-layer assertions, CLI `verify` commands | Programmatic verification systems + adversarial validation loops | ✅ Shipped |
 | **v7.x** | Affect-Tagged Memory — sentiment shapes what gets recalled | Affect-modulated retrieval (neuroscience) | 🔭 Horizon |
 | **v8+** | Zero-Search Retrieval — no index, no ANN, just ask the vector | Holographic Reduced Representations | 🔭 Horizon |
 
@@ -998,8 +1021,8 @@ Shipped. Deterministic task routing (`session_task_route`) with optional experie
 ### v7.0: ACT-R Activation Memory ✅
 Shipped. Scientifically-grounded retrieval re-ranking via ACT-R base-level activation (`B_i = ln(Σ t_j^(-d))`), candidate-scoped spreading activation, parameterized sigmoid normalization, composite scoring, and zero-cold-start access log infrastructure. 49 dedicated unit tests, 705 total passing.
 
-### v7.2: Verification Harness 🔭
-Planned. Adds a spec-frozen verification contract (`implementation_plan.md` + `verification_harness.json` + immutable `validation_result`), multi-layer machine checks, and finalization gates before autonomous completion.
+### v7.2: Verification Harness ✅
+Shipped. Spec-frozen verification contract (`implementation_plan.md` + `verification_harness.json` + immutable `validation_result`), multi-layer machine checks (`data`, `agent`, `pipeline`), finalization gate policies (`warn` / `gate` / `abort`), and CLI `verify generate` / `verify status --json` with schema-versioned output.
 
 ### Future Tracks
 - **v7.x: Affect-Tagged Memory** — Recall prioritization improves by weighting memories with affective/contextual valence, making surfaced context more behaviorally useful.
@@ -1009,7 +1032,7 @@ Planned. Adds a spec-frozen verification contract (`implementation_plan.md` + `v
 ## ❓ Troubleshooting FAQ
 
 **Q: Why is the dashboard project selector stuck on "Loading projects..."?**
-A: This usually means Supabase env values are unresolved placeholders (for example `${SUPABASE_URL}`) or invalid. As of v6.5.1 Prism auto-falls back to local SQLite, but you should still fix env values for cloud mode.
+A: Fixed in v7.3.3. The root cause was a multi-layer quote-escaping trap in the `abortPipeline` onclick handler that generated a `SyntaxError` in the browser, silently killing the entire dashboard IIFE. Update to v7.3.3+ (`npx -y prism-mcp-server`). If still stuck, check that Supabase env values are properly set (unresolved placeholders like `${SUPABASE_URL}` cause `/api/projects` to return empty). Prism auto-falls back to local SQLite when Supabase is misconfigured.
 
 **Q: Why is semantic search quality weak or inconsistent?**
 A: Check embedding provider configuration and key availability. Missing embedding credentials reduce semantic recall quality and can shift behavior toward keyword-heavy matches.
