@@ -1,0 +1,23 @@
+FROM node:22-slim
+
+WORKDIR /app
+
+# Install prism-mcp and supergateway globally
+RUN npm install -g prism-mcp supergateway
+
+# Create data directory for local SQLite storage
+RUN mkdir -p /root/.prism-mcp
+
+# Expose the SSE port
+EXPOSE 8000
+
+# Health check for the platform
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl -f http://localhost:8000/healthz || exit 1
+
+# Run supergateway wrapping prism-mcp stdio as SSE
+CMD ["supergateway", \
+     "--stdio", "prism-mcp", \
+     "--port", "8000", \
+     "--healthEndpoint", "/healthz", \
+     "--cors"]
