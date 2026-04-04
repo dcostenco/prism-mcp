@@ -7,6 +7,18 @@
 
 Prism has evolved from a simple SQLite session logger into a **Quantized, Multimodal, Multi-Agent, Self-Learning, Observable AI Operating System**.
 
+### ✅ v7.7.0 — Cloud-Native SSE Transport 🌐
+
+> **Problem:** Prism was previously bound to local runtime using stdio for MCP rendering, entirely barring multi-user accessibility or cloud deployments like Render.
+> **Solution:** A seamless Server-Sent Events integration (`/sse`) running alongside the Mind Palace HTTP server, fully transforming it into a network-accessible cloud engine.
+
+| Feature | Detail |
+|---------|--------|
+| ⚡ **SSE MCP Integration** | Spawns individual instances of `createServer()` resolving dedicated `sessionId` channels through a map to provide non-colliding HTTP streams across multiple clients simultaneously. |
+| 🛡️ **Robust Access Auth Gate** | Strictly overrides unauthenticated MCP endpoints with `401 Unauthorized` responses in JSON, preventing crash-inducing HTML document injection and protecting the core database. |
+| 📉 **Network Resilience** | Handles faulty TCP connections or stalled handshakes by wrapping `mcpServer.connect(transport)` with a clean try/catch cleanup process. |
+
+---
 ### ✅ v7.5.0 — Intent Health Dashboard + Security Hardening 🩺
 
 > **Problem:** Projects silently drift into staleness when agents stop working on them. The dashboard had no way to surface this — and had accumulated 10 unescaped innerHTML injection points across factory, ledger, and health rendering.
@@ -207,10 +219,11 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 
 </details>
 
-## 📊 The State of Prism (v7.5.0)
+## 📊 The State of Prism (v7.7.0)
 
-With v7.5.0 shipped, Prism is a **production-hardened, fail-closed, adversarially-evaluated autonomous AI Operating System** — the first MCP server that runs your agents *without letting them touch the filesystem unsupervised*, *without letting them grade their own homework*, and *with real-time visibility into project health*:
+With v7.7.0 shipped, Prism is a **production-hardened, fail-closed, adversarially-evaluated autonomous AI Operating System** — the first MCP server that runs your agents *without letting them touch the filesystem unsupervised*, *without letting them grade their own homework*, and *with real-time visibility into project health*:
 
+- **Cloud-Native RPC** — Server-Sent Events integration unlocks complete deployment portability across Smithery, Render, or any remote host over standard HTTP ports.
 - **Health-Aware** — Intent Health Dashboard scores every project 0–100 across staleness, TODO load, and decision quality. Silent drift becomes an actionable signal before it becomes a crisis.
 - **Comprehensively Sanitized** — 10 XSS injection vectors patched across all dashboard rendering paths (factory, ledger, health, history, error handlers). Every user-facing string now passes through `escapeHtml()`.
 - **Anti-Sycophancy by Design** — The Adversarial Evaluation (PLAN_CONTRACT → EVALUATE) pipeline separates generator and evaluator into isolated roles with pre-committed rubrics. The evaluator cannot approve without evidence; the generator cannot skip the contract.

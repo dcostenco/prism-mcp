@@ -22,6 +22,8 @@ import * as path from "path";
 import * as os from "os";
 import * as fs from "fs";
 
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { createServer } from "../server.js";
 import { getStorage } from "../storage/index.js";
 import { PRISM_USER_ID, SERVER_CONFIG } from "../config.js";
 import { renderDashboardHTML } from "./ui.js";
@@ -103,6 +105,9 @@ export async function startDashboardServer(): Promise<void> {
     maxAttempts: 5,
     windowMs: 60 * 1000,
   });
+
+  // Track active SSE transports for MCP
+  const activeSSETransports = new Map<string, SSEServerTransport>();
 
   /** Render a styled login page matching the Mind Palace theme */
   function renderLoginPage(): string {
@@ -226,7 +231,7 @@ return false;}
     // ─── v5.1: Auth gate — block unauthenticated requests ───
     if (AUTH_ENABLED && !isAuthenticated(req, authConfig)) {
       // For API calls, return 401 JSON
-      if (reqUrl.pathname.startsWith("/api/")) {
+      if (reqUrl.pathname.startsWith("/api/") || reqUrl.pathname === "/sse" || reqUrl.pathname === "/messages") {
         res.writeHead(401, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ error: "Authentication required" }));
       }
@@ -237,6 +242,43 @@ return false;}
 
     try {
       const url = new URL(req.url || "/", `http://${req.headers.host}`);
+
+      // ─── SSE: MCP Transport Endpoint ───
+      if (url.pathname === "/sse" && req.method === "GET") {
+        const transport = new SSEServerTransport("/messages", res);
+        await transport.start();
+        activeSSETransports.set(transport.sessionId, transport);
+
+        transport.onclose = () => {
+          activeSSETransports.delete(transport.sessionId);
+        };
+
+        try {
+          const mcpServer = createServer();
+          await mcpServer.connect(transport);
+        } catch (err) {
+          console.error("[Dashboard] SSE Connection failed:", err);
+          activeSSETransports.delete(transport.sessionId);
+        }
+        
+        return; // SSEServerTransport handles keeping the response open
+      }
+
+      // ─── SSE: MCP Message Receiver ───
+      if (url.pathname === "/messages" && req.method === "POST") {
+        const sessionId = url.searchParams.get("sessionId");
+        if (!sessionId) {
+          res.writeHead(400, { "Content-Type": "text/plain" });
+          return res.end("Missing sessionId");
+        }
+        const transport = activeSSETransports.get(sessionId);
+        if (!transport) {
+          res.writeHead(404, { "Content-Type": "text/plain" });
+          return res.end("Session not found");
+        }
+        await transport.handlePostMessage(req, res);
+        return;
+      }
 
       // ─── Serve the Dashboard UI ───
       if (url.pathname === "/" || url.pathname === "/index.html") {
