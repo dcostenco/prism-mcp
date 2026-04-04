@@ -1,0 +1,58 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+# Prism MCP — The Mind Palace for AI Agents
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required: []
+    properties:
+      braveApiKey:
+        type: string
+        title: "Brave Search API Key"
+        description: "API key for Brave Search (powers web search and research tools). Get one at https://brave.com/search/api/"
+      googleApiKey:
+        type: string
+        title: "Google AI API Key"
+        description: "API key for Google AI Studio / Gemini (powers synthesis, embeddings, paper analysis). Get one at https://aistudio.google.com/apikey"
+      storage:
+        type: string
+        title: "Storage Backend"
+        description: "Storage backend: 'local' (SQLite, zero-config) or 'supabase' (PostgreSQL, multi-device)"
+        default: "local"
+        enum:
+          - local
+          - supabase
+      supabaseUrl:
+        type: string
+        title: "Supabase URL"
+        description: "Your Supabase project URL (required if storage is 'supabase')"
+      supabaseServiceKey:
+        type: string
+        title: "Supabase Service Key"
+        description: "Your Supabase service role key (required if storage is 'supabase')"
+      firecrawlApiKey:
+        type: string
+        title: "Firecrawl API Key"
+        description: "Optional: API key for Firecrawl (enables Web Scholar pipeline). Get one at https://www.firecrawl.dev/"
+      braveAnswersApiKey:
+        type: string
+        title: "Brave Answers API Key"
+        description: "Optional: Separate key for AI-grounded answers (brave_answers tool)"
+  commandFunction:
+    # A function that produces the CLI command to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: "node",
+      args: ["dist/server.js"],
+      env: {
+        BRAVE_API_KEY: config.braveApiKey || "",
+        GOOGLE_API_KEY: config.googleApiKey || "",
+        PRISM_STORAGE: config.storage || "local",
+        SUPABASE_URL: config.supabaseUrl || "",
+        SUPABASE_SERVICE_KEY: config.supabaseServiceKey || "",
+        FIRECRAWL_API_KEY: config.firecrawlApiKey || "",
+        BRAVE_ANSWERS_API_KEY: config.braveAnswersApiKey || ""
+      }
+    })
