@@ -318,6 +318,32 @@ Then add to your MCP config:
 
 </details>
 
+<details>
+<summary><strong>Cloud Deployment (Render)</strong></summary>
+
+Prism can be deployed natively to cloud platforms like [Render](https://render.com) so your agent's memory is always online and accessible across different machines or teams.
+
+1. Fork this repository.
+2. In the Render Dashboard, create a new **Web Service** pointing to your repository.
+3. In the setup wizard, select **Docker** as the Runtime.
+4. Set the Dockerfile path to `Dockerfile.smithery`.
+5. Connect your local MCP client to your new cloud endpoint using the `sse` transport:
+
+```json
+{
+  "mcpServers": {
+    "prism-mcp-cloud": {
+      "command": "npx",
+      "args": ["-y", "supergateway", "--url", "https://your-prism-app.onrender.com/sse"]
+    }
+  }
+}
+```
+
+> **Note:** The `Dockerfile.smithery` uses an optimized multi-stage build that compiles Typescript safely in a development environment before booting the server in a stripped-down production image. No NPM publishing required!
+
+</details>
+
 ### Common Installation Pitfalls
 
 > **❌ Don't use `npm install -g`:**
