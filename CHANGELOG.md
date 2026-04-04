@@ -15,6 +15,14 @@ All notable changes to this project will be documented in this file.
 - **Fail-Closed Network Guarding** — Wrapped SSE initialization handshake in `try/catch` and cleanup block. Protects the main NodeJS server loop against unhandled promise rejections triggering crashes on flaky client network connections.
 - **Cors Hardening** — Pre-flight `OPTIONS` calls for `Access-Control-Allow-Headers` now comprehensively include `Authorization` allowing browsers to relay Dashboard Credentials seamlessly.
 
+## [7.6.0] - 2026-04-04
+
+### Added
+- **Voyage AI Embedding Provider** — Introduced native `VoyageAdapter` as a pluggable embedding provider alongside OpenAI and Gemini. 
+  - Allows semantic vector embedding using Voyage AI models inside the Mind Palace architecture.
+  - Exposes config via `VOYAGE_API_KEY` mapped directly into the LLM adapter factory.
+  - Added dedicated unit tests guaranteeing semantic fidelity.
+
 ## [7.5.0] - 2026-04-04
 
 ### Added
