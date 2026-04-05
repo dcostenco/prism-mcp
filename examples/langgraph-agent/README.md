@@ -118,7 +118,7 @@ This proves the architecture is **decoupled** — the LangGraph agent orchestrat
 
 ## Integration with Prism MCP
 
-This agent lives inside the [Prism MCP](https://github.com/yourusername/bcba) repository as a showcase of how LangGraph agents can integrate with MCP servers. See [INTEGRATION_PLAN.md](./INTEGRATION_PLAN.md) for the 4-phase integration roadmap.
+This agent lives inside the [Prism MCP](https://github.com/dcostenco/prism-mcp) repository as a showcase of how LangGraph agents can integrate with MCP servers. See [INTEGRATION_PLAN.md](./INTEGRATION_PLAN.md) for the 4-phase integration roadmap.
 
 ## Known Limitations
 
