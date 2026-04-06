@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [7.8.3] - 2026-04-06
+
+### Fixed
+- **Voyage API MRL Dimension Truncation** — Fixed an integration crash where Voyage AI's `voyage-code-3` model rejected explicit dimension requests off the native binary boundaries in API requests. Implemented mathematically-sound client-side Matryoshka Representation Learning (MRL) truncation to safely slice native 1024-dim vectors down to the strict 768-dim schema constraint required by sqlite-vec and pgvector.
+- **Default Embedding Routing** — Upgraded the default Voyage model from `voyage-3` to `voyage-code-3` strictly mapped for superior workspace/technical codebase performance.
+- **Environment Auto-Detection** — Augmented `auto` embedding router to seamlessly shift priority to Voyage AI automatically when `VOYAGE_API_KEY` is detected in the environment.
+
 ## [7.8.2] - 2026-04-04
 
 ### Fixed
