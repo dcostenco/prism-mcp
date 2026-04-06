@@ -8,7 +8,7 @@
  * Each template:
  *   - Reads the `DATA` global variable (string)
  *   - Extracts relevant fields
- *   - Outputs a compact summary via console.log()
+ *   - Outputs a compact summary via console.error()
  *   - Wraps in try/catch for graceful error handling
  *
  * ═══════════════════════════════════════════════════════════════════
@@ -35,8 +35,8 @@ export const CODE_MODE_TEMPLATES: Record<string, string> = {
           (labels ? ' {' + labels + '}' : '') +
           ' - ' + (i.comments || 0) + ' comments';
       });
-      console.log(summary.join("\\n"));
-    } catch (e) { console.log("Template Error: " + e.message); }
+      console.error(summary.join("\\n"));
+    } catch (e) { console.error("Template Error: " + e.message); }
   `,
 
   // ─── GitHub Pull Requests ─────────────────────────────────────
@@ -53,8 +53,8 @@ export const CODE_MODE_TEMPLATES: Record<string, string> = {
           ' ' + (pr.base ? pr.base.ref : '?') + ' <- ' + (pr.head ? pr.head.ref : '?') +
           reviewState;
       });
-      console.log(summary.join("\\n"));
-    } catch (e) { console.log("Template Error: " + e.message); }
+      console.error(summary.join("\\n"));
+    } catch (e) { console.error("Template Error: " + e.message); }
   `,
 
   // ─── Jira Tickets ─────────────────────────────────────────────
@@ -70,8 +70,8 @@ export const CODE_MODE_TEMPLATES: Record<string, string> = {
           ' - Priority: ' + (f.priority ? f.priority.name : '?') +
           ' - Assignee: ' + (f.assignee ? f.assignee.displayName : 'Unassigned');
       });
-      console.log(summary.join("\\n"));
-    } catch (e) { console.log("Template Error: " + e.message); }
+      console.error(summary.join("\\n"));
+    } catch (e) { console.error("Template Error: " + e.message); }
   `,
 
   // ─── DOM Links Extraction ─────────────────────────────────────
@@ -88,8 +88,8 @@ export const CODE_MODE_TEMPLATES: Record<string, string> = {
           matches.push('[' + text + '](' + m[1] + ')');
         }
       }
-      console.log(matches.length + ' links found:\\n' + matches.join("\\n"));
-    } catch (e) { console.log("Template Error: " + e.message); }
+      console.error(matches.length + ' links found:\\n' + matches.join("\\n"));
+    } catch (e) { console.error("Template Error: " + e.message); }
   `,
 
   // ─── DOM Headings Hierarchy ───────────────────────────────────
@@ -107,8 +107,8 @@ export const CODE_MODE_TEMPLATES: Record<string, string> = {
         for (var i = 1; i < level; i++) indent += '  ';
         headings.push(indent + m[1].toUpperCase() + ': ' + text);
       }
-      console.log(headings.join("\\n"));
-    } catch (e) { console.log("Template Error: " + e.message); }
+      console.error(headings.join("\\n"));
+    } catch (e) { console.error("Template Error: " + e.message); }
   `,
 
   // ─── OpenAPI / Swagger Endpoints ──────────────────────────────
@@ -131,8 +131,8 @@ export const CODE_MODE_TEMPLATES: Record<string, string> = {
             ' - ' + (details.summary || details.operationId || 'No summary'));
         }
       }
-      console.log(endpoints.length + ' endpoints:\\n' + endpoints.join("\\n"));
-    } catch (e) { console.log("Template Error: " + e.message); }
+      console.error(endpoints.length + ' endpoints:\\n' + endpoints.join("\\n"));
+    } catch (e) { console.error("Template Error: " + e.message); }
   `,
 
   // ─── Slack Messages ───────────────────────────────────────────
@@ -147,8 +147,8 @@ export const CODE_MODE_TEMPLATES: Record<string, string> = {
         var text = (m.text || '').substring(0, 120);
         return '[' + ts + '] @' + user + ': ' + text;
       });
-      console.log(summary.join("\\n"));
-    } catch (e) { console.log("Template Error: " + e.message); }
+      console.error(summary.join("\\n"));
+    } catch (e) { console.error("Template Error: " + e.message); }
   `,
 
   // ─── CSV Summary ──────────────────────────────────────────────
@@ -167,8 +167,8 @@ export const CODE_MODE_TEMPLATES: Record<string, string> = {
           output += '  Row ' + i + ': ' + lines[i] + '\\n';
         }
       }
-      console.log(output);
-    } catch (e) { console.log("Template Error: " + e.message); }
+      console.error(output);
+    } catch (e) { console.error("Template Error: " + e.message); }
   `,
 };
 

@@ -58,6 +58,7 @@ export async function runInSandbox(dataStr: string, code: string, timeoutMs: num
 
         const consoleHandle = vm.newObject();
         vm.setProp(consoleHandle, "log", logHandle);
+        vm.setProp(consoleHandle, "error", logHandle); // Map console.error to capture output safely
         vm.setProp(vm.global, "console", consoleHandle);
         consoleHandle.dispose();
         logHandle.dispose();
