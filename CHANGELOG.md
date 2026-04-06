@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [7.8.4] - 2026-04-06
+
+### Fixed
+- **JSON-RPC Stream Integrity** — Replaced `console.info()` calls in `factory.ts` with `console.error()`. In Node.js, `console.info()` writes to stdout (same as `console.log()`), which corrupted the MCP JSON-RPC stream and caused dashboard connectivity failures and auto-load timeouts.
+- **Misleading Provider Log** — Fixed a log message that incorrectly reported "routing embeddings to GeminiAdapter" when Voyage AI was actually auto-detected via `VOYAGE_API_KEY`. The anthropic info message now only fires when Gemini is genuinely selected as the fallback.
+- **CLI Tool Logging** — Reverted `console.log` → `console.error` changes in `cliHandler.ts` and `universalImporter.ts` that were incorrectly applied in a previous fix. These are standalone CLI tools (not imported by the MCP server) and require `stdout` for programmatic output (e.g., `prism verify status --json | jq`).
+- **Sandbox Template Consistency** — Reverted QuickJS sandbox code templates (`codeMode.ts`) back to `console.log()` to match the tool descriptions in `definitions.ts` that instruct LLMs to use `console.log()`.
+- **Voyage Adapter Docs** — Updated stale header comments that still referenced `voyage-3` as the default model (now `voyage-code-3` since v7.8.3).
+
 ## [7.8.3] - 2026-04-06
 
 ### Fixed
