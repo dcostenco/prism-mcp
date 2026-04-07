@@ -1,0 +1,4 @@
+# Large benchmark datasets (download via instructions in README)
+data/*.json
+results/
+benchmark.db*
