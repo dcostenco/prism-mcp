@@ -798,23 +798,28 @@ The Generator strips the `console.log`, resubmits, and the next `EVALUATE` retur
 
 ## How Prism Compares
 
-Standard memory servers (like Mem0, Zep, or the baseline Anthropic MCP) act as passive filing cabinets — they wait for the LLM to search them. **Prism is an active cognitive architecture.** Designed specifically for the **Model Context Protocol (MCP)**, Prism doesn't just store vectors — it consolidates experience into principles, traverses causal graphs for multi-hop reasoning, and rejects queries it can't confidently answer.
+The AI agent memory space is growing fast — from managed APIs (Mem0, Zep) to raw-storage systems (MemPalace) to agent frameworks with built-in memory (Letta). **Prism is the only one that treats memory as a cognitive system** — with affect-tagged recall, token-economic gating, and multi-hop graph reasoning. Designed specifically for the **Model Context Protocol (MCP)**, Prism doesn't just store vectors — it consolidates experience into principles, traverses causal graphs, and creates agents that genuinely learn from their mistakes.
 
 ### 📊 Feature-by-Feature Comparison
 
-| Feature / Architecture | 🧠 Prism MCP | 🐘 Mem0 | ⚡ Zep | 🧪 Anthropic Base MCP |
-| :--- | :--- | :--- | :--- | :--- |
-| **Primary Interface** | **Native MCP** (Tools, Prompts, Resources) | REST API & Python/TS SDKs | REST API & Python/TS SDKs | Native MCP (Tools only) |
-| **Storage Engine** | **BYO SQLite or Supabase** | Managed Cloud / VectorDBs | Managed Cloud / Postgres | Local SQLite only |
-| **Context Assembly** | **Progressive (Quick/Std/Deep)** | Top-K Semantic Search | Top-K + Temporal Summaries | Basic Entity Search |
-| **Memory Mechanics** | **ACT-R Activation, Spreading Activation, Hebbian Consolidation, Rejection Gate** | Basic Vector + Entity | Fading Temporal Graph | None (Infinite growth) |
-| **Multi-Agent Sync** | **CRDT (Add-Wins / LWW)** | Cloud locks | Postgres locks | ❌ None (Data races) |
-| **Data Compression** | **TurboQuant (7x smaller vectors)** | ❌ Standard F32 Vectors | ❌ Standard Vectors | ❌ No Vectors |
-| **Observability** | **OTel Traces + Built-in PWA UI** | Cloud Dashboard | Cloud Dashboard | ❌ None |
-| **Maintenance** | **Autonomous Background Scheduler** | Manual/API driven | Automated (Cloud) | ❌ Manual |
-| **Data Portability** | **Prism-Port (Obsidian/Logseq Vault)** | JSON Export | JSON Export | Raw `.db` file |
-| **Cost Model** | **Free + BYOM (Ollama)** | Per-API-call pricing | Per-API-call pricing | Free (limited) |
-| **Autonomous Pipelines** | **✅ Dark Factory** — adversarial eval, evidence-bound rubric, fail-closed 3-gate execution | ❌ | ❌ | ❌ |
+| Feature | 🧠 Prism MCP | 🏛️ MemPalace | 🐘 Mem0 | ⚡ Zep | 🧪 Letta (MemGPT) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Primary Interface** | **Native MCP** (Tools, Prompts, Resources) | MCP + CLI | REST API & SDKs | REST API & SDKs | Python SDK + REST |
+| **Storage Philosophy** | **Compress & learn** — consolidate raw experience into principles | **Store everything** — raw verbatim, let search find it | Managed cloud vectors | Managed cloud + Postgres | Self-editing memory blocks |
+| **Storage Engine** | **BYO SQLite or Supabase** | ChromaDB (local) | Managed Cloud / VectorDBs | Managed Cloud / Postgres | Postgres + cloud |
+| **Affect-Tagged Memory** | **✅ Valence -1.0 to +1.0** — memories carry emotional weight from outcomes | ❌ | ❌ | ❌ | ❌ |
+| **Token Economy** | **✅ Surprisal gating** — novel insights cheap, redundant saves taxed 2x | ❌ | ❌ | ❌ | ❌ |
+| **Memory Mechanics** | **ACT-R activation, spreading activation, Hebbian consolidation, rejection gate** | Semantic search over verbatim store | Basic vector + entity | Fading temporal graph | Inner/outer monologue |
+| **Graph Retrieval** | **✅ Synapse Engine** — multi-hop GraphRAG with ACT-R spreading activation | ❌ NavigableMap (wings/rooms) | ❌ | ✅ Graphiti temporal graph | ❌ |
+| **Multi-Agent Sync** | **✅ Hivemind** — role-scoped CRDT coordination | ❌ | Cloud locks | Postgres locks | ❌ |
+| **Data Compression** | **TurboQuant (7x smaller vectors)** | AAAK (experimental abbreviation) | ❌ Standard F32 | ❌ Standard | ❌ |
+| **Observability** | **OTel Traces + Mind Palace PWA** | ❌ CLI only | Cloud Dashboard | Cloud Dashboard | ✅ UI |
+| **Data Portability** | **Prism-Port (Obsidian/Logseq Vault)** | ❌ | JSON Export | JSON Export | JSON Export |
+| **Cost Model** | **Free + BYOM (Ollama)** | Free (local) | Per-API-call pricing | Per-API-call pricing | Free (self-hosted) |
+| **Autonomous Pipelines** | **✅ Dark Factory** — adversarial eval, fail-closed 3-gate execution | ❌ | ❌ | ❌ | ❌ |
+| **HDC Cognitive Routing** | **✅** Policy-gated recall decisions | ❌ | ❌ | ❌ | ❌ |
+| **Language** | TypeScript | Python | Python | Python | Python |
+| **Test Coverage** | **1,151 tests / 51 suites** | Unknown | Unknown | Unknown | Unknown |
 
 ### 🏆 Where Prism Crushes the Giants
 
@@ -838,9 +843,10 @@ Every other AI coding pipeline has a fatal flaw: it asks the same model that wro
 
 ### 🤝 Where the Giants Currently Win (Honest Trade-offs)
 
-1. **Framework Integrations:** Mem0 and Zep have pre-built integrations for LangChain, LlamaIndex, Flowise, AutoGen, CrewAI, etc. Prism requires the host application to support the MCP protocol.
-2. **Managed Cloud Infrastructure:** The giants offer SaaS. Users pay $20/month and don't think about databases. Prism users must set up their own local SQLite or provision their own Supabase instance.
-3. **Implicit Memory Extraction (NER):** Zep automatically extracts names, places, and facts from raw chat logs using NLP models. Prism relies on the LLM explicitly calling the `session_save_ledger` tool to structure its own memories.
+1. **Benchmark Scores:** MemPalace publishes 96.6% R@5 on [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (500 questions, ICLR 2025). Prism has not yet run published LongMemEval/LoCoMo evaluations — this is on the roadmap.
+2. **Framework Integrations:** Mem0 and Zep have pre-built integrations for LangChain, LlamaIndex, Flowise, AutoGen, CrewAI, etc. Prism requires the host application to support the MCP protocol.
+3. **Managed Cloud Infrastructure:** Mem0 and Zep offer SaaS. Users pay $20/month and don't think about databases. Prism users must set up their own local SQLite or provision their own Supabase instance.
+4. **Implicit Memory Extraction (NER):** Zep automatically extracts names, places, and facts from raw chat logs using NLP models. Prism relies on the LLM explicitly calling the `session_save_ledger` tool to structure its own memories.
 
 > 💰 **Token Economics:** Progressive Context Loading (Quick ~50 tokens / Standard ~200 / Deep ~1000+) plus auto-compaction means you never blow your Claude/OpenAI token budget fetching 50 pages of raw chat history.
 >
