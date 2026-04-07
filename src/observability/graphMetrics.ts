@@ -132,6 +132,17 @@ interface CognitiveMetrics {
   duration_buffer: DurationBuffer;
 }
 
+interface SynapseRuntimeMetrics {
+  evaluations_total: number;
+  nodes_returned_last: number;
+  nodes_discovered_last: number;
+  edges_traversed_last: number;
+  iterations_performed_last: number;
+  max_activation_last: number;
+  last_run_at: string | null;
+  duration_buffer: DurationBuffer;
+}
+
 interface WarningFlags {
   synthesis_quality_warning: boolean;
   testme_provider_warning: boolean;
@@ -153,6 +164,7 @@ let testMe: TestMeMetrics = createFreshTestMeMetrics();
 let schedulerSynthesis: SchedulerSynthesisMetrics = createFreshSchedulerMetrics();
 let pruning: PruningMetrics = createFreshPruningMetrics();
 let cognitive: CognitiveMetrics = createFreshCognitiveMetrics();
+let synapse: SynapseRuntimeMetrics = createFreshSynapseMetrics();
 
 function createFreshSynthesisMetrics(): SynthesisMetrics {
   return {
@@ -226,6 +238,19 @@ function createFreshCognitiveMetrics(): CognitiveMetrics {
     last_route: null,
     last_concept: null,
     last_confidence: null,
+    duration_buffer: new DurationBuffer(),
+  };
+}
+
+function createFreshSynapseMetrics(): SynapseRuntimeMetrics {
+  return {
+    evaluations_total: 0,
+    nodes_returned_last: 0,
+    nodes_discovered_last: 0,
+    edges_traversed_last: 0,
+    iterations_performed_last: 0,
+    max_activation_last: 0,
+    last_run_at: null,
     duration_buffer: new DurationBuffer(),
   };
 }
@@ -465,6 +490,40 @@ export function recordCognitiveRoute(data: CognitiveRouteData): void {
   });
 }
 
+// ─── Synapse Telemetry Recording (v8.0) ──────────────────────────
+
+export interface SynapseRunData {
+  nodesReturned: number;
+  nodesDiscovered: number;
+  edgesTraversed: number;
+  iterationsPerformed: number;
+  maxActivationEnergy: number;
+  avgActivationEnergy: number;
+  durationMs: number;
+}
+
+export function recordSynapseTelemetry(data: SynapseRunData): void {
+  const now = new Date().toISOString();
+  synapse.evaluations_total++;
+  synapse.last_run_at = now;
+  synapse.nodes_returned_last = data.nodesReturned;
+  synapse.nodes_discovered_last = data.nodesDiscovered;
+  synapse.edges_traversed_last = data.edgesTraversed;
+  synapse.iterations_performed_last = data.iterationsPerformed;
+  synapse.max_activation_last = data.maxActivationEnergy;
+  synapse.duration_buffer.push(data.durationMs);
+
+  emitGraphEvent({
+    event: "synapse_propagation",
+    nodes_returned: data.nodesReturned,
+    nodes_discovered: data.nodesDiscovered,
+    edges_traversed: data.edgesTraversed,
+    iterations: data.iterationsPerformed,
+    max_activation: data.maxActivationEnergy,
+    duration_ms: data.durationMs,
+  });
+}
+
 // ─── Warning Flag Computation ────────────────────────────────────
 
 function computeWarningFlags(): WarningFlags {
@@ -603,6 +662,16 @@ export interface GraphMetricsSnapshot {
     last_confidence: number | null;
     duration_p50_ms: number | null;
   };
+  synapse: {
+    evaluations_total: number;
+    nodes_returned_last: number;
+    nodes_discovered_last: number;
+    edges_traversed_last: number;
+    iterations_performed_last: number;
+    max_activation_last: number;
+    last_run_at: string | null;
+    duration_p50_ms: number | null;
+  };
   slo: SloMetrics;
   warnings: WarningFlags;
 }
@@ -685,6 +754,16 @@ export function getGraphMetricsSnapshot(): GraphMetricsSnapshot {
       last_confidence: cognitive.last_confidence,
       duration_p50_ms: cognitive.duration_buffer.getP50(),
     },
+    synapse: {
+      evaluations_total: synapse.evaluations_total,
+      nodes_returned_last: synapse.nodes_returned_last,
+      nodes_discovered_last: synapse.nodes_discovered_last,
+      edges_traversed_last: synapse.edges_traversed_last,
+      iterations_performed_last: synapse.iterations_performed_last,
+      max_activation_last: synapse.max_activation_last,
+      last_run_at: synapse.last_run_at,
+      duration_p50_ms: synapse.duration_buffer.getP50(),
+    },
     slo: computeSloMetrics(),
     warnings: computeWarningFlags(),
   };
@@ -698,6 +777,7 @@ export function resetGraphMetricsForTests(): void {
   schedulerSynthesis = createFreshSchedulerMetrics();
   pruning = createFreshPruningMetrics();
   cognitive = createFreshCognitiveMetrics();
+  synapse = createFreshSynapseMetrics();
   sweepDurationMsLast = 0;
   sweepLastAt = null;
 }

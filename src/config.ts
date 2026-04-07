@@ -396,3 +396,32 @@ export const PRISM_DARK_FACTORY_MAX_RUNTIME_MS = parseInt(
   process.env.PRISM_DARK_FACTORY_MAX_RUNTIME_MS || "900000", 10
 );
 
+// ─── v8.0: Synapse — Spreading Activation Engine ──────────────
+// Multi-hop energy propagation through memory_links graph.
+// Enabled by default. Set PRISM_SYNAPSE_ENABLED=false to fall back
+// to 1-hop candidateScopedSpreadingActivation (v7.0 behavior).
+
+/** Master switch for the Synapse engine. Enabled by default (opt-out). */
+export const PRISM_SYNAPSE_ENABLED =
+  (process.env.PRISM_SYNAPSE_ENABLED ?? "true") !== "false";
+
+/** Number of propagation iterations (depth). Higher = deeper traversal, more latency. (Default: 3) */
+export const PRISM_SYNAPSE_ITERATIONS = parseInt(
+  process.env.PRISM_SYNAPSE_ITERATIONS || "3", 10
+);
+
+/** Energy attenuation per hop. Must be < 1.0 for convergence. (Default: 0.8) */
+export const PRISM_SYNAPSE_SPREAD_FACTOR = parseFloat(
+  process.env.PRISM_SYNAPSE_SPREAD_FACTOR || "0.8"
+);
+
+/** Hard cap on final output nodes (lateral inhibition). (Default: 7) */
+export const PRISM_SYNAPSE_LATERAL_INHIBITION = parseInt(
+  process.env.PRISM_SYNAPSE_LATERAL_INHIBITION || "7", 10
+);
+
+/** Soft cap on active nodes per iteration (prevents explosion). (Default: 20) */
+export const PRISM_SYNAPSE_SOFT_CAP = parseInt(
+  process.env.PRISM_SYNAPSE_SOFT_CAP || "20", 10
+);
+

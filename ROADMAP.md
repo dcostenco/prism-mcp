@@ -7,6 +7,21 @@
 
 Prism has evolved from a simple SQLite session logger into a **Quantized, Multimodal, Multi-Agent, Self-Learning, Observable AI Operating System**.
 
+### ✅ v8.0.0 — Synapse Engine 🧠
+
+> **Problem:** Static memory retrieval ignores structural salience and causal relationships, limiting multi-hop reasoning.
+> **Solution:** A pure, storage-agnostic spreading activation engine (Synapse) implements ACT-R inspired energy propagation through the graph, unblocking deep causal retrieval.
+
+| Feature | Detail |
+|---------|--------|
+| ⚡ **Storage-Agnostic Core** | Pure functional implementation (`synapseEngine.ts`) decoupled from SQL. Relies on a `LinkFetcher` callback, paving the way for distributed graph databases. |
+| 🎛️ **Dampened Fan Effect** | Hub dampening logic applying `1 / ln(degree + e)` penalty prevents densely connected hub nodes from overriding specific, high-signal conversational pathways. |
+| ⚖️ **Asymmetric Propagation** | Forward edges transfer 100% activation; backward edges transfer 50%, preserving causal directionality while allowing inference backtracking. |
+| 🔄 **Cyclic Loop Prevention** | Hardened visited-edge energy tracking aborts redundant traversals preventing explosive recursive combinations. |
+| 📊 **Sigmoid Normalization** | Smoothly normalizes raw activation scores into structural scores ensuring semantic similarity base isn't overwhelmed by graph clustering. |
+| 📡 **Observability Telemetry** | Full runtime telemetry (`SynapseRuntimeMetrics`) integrated into the observability pipeline and exposed via `/api/graph/metrics`. |
+
+---
 ### ✅ v7.8.0 — Agentic Cognition Pipeline 🧠
 
 > **Problem:** Compacting memory nodes blindly merged text, sacrificing structured reasoning and resulting in slow, un-indexed re-reads that couldn't construct causal relationships. Keyword engines were improperly gated by semantic thresholds, causing silent failures.
@@ -233,10 +248,11 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 
 </details>
 
-## 📊 The State of Prism (v7.8.0)
+## 📊 The State of Prism (v8.0.0)
 
-With v7.8.0 shipped, Prism is a **production-hardened, fail-closed, adversarially-evaluated autonomous AI Operating System** — the first MCP server that runs your agents *without letting them touch the filesystem unsupervised*, *without letting them grade their own homework*, and *with real-time visibility into project health*:
+With v8.0.0 shipped, Prism is a **production-hardened, fail-closed, adversarially-evaluated autonomous AI Operating System** — the first MCP server that runs your agents *without letting them touch the filesystem unsupervised*, *without letting them grade their own homework*, and *with real-time visibility into project health*:
 
+- **Synapse Engine (GraphRAG)** — Pure, storage-agnostic multi-hop graph propagation replaces legacy SQL-coupled spreading activation. O(T×M) bounded ACT-R energy propagation with dampened fan effect, asymmetric bidirectional flow, cyclic loop prevention, and sigmoid normalization. Nodes discovered via graph traversal tagged `[🌐 Synapse]`. Full SQLite + Supabase parity.
 - **Cloud-Native RPC** — Server-Sent Events integration unlocks complete deployment portability across Smithery, Render, or any remote host over standard HTTP ports.
 - **Health-Aware** — Intent Health Dashboard scores every project 0–100 across staleness, TODO load, and decision quality. Silent drift becomes an actionable signal before it becomes a crisis.
 - **Comprehensively Sanitized** — 10 XSS injection vectors patched across all dashboard rendering paths (factory, ledger, health, history, error handlers). Every user-facing string now passes through `escapeHtml()`.
@@ -245,10 +261,10 @@ With v7.8.0 shipped, Prism is a **production-hardened, fail-closed, adversariall
 - **Conservatively Fail-Safe** — Parse failures default `plan_viable=false` — escalating to full PLAN re-planning instead of burning revision budget on broken LLM output.
 - **Autonomously Verified** — Verification Harness generates spec-freeze contracts before execution, hash-locks them, and gates finalization against immutable outcomes.
 - **Intelligently Routed** — Heuristic + ML Task Router delegates cloud vs. local in under 2ms, cold-start safe, experience-corrected per project.
-- **Scientifically-Grounded** — ACT-R activation model (`B_i = ln(Σ t_j^{-d})`) ranks memories by recency × frequency. Candidate-scoped spreading activation prevents centrality bias.
+- **Scientifically-Grounded** — ACT-R activation model (`B_i = ln(Σ t_j^{-d})`) ranks memories by recency × frequency. Synapse Engine propagates energy through causal graphs.
 - **Cognitively-Routed** — HDC binary hypervectors + Hamming distance concept resolution + policy gateway. Three-outcome routing: `direct / clarify / fallback`.
 - **Self-Organizing** — Edge Synthesis + Graph Pruning form an autonomous cognitive loop: the graph grows connective tissue overnight and prunes dead weight on schedule.
-- **Observable** — SLO dashboard: synthesis success rate, net link growth, prune ratio, sweep latency, cognitive route distribution, pipeline gate pass/fail. Warning badges fire proactively.
+- **Observable** — SLO dashboard: synthesis success rate, net link growth, prune ratio, sweep latency, cognitive route distribution, pipeline gate pass/fail, Synapse telemetry.
 - **Diagnostically Rich** — `verify status --json` emits `diff_counts` + `changed_keys` per layer. JSON contract is CI-enforced and schema-versioned.
 - **Zero Cold-Start** — Universal Migration imports years of Claude/Gemini/ChatGPT history on day one. New memories are access-seeded immediately.
 - **Air-Gapped Capable** — OllamaAdapter enables fully local, zero-cost embeddings via `nomic-embed-text` (768-dim native). No API key, no network, no cost. Auto-detected when `OLLAMA_HOST` is set.
@@ -256,7 +272,7 @@ With v7.8.0 shipped, Prism is a **production-hardened, fail-closed, adversariall
 - **Safe** — Full type-guard matrix across all 30+ MCP tools. Path traversal, poison pill payloads, null-byte injection — all blocked at the gate layer before any execution.
 - **Convergent** — CRDT OR-Map handoff merging. Multiple agents, zero conflicts.
 - **Autonomous** — Web Scholar researches while you sleep. Dark Factory executes while you sleep. Task Router delegates while you sleep. Adversarial Evaluator keeps the output honest.
-- **Reliable** — 978 passing tests. ES5 lint guard on all dashboard inline scripts. JSON contract CI enforcement on all CLI output schemas.
+- **Reliable** — 978+ passing tests. ES5 lint guard on all dashboard inline scripts. JSON contract CI enforcement on all CLI output schemas.
 - **Multimodal** — VLM auto-captioning turns screenshots into semantically searchable memory.
 - **Security** — SQL injection prevention, path traversal guard, Poison Pill defense, GDPR Art. 17+20 compliance.
 
@@ -275,14 +291,9 @@ With v7.8.0 shipped, Prism is a **production-hardened, fail-closed, adversariall
 
 Based on our April 2026 synthesize of 12 foundational papers on cognitive memory architectures:
 
-#### v8.0 — Spreading Activation Engine `[Next]`
-- **Problem:** Static retrieval ignores structural salience, limiting multi-hop reasoning.
-- **Benefit:** ACT-R inspired energy propagation through the graph (Synapse) achieves +23% multi-hop performance by prioritizing nodes functionally connected to semantic anchors.
-- **Dependency:** Leverages existing SQLite `memory_links` table as the activation substrate with top-7 lateral inhibition and degree-normalized fan effect.
-
-#### v8.1 — Multi-Graph Causal Layer `[Planned]`
-- **Problem:** Semantic and contiguous temporal links cannot satisfy "Why did X happen?" queries effectively.
-- **Benefit:** Intent-aware retrieval routing (MAGMA) traversing an LLM-inferred causal `because` edge-type layer.
+#### v8.1 — Multi-Graph Causal Layer `[Next]`
+- **Problem:** Synapse Engine currently traverses all edge types uniformly. "Why did X happen?" queries need intent-aware edge routing.
+- **Benefit:** Intent-aware retrieval routing (MAGMA) traversing LLM-inferred causal `because` edge-type layer on top of the existing Synapse propagation.
 
 #### v8.2 — Uncertainty-Aware Rejection `[Planned]`
 - **Problem:** Agents hallucinate context when the retrieved memory trace is too weak.

@@ -40,10 +40,18 @@ import {
   PipelineStatus,          // v7.3: Dark Factory Pipeline
   VerificationHarness,     // v7.2.0: Verification Harness
   ValidationResult,        // v7.2.0: Verification Harness
+  SpreadingActivationOptions,
 } from "./interface.js";
 
 import { debugLog } from "../utils/logger.js";
-import { PRISM_USER_ID } from "../config.js";
+import {
+  PRISM_USER_ID,
+  PRISM_SYNAPSE_ENABLED,
+  PRISM_SYNAPSE_ITERATIONS,
+  PRISM_SYNAPSE_SPREAD_FACTOR,
+  PRISM_SYNAPSE_LATERAL_INHIBITION,
+  PRISM_SYNAPSE_SOFT_CAP,
+} from "../config.js";
 import { getSetting as cfgGet, setSetting as cfgSet, getAllSettings as cfgGetAll } from "./configStorage.js";
 import { runAutoMigrations } from "./supabaseMigrations.js";
 import { SafetyController } from "../darkfactory/safetyController.js";
@@ -277,6 +285,7 @@ export class SupabaseStorage implements StorageBackend {
     limit: number;
     userId: string;
     role?: string | null;  // v3.0: optional role filter
+    activation?: SpreadingActivationOptions; // v8.0 spreading activation
   }): Promise<KnowledgeSearchResult | null> {
     try {
       const result = await supabaseRpc("search_knowledge", {
@@ -294,6 +303,21 @@ export class SupabaseStorage implements StorageBackend {
         return null;
       }
 
+      // v8.0: Apply Synapse graph enrichment if activation is enabled
+      if (params.activation?.enabled && Array.isArray(data.results) && data.results.length > 0) {
+        const mappedAnchors: SemanticSearchResult[] = data.results.map((r: any) => ({
+          id: r.id as string,
+          project: r.project as string,
+          summary: r.summary as string,
+          similarity: 1.0, // FTS matches treated as 1.0 similarity
+          session_date: r.session_date as string | undefined,
+          decisions: Array.isArray(r.decisions) ? r.decisions as string[] : [],
+          files_changed: Array.isArray(r.files_changed) ? r.files_changed as string[] : [],
+        }));
+        const activated = await this.applySynapse(mappedAnchors, params.activation, params.userId);
+        return { count: activated.length, results: activated };
+      }
+
       return data as KnowledgeSearchResult;
     } catch (e) {
       debugLog("[SupabaseStorage] searchKnowledge RPC failed: " + (e instanceof Error ? e.message : String(e)));
@@ -308,6 +332,7 @@ export class SupabaseStorage implements StorageBackend {
     similarityThreshold: number;
     userId: string;
     role?: string | null;
+    activation?: SpreadingActivationOptions; // v8.0 spreading activation
   }): Promise<SemanticSearchResult[]> {
     // ─── TIER 1: Native pgvector cosine search via Supabase RPC ─────────
     //
@@ -334,7 +359,11 @@ export class SupabaseStorage implements StorageBackend {
         p_user_id: params.userId,
         p_role: params.role || null,
       });
-      return Array.isArray(result) ? result as SemanticSearchResult[] : [];
+      const baseResults = Array.isArray(result) ? result as SemanticSearchResult[] : [];
+      if (params.activation?.enabled && baseResults.length > 0) {
+        return this.applySynapse(baseResults, params.activation, params.userId);
+      }
+      return baseResults;
     } catch (tier1Err) {
       // ─── TIER 2 FALLBACK: TurboQuant JS-side scoring ─────────────────
       debugLog(
@@ -392,7 +421,11 @@ export class SupabaseStorage implements StorageBackend {
           `[SupabaseStorage] Tier-2 TurboQuant fallback: scored ${rows.length} entries, ` +
           `${scored.length} above threshold`
         );
-        return scored.slice(0, params.limit);
+        const tier2Results = scored.slice(0, params.limit);
+        if (params.activation?.enabled && tier2Results.length > 0) {
+          return this.applySynapse(tier2Results, params.activation, params.userId);
+        }
+        return tier2Results;
       } catch (tier2Err) {
         // Both tiers failed — return empty; caller falls through to FTS5
         console.error(
@@ -403,6 +436,101 @@ export class SupabaseStorage implements StorageBackend {
         );
         return [];
       }
+    }
+  }
+
+  // ─── Synapse Engine Integration (v8.0) ────────────────────────
+  //
+  // Storage-agnostic multi-hop activation enrichment.
+  // Mirrors SqliteStorage.applySynapse() — the Synapse engine itself
+  // is pure (zero I/O), receiving link data via the getLinksForNodes
+  // callback. Missing node metadata is fetched via Supabase REST.
+
+  private async applySynapse(
+    anchors: SemanticSearchResult[],
+    options: SpreadingActivationOptions,
+    userId: string
+  ): Promise<SemanticSearchResult[]> {
+    if (!PRISM_SYNAPSE_ENABLED || !options.enabled || anchors.length === 0) return anchors;
+
+    try {
+      const { propagateActivation, normalizeActivationEnergy } = await import("../memory/synapseEngine.js");
+      const { recordSynapseTelemetry } = await import("../observability/graphMetrics.js");
+
+      const anchorMap = new Map<string, number>();
+      for (const a of anchors) anchorMap.set(a.id, a.similarity ?? 1.0);
+
+      const { results, telemetry } = await propagateActivation(
+        anchorMap,
+        async (nodeIds) => this.getLinksForNodes(nodeIds, userId),
+        {
+          iterations: options.iterations ?? PRISM_SYNAPSE_ITERATIONS,
+          spreadFactor: options.spreadFactor ?? PRISM_SYNAPSE_SPREAD_FACTOR,
+          lateralInhibition: options.lateralInhibition ?? PRISM_SYNAPSE_LATERAL_INHIBITION,
+          softCap: PRISM_SYNAPSE_SOFT_CAP,
+        }
+      );
+
+      recordSynapseTelemetry(telemetry);
+
+      // Build node lookup from anchor results
+      const fullNodeMap = new Map<string, SemanticSearchResult>();
+      for (const a of anchors) fullNodeMap.set(a.id, a);
+
+      // Fetch metadata for nodes discovered by propagation (not in original anchors)
+      const finalIds = results.map(r => r.id);
+      const missingIds = finalIds.filter(id => !fullNodeMap.has(id));
+
+      if (missingIds.length > 0) {
+        try {
+          const rows = await supabaseGet("session_ledger", {
+            id: `in.(${missingIds.join(",")})`,
+            user_id: `eq.${userId}`,
+            deleted_at: "is.null",
+            select: "id,project,summary,session_date,decisions,files_changed,is_rollup,importance,last_accessed_at",
+          }) as Record<string, unknown>[];
+
+          for (const row of (Array.isArray(rows) ? rows : [])) {
+            fullNodeMap.set(row.id as string, {
+              id: row.id as string,
+              project: row.project as string,
+              summary: row.summary as string,
+              session_date: row.session_date as string | undefined,
+              decisions: Array.isArray(row.decisions) ? row.decisions as string[] : [],
+              files_changed: Array.isArray(row.files_changed) ? row.files_changed as string[] : [],
+              is_rollup: Boolean(row.is_rollup),
+              importance: Number(row.importance) || 0,
+              last_accessed_at: (row.last_accessed_at as string) || null,
+              similarity: 0.0,
+            });
+          }
+        } catch (e) {
+          debugLog(`[SupabaseStorage] applySynapse: failed to fetch missing nodes: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+
+      // Compute hybrid scores and build final result set
+      const finalResults: SemanticSearchResult[] = [];
+
+      for (const r of results) {
+        if (fullNodeMap.has(r.id)) {
+          const node = fullNodeMap.get(r.id)!;
+          const normEnergy = normalizeActivationEnergy(r.activationEnergy);
+          node.activationScore = normEnergy;
+          node.rawActivationEnergy = r.activationEnergy;
+          node.isDiscovered = r.isDiscovered;
+
+          // Hybrid blend: 70% original match relevance, 30% structural energy
+          node.hybridScore = (node.similarity * 0.7) + (normEnergy * 0.3);
+
+          finalResults.push(node);
+        }
+      }
+
+      return finalResults.sort((a, b) => (b.hybridScore || 0) - (a.hybridScore || 0));
+    } catch (err) {
+      debugLog(`[SupabaseStorage] applySynapse failed (non-fatal, returning original anchors): ${err instanceof Error ? err.message : String(err)}`);
+      return anchors;
     }
   }
 
@@ -1239,6 +1367,26 @@ export class SupabaseStorage implements StorageBackend {
       }));
     } catch (e: any) {
       debugLog("[SupabaseStorage] getLinksTo failed: " + e.message);
+      return [];
+    }
+  }
+
+  async getLinksForNodes(nodeIds: string[], userId: string): Promise<Array<{ source_id: string; target_id: string; strength: number }>> {
+    if (!nodeIds || nodeIds.length === 0) return [];
+    try {
+      const result = await supabaseRpc("prism_get_links_for_nodes", {
+        p_node_ids: nodeIds,
+        p_user_id: userId
+      });
+
+      const rows = Array.isArray(result) ? result : [];
+      return rows.map((r: any) => ({
+        source_id: r.source_id,
+        target_id: r.target_id,
+        strength: r.strength
+      }));
+    } catch (e: any) {
+      debugLog("[SupabaseStorage] getLinksForNodes failed: " + e.message);
       return [];
     }
   }

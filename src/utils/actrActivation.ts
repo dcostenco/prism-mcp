@@ -134,6 +134,8 @@ export function baseLevelActivation(
  *
  * W = 1 / |candidateIds| (uniform attention weight across candidates)
  *
+ * @deprecated Use Synapse engine (v8.0) at the storage layer instead via `applySynapse()`.
+ *
  * @param outboundLinks - All outbound links from this memory entry
  * @param candidateIds - Set of entry IDs in the current search result set
  * @returns Spreading activation value (0 to ~1.0 range)
