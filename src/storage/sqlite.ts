@@ -22,7 +22,14 @@ import * as path from "path";
 import * as os from "os";
 import { randomUUID } from "crypto";
 import { AccessLogBuffer } from "../utils/accessLogBuffer.js";
-import { PRISM_ACTR_BUFFER_FLUSH_MS } from "../config.js";
+import {
+  PRISM_ACTR_BUFFER_FLUSH_MS,
+  PRISM_SYNAPSE_ENABLED,
+  PRISM_SYNAPSE_ITERATIONS,
+  PRISM_SYNAPSE_SPREAD_FACTOR,
+  PRISM_SYNAPSE_LATERAL_INHIBITION,
+  PRISM_SYNAPSE_SOFT_CAP,
+} from "../config.js";
 import { getSetting as cfgGet, setSetting as cfgSet, getAllSettings as cfgGetAll } from "./configStorage.js";
 
 import type {
@@ -1549,8 +1556,7 @@ export class SqliteStorage implements StorageBackend {
           files_changed: r.files_changed as string[] | undefined,
         }));
         
-        const { applySpreadingActivation } = await import("../memory/spreadingActivation.js");
-        const activated = await applySpreadingActivation(this.db, mappedAnchors, params.activation, params.userId);
+        const activated = await this.applySynapse(mappedAnchors, params.activation, params.userId);
         return { count: activated.length, results: activated };
       }
 
@@ -1639,8 +1645,7 @@ export class SqliteStorage implements StorageBackend {
         files_changed: r.files_changed as string[] | undefined,
       }));
       
-      const { applySpreadingActivation } = await import("../memory/spreadingActivation.js");
-      const activated = await applySpreadingActivation(this.db, mappedAnchors, params.activation, params.userId);
+      const activated = await this.applySynapse(mappedAnchors, params.activation, params.userId);
       return { count: activated.length, results: activated };
     }
 
@@ -1708,8 +1713,7 @@ export class SqliteStorage implements StorageBackend {
         }));
 
       if (params.activation?.enabled) {
-        const { applySpreadingActivation } = await import("../memory/spreadingActivation.js");
-        return applySpreadingActivation(this.db, baseResults, params.activation, params.userId);
+        return this.applySynapse(baseResults, params.activation, params.userId);
       }
 
       return baseResults;
@@ -1816,8 +1820,7 @@ export class SqliteStorage implements StorageBackend {
         );
 
         if (params.activation?.enabled) {
-          const { applySpreadingActivation } = await import("../memory/spreadingActivation.js");
-          return applySpreadingActivation(this.db, baseResults, params.activation, params.userId);
+          return this.applySynapse(baseResults, params.activation, params.userId);
         }
 
         return baseResults;
@@ -1829,6 +1832,86 @@ export class SqliteStorage implements StorageBackend {
         console.error("[SqliteStorage] Tip: Ensure you're using libSQL ≥ 0.4.0 for native vector support.");
         return [];
       }
+    }
+  }
+
+  // ─── Synapse Engine Integration ────────────────────────────────
+  
+  private async applySynapse(
+    anchors: SemanticSearchResult[],
+    options: SpreadingActivationOptions,
+    userId: string
+  ): Promise<SemanticSearchResult[]> {
+    if (!PRISM_SYNAPSE_ENABLED || !options.enabled || anchors.length === 0) return anchors;
+
+    try {
+      const { propagateActivation, normalizeActivationEnergy } = await import("../memory/synapseEngine.js");
+      const { recordSynapseTelemetry } = await import("../observability/graphMetrics.js");
+
+      const anchorMap = new Map<string, number>();
+      for (const a of anchors) anchorMap.set(a.id, a.similarity ?? 1.0);
+
+      const { results, telemetry } = await propagateActivation(
+        anchorMap,
+        async (nodeIds) => this.getLinksForNodes(nodeIds, userId),
+        {
+          iterations: options.iterations ?? PRISM_SYNAPSE_ITERATIONS,
+          spreadFactor: options.spreadFactor ?? PRISM_SYNAPSE_SPREAD_FACTOR,
+          lateralInhibition: options.lateralInhibition ?? PRISM_SYNAPSE_LATERAL_INHIBITION,
+          softCap: PRISM_SYNAPSE_SOFT_CAP,
+        }
+      );
+
+      recordSynapseTelemetry(telemetry);
+
+      const fullNodeMap = new Map<string, SemanticSearchResult>();
+      for (const a of anchors) fullNodeMap.set(a.id, a);
+
+      const finalIds = results.map(r => r.id);
+      const missingIds = finalIds.filter(id => !fullNodeMap.has(id));
+
+      if (missingIds.length > 0) {
+        const placeholders = missingIds.map(() => '?').join(',');
+        const missingQuery = `
+          SELECT id, project, summary, session_date, decisions, files_changed
+          FROM session_ledger
+          WHERE id IN (${placeholders}) AND deleted_at IS NULL AND user_id = ?
+        `;
+        const missingRes = await this.db.execute({ sql: missingQuery, args: [...missingIds, userId] });
+        
+        for (const row of missingRes.rows) {
+          fullNodeMap.set(row.id as string, {
+            id: row.id as string,
+            project: row.project as string,
+            summary: row.summary as string,
+            session_date: row.session_date as string | undefined,
+            decisions: this.parseJsonColumn(row.decisions) as string[] | undefined,
+            files_changed: this.parseJsonColumn(row.files_changed) as string[] | undefined,
+            similarity: 0.0,
+          });
+        }
+      }
+
+      const finalResults: SemanticSearchResult[] = [];
+      
+      for (const r of results) {
+        if (fullNodeMap.has(r.id)) {
+          const node = fullNodeMap.get(r.id)!;
+          const normEnergy = normalizeActivationEnergy(r.activationEnergy);
+          node.activationScore = normEnergy;
+          node.rawActivationEnergy = r.activationEnergy;
+          
+          // Hybrid blend: 70% original match relevance, 30% structural energy
+          node.hybridScore = (node.similarity * 0.7) + (normEnergy * 0.3); 
+          
+          finalResults.push(node);
+        }
+      }
+      
+      return finalResults.sort((a, b) => (b.hybridScore || 0) - (a.hybridScore || 0));
+    } catch (err) {
+      debugLog(`[SqliteStorage] applySynapse failed (non-fatal, returning original anchors): ${err instanceof Error ? err.message : String(err)}`);
+      return anchors;
     }
   }
 
@@ -2956,6 +3039,34 @@ export class SqliteStorage implements StorageBackend {
       args: [sourceId, targetId, linkType],
     });
     return (result.rowsAffected ?? 0) > 0;
+  }
+
+  async getLinksForNodes(
+    nodeIds: string[],
+    userId: string
+  ): Promise<Array<{ source_id: string; target_id: string; strength: number }>> {
+    if (nodeIds.length === 0) return [];
+
+    const placeholders = nodeIds.map(() => "?").join(", ");
+    
+    const sql = `
+      SELECT m.source_id, m.target_id, m.strength
+      FROM memory_links m
+      JOIN session_ledger s ON m.source_id = s.id
+      JOIN session_ledger t ON m.target_id = t.id
+      WHERE (m.source_id IN (${placeholders}) OR m.target_id IN (${placeholders}))
+        AND s.user_id = ? AND s.deleted_at IS NULL AND s.archived_at IS NULL
+        AND t.user_id = ? AND t.deleted_at IS NULL AND t.archived_at IS NULL
+    `;
+    
+    const args = [...nodeIds, ...nodeIds, userId, userId];
+    const result = await this.db.execute({ sql, args });
+    
+    return result.rows.map(r => ({
+      source_id: r.source_id as string,
+      target_id: r.target_id as string,
+      strength: r.strength as number,
+    }));
   }
 
   async getLinksFrom(

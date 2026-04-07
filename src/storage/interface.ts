@@ -172,6 +172,7 @@ export interface SemanticSearchResult {
   // v8.0 activation scores returned
   activationScore?: number;
   hybridScore?: number;
+  rawActivationEnergy?: number;
 }
 
 // ─── v3.0: Agent Registry Types ──────────────────────────────
@@ -681,6 +682,16 @@ export interface StorageBackend {
    * Used for 1-hop expansion during search result enrichment.
    */
   getLinksFrom(sourceId: string, userId: string, minStrength?: number, limit?: number): Promise<MemoryLink[]>;
+
+  /**
+   * Batch-fetch links for a set of nodes.
+   * Required by the v8.0 Synapse Spreading Activation Engine.
+   * Returns all edges where source_id OR target_id is in the provided array.
+   *
+   * @param nodeIds - Array of entry UUIDs to fetch links for
+   * @param userId - Tenant identity for ownership validation
+   */
+  getLinksForNodes(nodeIds: string[], userId: string): Promise<Array<{ source_id: string; target_id: string; strength: number }>>;
 
   /**
    * Get all inbound links pointing to a target entry.

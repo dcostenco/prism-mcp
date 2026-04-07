@@ -12,7 +12,7 @@
 
 **Your AI agent forgets everything between sessions. Prism fixes that — then teaches it to think.**
 
-Prism v7.8 is a true **Cognitive Architecture** inspired by human brain mechanics. Beyond flat vector search, your agent now forms principles from experience, follows causal trains of thought, and possesses the self-awareness to know when it lacks information. **Your agents don't just remember; they learn.**
+Prism v8.0 is a true **Cognitive Architecture** inspired by human brain mechanics. The new **Synapse Engine** replaces flat vector search with pure multi-hop graph propagation — your agent now follows causal trains of thought across memory, forms principles from experience, and knows when it lacks information. **Your agents don't just remember; they think.**
 
 ```bash
 npx -y prism-mcp-server
@@ -28,6 +28,7 @@ Works with **Claude Desktop · Claude Code · Cursor · Windsurf · Cline · Gem
 - [Setup Guides](#setup-guides)
 - [Universal Import: Bring Your History](#universal-import-bring-your-history)
 - [What Makes Prism Different](#what-makes-prism-different)
+- [Synapse Engine (v8.0)](#-synapse-engine-v80)
 - [Cognitive Architecture (v7.8)](#-cognitive-architecture-v78)
 - [Data Privacy & Egress](#data-privacy--egress)
 - [Use Cases](#use-cases)
@@ -54,7 +55,7 @@ Prism has three pillars:
 
 1. **🧠 Cognitive Memory** — Memories are ranked like a human brain: recently and frequently accessed context surfaces first, while stale context fades naturally via ACT-R activation decay. Raw experience consolidates into semantic principles through Hebbian learning. The result is retrieval quality that no flat vector search can match. *(See [Cognitive Architecture](#-cognitive-architecture-v78) and [Scientific Foundation](#-scientific-foundation).)*
 
-2. **🔗 Multi-Hop Reasoning** — When your agent searches for "Error X", Prism doesn't just find logs mentioning "Error X". Spreading activation traverses the causal graph and brings back "Workaround Y", which is connected to "Architecture Decision Z" — a literal train of thought. *(See [Cognitive Architecture](#-cognitive-architecture-v78).)*
+2. **⚡ Synapse Engine (GraphRAG)** — When your agent searches for "Error X", the Synapse Engine doesn't just find logs mentioning "Error X". Multi-hop energy propagation traverses the causal graph — dampened by fan effect, bounded by lateral inhibition — and surfaces "Workaround Y" connected to "Architecture Decision Z". Nodes discovered exclusively via graph traversal are tagged `[🌐 Synapse]` so you can *see* the engine working. *(See [Synapse Engine](#-synapse-engine-v80).)*
 
 3. **🏭 Autonomous Execution (Dark Factory)** — When you're ready, Prism can run coding tasks end-to-end with a fail-closed pipeline where an adversarial evaluator catches bugs the generator missed — before you ever see the PR. *(See [Dark Factory](#-dark-factory--adversarial-autonomous-pipelines).)*
 
@@ -459,6 +460,53 @@ When you trigger a Dark Factory pipeline, Prism doesn't just run your task — i
 
 ---
 
+## ⚡ Synapse Engine (v8.0)
+
+> *Standard RAG retrieves documents. GraphRAG traverses relationships. The Synapse Engine does both — a pure, storage-agnostic multi-hop propagation engine that turns your agent's memory into an associative reasoning network.*
+
+The Synapse Engine (v8.0) replaces the legacy SQL-coupled spreading activation with a **pure functional graph propagation core** inspired by ACT-R cognitive architecture. It is Prism's native, low-latency GraphRAG solution — no external graph database required.
+
+### Before vs After
+
+| | **v7.x (Standard RAG)** | **v8.0 (Synapse Engine)** |
+|---|---|---|
+| **Query** | "Tell me about Project Apollo" | "Tell me about Project Apollo" |
+| **Retrieval** | Returns the design doc (1 hop, cosine match) | Returns the design doc → follows `caused_by` edge to a developer's debugging session → discovers an old Slack thread about a critical auth bug |
+| **Agent output** | Summarizes the design doc | Summarizes the design doc **and warns about the unresolved auth issue** |
+| **Discovery tag** | — | `[🌐 Synapse]` marks the auth bug node, proving the engine found context the user didn't ask for |
+
+### How It Works
+
+```
+  Query: "Project Apollo status"
+              │
+  ┌───────────┼───────────────┐
+  ▼           ▼               ▼
+[Design    [Sprint          [Deployment
+  Doc]      Retro]            Log]
+  │ 1.0       │ 0.8            │ 0.6    ← semantic anchors
+  │           │                │
+  ▼           ▼                ▼
+[Dev       [Auth Bug      [Perf         ← Synapse discovered
+  Profile    Thread  🌐]    Regression 🌐]   (multi-hop)
+  0.42]      0.38]          0.31]
+```
+
+**Key design decisions:**
+
+| Mechanism | Purpose |
+|---|---|
+| **Dampened Fan Effect** (`1/ln(degree+e)`) | Prevents hub nodes from flooding results |
+| **Asymmetric Propagation** (fwd 100%, back 50%) | Preserves causal directionality |
+| **Cyclic Loop Prevention** (`visitedEdges` set) | Prevents infinite energy amplification |
+| **Sigmoid Normalization** | Structural scores can't overwhelm semantic base |
+| **Lateral Inhibition** | Caps output to top-K most energized nodes |
+| **Hybrid Scoring** (70% semantic / 30% structural) | Base relevance always matters |
+
+> 💡 Synapse is **non-fatal** — if the graph traversal fails for any reason, search gracefully returns the original semantic matches. Zero risk of degraded search.
+
+---
+
 ## 🧠 Cognitive Architecture (v7.8)
 
 > *Prism v7.8 is our biggest leap forward yet. We have moved beyond flat vector search and implemented a true Cognitive Architecture inspired by human brain mechanics. With the new ACT-R Spreading Activation Engine, Episodic-to-Semantic memory consolidation, and Uncertainty-Aware Rejection Gates, Prism doesn't just store logs anymore — it forms principles, follows causal trains of thought, and possesses the self-awareness to know when it lacks information.*
@@ -691,9 +739,10 @@ The Generator strips the `console.log`, resubmits, and the next `EVALUATE` retur
 
 ## 🆕 What's New
 
-> **Current release: v7.8.7 — Cognitive Architecture**
+> **Current release: v8.0.0 — Synapse Engine**
 
-- 🧠 **v7.8.x — Cognitive Architecture:** The biggest leap forward yet. Moved beyond flat vector search into a true cognitive architecture inspired by human brain mechanics. Episodic-to-Semantic memory consolidation (Hebbian learning), ACT-R Spreading Activation with multi-hop causal reasoning, Uncertainty-Aware Rejection Gate (your agent can say "I don't know"), and Dynamic Fast Weight Decay (semantic memories outlive episodic chatter by 2×). Validated by **LoCoMo-Plus benchmark** (arXiv 2602.10715) with Precision@K and MRR metrics. **Your agents don't just remember; they learn.** → [Cognitive Architecture](#-cognitive-architecture-v78)
+- ⚡ **v8.0.0 — Synapse Engine:** Pure, storage-agnostic multi-hop graph propagation engine replaces the legacy SQL-coupled spreading activation. O(T × M) bounded ACT-R energy propagation with dampened fan effect, asymmetric bidirectional flow, cyclic loop prevention, and sigmoid normalization. Full integration into both SQLite and Supabase backends. 5 new config knobs. Battle-hardened with NaN guards, config clamping, non-fatal enrichment, and 16 passing tests. **Memory search now follows the causal graph, not just keywords.** → [Synapse Engine](#synapse-engine-v80)
+- 🧠 **v7.8.x — Cognitive Architecture:** Episodic-to-Semantic consolidation (Hebbian learning), ACT-R Spreading Activation with multi-hop causal reasoning, Uncertainty-Aware Rejection Gate, and Dynamic Fast Weight Decay. Validated by **LoCoMo-Plus benchmark**. → [Cognitive Architecture](#-cognitive-architecture-v78)
 - 🌐 **v7.7.0 — Cloud-Native SSE Transport:** Full unauthenticated and authenticated Server-Sent Events MCP support for seamless network deployments.
 - 🩺 **v7.5.0 — Intent Health Dashboard + Security Hardening:** Real-time 0–100 project health scoring (staleness × TODO load × decisions). 10 XSS injection vectors patched. Algorithm hardened with NaN guards and score ceiling.
 - ⚔️ **v7.4.0 — Adversarial Evaluation:** Split-brain anti-sycophancy pipeline. Generator and evaluator in isolated roles with evidence-bound findings.
@@ -937,6 +986,11 @@ Requires `PRISM_DARK_FACTORY_ENABLED=true`.
 | `PRISM_ACTR_WEIGHT_ACTIVATION` | No | Composite score ACT-R activation weight (default: `0.3`) |
 | `PRISM_ACTR_ACCESS_LOG_RETENTION_DAYS` | No | Days before access logs are pruned by background scheduler (default: `90`) |
 | `PRISM_DARK_FACTORY_ENABLED` | No | `"true"` to enable Dark Factory autonomous pipeline tools (`session_start_pipeline`, `session_check_pipeline_status`, `session_abort_pipeline`) |
+| `PRISM_SYNAPSE_ENABLED` | No | `"true"` (default) to enable Synapse Engine graph propagation in search results |
+| `PRISM_SYNAPSE_ITERATIONS` | No | Propagation iterations (default: `3`). Higher = deeper graph traversal |
+| `PRISM_SYNAPSE_SPREAD_FACTOR` | No | Energy decay multiplier per hop (default: `0.8`). Range: 0.0–1.0 |
+| `PRISM_SYNAPSE_LATERAL_INHIBITION` | No | Max nodes returned by Synapse (default: `7`, min: `1`) |
+| `PRISM_SYNAPSE_SOFT_CAP` | No | Max candidate pool size during propagation (default: `20`, min: `1`) |
 
 </details>
 
@@ -964,8 +1018,8 @@ Prism is a **stdio-based MCP server** that manages persistent agent memory. Here
 │  └──────┬───────┘  └──────────────┘  └────────────────┘  │
 │         ↕                                                │
 │  ┌────────────────────────────────────────────────────┐  │
-│  │  Cognitive Engine (v7.8)                           │  │
-│  │  • ACT-R Spreading Activation (multi-hop)         │  │
+│  │  Cognitive Engine (v8.0)                           │  │
+│  │  • Synapse Engine (pure multi-hop propagation)    │  │
 │  │  • Episodic → Semantic Consolidation (Hebbian)    │  │
 │  │  • Uncertainty-Aware Rejection Gate               │  │
 │  │  • LoCoMo-Plus Benchmark Validation               │  │
@@ -1068,10 +1122,11 @@ Prism has evolved from smart session logging into a **cognitive memory architect
 
 ## 📦 Milestones & Roadmap
 
-> **Current: v7.8.7** — Cognitive Architecture ([CHANGELOG](CHANGELOG.md))
+> **Current: v8.0.0** — Synapse Engine ([CHANGELOG](CHANGELOG.md))
 
 | Release | Headline |
 |---------|----------|
+| **v8.0** | ⚡ Synapse Engine — Pure multi-hop GraphRAG propagation, storage-agnostic, NaN-hardened, `[🌐 Synapse]` discovery tags |
 | **v7.8** | 🧠 Cognitive Architecture — Hebbian consolidation, multi-hop reasoning, rejection gate, dynamic decay |
 | **v7.7** | 🌐 Cloud-Native SSE Transport |
 | **v7.5** | 🩺 Intent Health Dashboard + Security Hardening |

@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.0.0] - 2026-04-07
+
+### Major Features
+- **Synapse Engine (v8.0)** — Replaced the legacy SQL-coupled `spreadingActivation.ts` with a pure, storage-agnostic `synapseEngine.ts` multi-hop propagation engine.
+  - Implements bounded O(T × M) ACT-R memory propagation avoiding explosive DB queries.
+  - Pure functional design: zero I/O, decoupled via `LinkFetcher` callback. Paves the way for distributed graph backends.
+  - Dampened fan effect (`1/ln(degree+e)`) prevents hub nodes from blindly broadcasting.
+  - Asymmetric bidirectional flow (forward 100%, backward 50%) preserves causal directionality.
+  - Cyclic energy tracking via `visitedEdges` set prevents recursive energy amplification.
+  - Sigmoid normalization ensures structural scores don't overwhelm semantic base matches.
+  - Hybrid scoring: 70% semantic similarity / 30% structural activation energy blend.
+
+### Storage Integration
+- **SQLite `applySynapse`** — Full Synapse Engine integration into `searchKnowledge` and `searchMemory`. Missing-node metadata fetched via direct SQL with per-row hydration.
+- **Supabase `applySynapse`** — Full Synapse Engine integration via Supabase REST API. Missing-node metadata fetched via `supabaseGet` with `in.()` filter.
+- **`getLinksForNodes`** — Implemented on both SQLite (direct SQL) and Supabase (`prism_get_links_for_nodes` RPC) backends for storage-agnostic link fetching.
+
+### Edge Case Hardening
+- **NaN Strength Guard** — `Number.isFinite()` guard on `edge.strength` prevents corrupted/null database values from poisoning the entire energy propagation map (defaults to 0).
+- **Similarity Nullish Coalescing** — Fixed `similarity || 1.0` → `similarity ?? 1.0` in both backends. Previously, a valid `0.0` similarity was falsely promoted to `1.0`.
+- **Config Clamping** — `lateralInhibition` and `softCap` are now clamped to minimum 1 in the engine. Setting either to 0 no longer silently drops all results.
+- **Non-Fatal Enrichment** — Both backends wrap `applySynapse` in try/catch. Engine failures gracefully return original anchors instead of crashing the search operation.
+- **`PRISM_SYNAPSE_SOFT_CAP` Wiring** — The env var was declared and parsed in `config.ts` but never consumed by either backend. Now correctly passed to `propagateActivation()`.
+
+### Observability
+- **`SynapseRuntimeMetrics`** — Full runtime telemetry integrated into the observability pipeline. Tracks nodes returned/discovered, edges traversed, iterations performed, max/avg activation energy, and duration.
+- **Telemetry Data Fix** — Added `avgActivationEnergy` to `SynapseRunData` interface. Previously silently dropped from the engine's output during recording.
+
+### Removed
+- **Legacy `spreadingActivation.ts`** — Deleted. SQL-coupled 1-hop activation logic fully replaced by the pure Synapse engine.
+- **Dead Import** — Removed deprecated `candidateScopedSpreadingActivation` import from `graphHandlers.ts`.
+
+### Configuration
+- 5 new environment variables: `PRISM_SYNAPSE_ENABLED`, `PRISM_SYNAPSE_ITERATIONS`, `PRISM_SYNAPSE_SPREAD_FACTOR`, `PRISM_SYNAPSE_LATERAL_INHIBITION`, `PRISM_SYNAPSE_SOFT_CAP`.
+
+### Engineering
+- 16 Synapse tests (5 new edge-case tests: NaN strength, lateralInhibition=0, softCap=0, linkFetcher failure, empty anchor map)
+- TypeScript strict mode: zero errors
+- Non-breaking: Synapse is gated behind `PRISM_SYNAPSE_ENABLED` (default: `true`)
+
 ## [7.8.8] - 2026-04-06
 
 ### Added

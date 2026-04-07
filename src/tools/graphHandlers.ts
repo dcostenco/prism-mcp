@@ -90,7 +90,6 @@ import { notifyResourceUpdate } from "../server.js";
 import { computeEffectiveImportance, recordMemoryAccess } from "../utils/cognitiveMemory.js";
 import {
   baseLevelActivation,
-  candidateScopedSpreadingActivation,
   compositeRetrievalScore,
 } from "../utils/actrActivation.js";
 import {
@@ -531,21 +530,9 @@ export async function sessionSearchMemoryHandler(args: unknown) {
         // Step A: Bulk-fetch access logs for all candidate IDs
         const accessLogMap = await storage.getAccessLog(resultIds, PRISM_ACTR_MAX_ACCESSES_PER_ENTRY);
 
-        // Step B: Fetch outbound links for spreading activation
-        const candidateIdSet = new Set(resultIds);
-        const linksMap = new Map<string, Array<{ target_id: string; strength: number }>>();
-        for (const id of resultIds) {
-          try {
-            const links = await storage.getLinksFrom(id, PRISM_USER_ID, 0.0, 20);
-            linksMap.set(id, links.map((l: any) => ({
-              target_id: l.target_id,
-              strength: l.strength ?? 1.0,
-            })));
-          } catch {
-            linksMap.set(id, []);
-          }
-        }
-
+        // Step B: Removed. Synapse Engine (v8.0) handles multi-hop propagation 
+        // at the storage layer when activation is enabled.
+        
         // Step C: Compute activation for each result and re-rank
         actrMetrics = { baseLevels: [], spreadings: [], sigmoids: [], composites: [] };
 
@@ -565,9 +552,9 @@ export async function sessionSearchMemoryHandler(args: unknown) {
           const decayRate = r.is_rollup ? PRISM_ACTR_DECAY * 0.5 : PRISM_ACTR_DECAY;
           const Bi = baseLevelActivation(timestamps, now, decayRate);
 
-          // S_i: Candidate-scoped spreading activation
-          const outboundLinks = linksMap.get(id) || [];
-          const Si = candidateScopedSpreadingActivation(outboundLinks, candidateIdSet);
+          // S_i: Structural activation energy from Synapse logic 
+          // (computed during applySynapse in storage layer)
+          const Si = (typeof r.rawActivationEnergy === 'number') ? r.rawActivationEnergy : 0;
 
           // Composite retrieval score
           const composite = compositeRetrievalScore(
