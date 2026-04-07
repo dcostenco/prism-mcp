@@ -863,7 +863,7 @@ We evaluate Prism on [LongMemEval-S](https://github.com/xiaowu0162/LongMemEval) 
 2. **Managed Cloud Infrastructure:** Mem0 and Zep offer SaaS. Users pay $20/month and don't think about databases. Prism users must set up their own local SQLite or provision their own Supabase instance.
 3. **Implicit Memory Extraction (NER):** Zep automatically extracts names, places, and facts from raw chat logs using NLP models. Prism relies on the LLM explicitly calling the `session_save_ledger` tool to structure its own memories.
 
-> 💰 **Token Economics:** Progressive Context Loading (Quick ~50 tokens / Standard ~200 / Deep ~1000+) plus auto-compaction means you never blow your Claude/OpenAI token budget fetching 50 pages of raw chat history.
+> 💰 **Token Economics (v9 vs Legacy):** Progressive Context Loading (Quick ~50 tokens / Standard ~200 / Deep ~1000+) plus auto-compaction means you never blow your Claude/OpenAI token budget fetching 50 pages of raw chat history. Furthermore, **v9.0's Surprisal Gate** actively forces the LLM to write shorter, denser memories by penalizing repetitive boilerplate (2.0× token cost) and rewarding compressed, novel insights (0.5× token cost). This creates a compounding reduction in downstream prompt costs during context loading compared to v8 and standard RAG systems.
 >
 > 🔌 **BYOM (Bring Your Own Model):** While tools like Mem0 charge per API call, Prism's pluggable architecture lets you run `nomic-embed-text` locally via Ollama for **free vectors**, while using Claude or GPT for high-level reasoning. Zero vendor lock-in.
 
