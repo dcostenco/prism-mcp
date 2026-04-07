@@ -173,6 +173,9 @@ export interface SemanticSearchResult {
   activationScore?: number;
   hybridScore?: number;
   rawActivationEnergy?: number;
+  /** True when the node was discovered via Synapse multi-hop traversal,
+   *  not present in the original semantic/keyword anchors. */
+  isDiscovered?: boolean;
 }
 
 // ─── v3.0: Agent Registry Types ──────────────────────────────

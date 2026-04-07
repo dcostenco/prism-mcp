@@ -212,71 +212,9 @@ export async function knowledgeSearchHandler(args: unknown) {
     contentBlocks.push(traceToContentBlock(trace));
   }
 
-  // ── v6.0 Phase 3: 1-Hop Graph Expansion ──────────────────
-  // Same pattern as sessionSearchMemoryHandler:
-  // Traverse outbound links from direct hits to find associated memories.
-  // Graph-expanded results are BONUS — don't consume limit slots.
-  try {
-    // Extract IDs from the knowledge search results
-    const directIds = new Set<string>();
-    if (data.results && Array.isArray(data.results)) {
-      for (const entry of data.results) {
-        if ((entry as any)?.id) directIds.add((entry as any).id);
-      }
-    }
-
-    if (directIds.size > 0) {
-      const enrichedIds = new Set<string>();
-      const maxGraphResults = Math.min(limit, 10);
-
-      for (const directId of directIds) {
-        if (enrichedIds.size >= maxGraphResults) break;
-        const links = await storage.getLinksFrom(directId, PRISM_USER_ID, 0.3, 5);
-        for (const link of links) {
-          if (!directIds.has(link.target_id) && !enrichedIds.has(link.target_id)) {
-            enrichedIds.add(link.target_id);
-            if (enrichedIds.size >= maxGraphResults) break;
-          }
-        }
-      }
-
-      if (enrichedIds.size > 0) {
-        const enrichedEntries = await storage.getLedgerEntries({
-          user_id: `eq.${PRISM_USER_ID}`,
-          ids: [...enrichedIds],
-          select: "id,summary,project,created_at",
-        });
-
-        if (enrichedEntries.length > 0) {
-          const graphFormatted = enrichedEntries.map((e: any) =>
-            `[🔗] ${e.created_at?.split("T")[0] || "unknown"} — ${e.project || "unknown"}\n` +
-            `  Summary: ${e.summary}`
-          ).join("\n");
-
-          contentBlocks[0] = {
-            type: "text",
-            text: contentBlocks[0].text +
-              `\n\n🔗 Graph-connected memories (${enrichedEntries.length} via 1-hop expansion):\n\n${graphFormatted}`,
-          };
-
-          // Fire-and-forget: reinforce traversed links
-          for (const directId of directIds) {
-            storage.getLinksFrom(directId, PRISM_USER_ID, 0.3, 5)
-              .then(links => {
-                for (const link of links) {
-                  if (enrichedIds.has(link.target_id)) {
-                    storage.reinforceLink(directId, link.target_id, link.link_type).catch(() => {});
-                  }
-                }
-              })
-              .catch(() => {});
-          }
-        }
-      }
-    }
-  } catch (graphErr) {
-    debugLog(`[knowledge_search] Graph expansion failed (non-fatal): ${graphErr instanceof Error ? graphErr.message : String(graphErr)}`);
-  }
+  // v8.0: Legacy v6.0 1-Hop Graph Expansion has been removed.
+  // The Synapse Engine now handles multi-hop traversal at the storage layer,
+  // integrating discovered nodes into the main ranked result array.
 
   return { content: contentBlocks, isError: false };
 }
@@ -552,9 +490,12 @@ export async function sessionSearchMemoryHandler(args: unknown) {
           const decayRate = r.is_rollup ? PRISM_ACTR_DECAY * 0.5 : PRISM_ACTR_DECAY;
           const Bi = baseLevelActivation(timestamps, now, decayRate);
 
-          // S_i: Structural activation energy from Synapse logic 
+          // S_i: Normalized structural activation energy from Synapse logic 
           // (computed during applySynapse in storage layer)
-          const Si = (typeof r.rawActivationEnergy === 'number') ? r.rawActivationEnergy : 0;
+          // v8.0: Use normalized 0-1 activationScore, NOT unbounded rawActivationEnergy.
+          // Raw energy can reach 15+ for hub nodes, which saturates the sigmoid
+          // and erases Bi (recency/frequency) from the composite score.
+          const Si = (typeof r.activationScore === 'number') ? r.activationScore : 0;
 
           // Composite retrieval score
           const composite = compositeRetrievalScore(
@@ -648,7 +589,10 @@ export async function sessionSearchMemoryHandler(args: unknown) {
         ? `  ACT-R: composite=${r._actr_composite.toFixed(3)} (B=${r._actr_Bi?.toFixed(2)}, S=${r._actr_Si?.toFixed(3)})\n`
         : "";
 
-      return `[${i + 1}] ${simScore} similar — ${r.session_date || "unknown date"}\n` +
+      // v8.0: Tag nodes discovered via Synapse multi-hop traversal
+      const synapseTag = r.isDiscovered ? " [🌐 Synapse]" : "";
+
+      return `[${i + 1}] ${simScore} similar${synapseTag} — ${r.session_date || "unknown date"}\n` +
         `  Project: ${r.project}\n` +
         `  Summary: ${r.summary}\n` +
         importanceStr +
@@ -694,66 +638,9 @@ export async function sessionSearchMemoryHandler(args: unknown) {
       contentBlocks.push(traceToContentBlock(trace));
     }
 
-    // ── v6.0 Phase 3: 1-Hop Graph Expansion ──────────────────
-    // After direct hits, traverse outbound links from each result to
-    // find associated memories. Graph-expanded results are BONUS — they
-    // don't consume limit slots. Hard-capped at `limit` additional results
-    // to protect LLM context windows.
-    //
-    // Fire-and-forget: errors degrade gracefully to just direct hits.
-    try {
-      const directIds = new Set(results.map((r: any) => r.id).filter(Boolean));
-      const enrichedIds = new Set<string>();
-      const maxGraphResults = Math.min(limit, 10); // Hard cap
-
-      for (const directId of directIds) {
-        if (enrichedIds.size >= maxGraphResults) break;
-        const links = await storage.getLinksFrom(directId, PRISM_USER_ID, 0.3, 5);
-        for (const link of links) {
-          if (!directIds.has(link.target_id) && !enrichedIds.has(link.target_id)) {
-            enrichedIds.add(link.target_id);
-            if (enrichedIds.size >= maxGraphResults) break;
-          }
-        }
-      }
-
-      if (enrichedIds.size > 0) {
-        // Fetch the actual entries for enriched IDs
-        const enrichedEntries = await storage.getLedgerEntries({
-          user_id: `eq.${PRISM_USER_ID}`,
-          ids: [...enrichedIds],
-          select: "id,summary,project,created_at",
-        });
-
-        if (enrichedEntries.length > 0) {
-          const graphFormatted = enrichedEntries.map((e: any) =>
-            `[🔗] ${e.created_at?.split("T")[0] || "unknown"} — ${e.project || "unknown"}\n` +
-            `  Summary: ${e.summary}`
-          ).join("\n");
-
-          contentBlocks[0] = {
-            type: "text",
-            text: contentBlocks[0].text +
-              `\n\n🔗 Graph-connected memories (${enrichedEntries.length} via 1-hop expansion):\n\n${graphFormatted}`,
-          };
-
-          // Fire-and-forget: reinforce traversed links
-          for (const directId of directIds) {
-            storage.getLinksFrom(directId, PRISM_USER_ID, 0.3, 5)
-              .then(links => {
-                for (const link of links) {
-                  if (enrichedIds.has(link.target_id)) {
-                    storage.reinforceLink(directId, link.target_id, link.link_type).catch(() => {});
-                  }
-                }
-              })
-              .catch(() => {});
-          }
-        }
-      }
-    } catch (graphErr) {
-      debugLog(`[session_search_memory] Graph expansion failed (non-fatal): ${graphErr instanceof Error ? graphErr.message : String(graphErr)}`);
-    }
+    // v8.0: Legacy v6.0 1-Hop Graph Expansion has been removed.
+    // The Synapse Engine now handles multi-hop traversal at the storage layer,
+    // integrating discovered nodes into the main ranked result array.
 
     return { content: contentBlocks, isError: false };
   } catch (err) {

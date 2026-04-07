@@ -1873,7 +1873,7 @@ export class SqliteStorage implements StorageBackend {
       if (missingIds.length > 0) {
         const placeholders = missingIds.map(() => '?').join(',');
         const missingQuery = `
-          SELECT id, project, summary, session_date, decisions, files_changed
+          SELECT id, project, summary, session_date, decisions, files_changed, keywords, is_rollup, importance, last_accessed_at
           FROM session_ledger
           WHERE id IN (${placeholders}) AND deleted_at IS NULL AND user_id = ?
         `;
@@ -1887,6 +1887,9 @@ export class SqliteStorage implements StorageBackend {
             session_date: row.session_date as string | undefined,
             decisions: this.parseJsonColumn(row.decisions) as string[] | undefined,
             files_changed: this.parseJsonColumn(row.files_changed) as string[] | undefined,
+            is_rollup: Boolean(row.is_rollup),
+            importance: Number(row.importance) || 0,
+            last_accessed_at: (row.last_accessed_at as string) || null,
             similarity: 0.0,
           });
         }
@@ -1900,6 +1903,7 @@ export class SqliteStorage implements StorageBackend {
           const normEnergy = normalizeActivationEnergy(r.activationEnergy);
           node.activationScore = normEnergy;
           node.rawActivationEnergy = r.activationEnergy;
+          node.isDiscovered = r.isDiscovered;
           
           // Hybrid blend: 70% original match relevance, 30% structural energy
           node.hybridScore = (node.similarity * 0.7) + (normEnergy * 0.3); 

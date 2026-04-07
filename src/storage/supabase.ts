@@ -487,7 +487,7 @@ export class SupabaseStorage implements StorageBackend {
             id: `in.(${missingIds.join(",")})`,
             user_id: `eq.${userId}`,
             deleted_at: "is.null",
-            select: "id,project,summary,session_date,decisions,files_changed",
+            select: "id,project,summary,session_date,decisions,files_changed,is_rollup,importance,last_accessed_at",
           }) as Record<string, unknown>[];
 
           for (const row of (Array.isArray(rows) ? rows : [])) {
@@ -498,6 +498,9 @@ export class SupabaseStorage implements StorageBackend {
               session_date: row.session_date as string | undefined,
               decisions: Array.isArray(row.decisions) ? row.decisions as string[] : [],
               files_changed: Array.isArray(row.files_changed) ? row.files_changed as string[] : [],
+              is_rollup: Boolean(row.is_rollup),
+              importance: Number(row.importance) || 0,
+              last_accessed_at: (row.last_accessed_at as string) || null,
               similarity: 0.0,
             });
           }
@@ -515,6 +518,7 @@ export class SupabaseStorage implements StorageBackend {
           const normEnergy = normalizeActivationEnergy(r.activationEnergy);
           node.activationScore = normEnergy;
           node.rawActivationEnergy = r.activationEnergy;
+          node.isDiscovered = r.isDiscovered;
 
           // Hybrid blend: 70% original match relevance, 30% structural energy
           node.hybridScore = (node.similarity * 0.7) + (normEnergy * 0.3);

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [8.0.1] - 2026-04-07
+
+### Bug Fixes
+- **ACT-R Sigmoid Blowout** — Changed `Si` source from unbounded `rawActivationEnergy` (could reach 15+) to normalized `activationScore` (0–1). Prevents sigmoid saturation that erased `Bi` recency/frequency from composite scores.
+- **Missing `[🌐 Synapse]` Tag** — Wired `isDiscovered` boolean through storage layer (`applySynapse`) and added `[🌐 Synapse]` tag to search result formatting for discovered nodes.
+- **Missing Metadata on Discovered Nodes** — Expanded `SELECT` queries in both SQLite and Supabase `applySynapse` to include `is_rollup`, `importance`, and `last_accessed_at`. Prevents ACT-R `decayRate` crash on Synapse-discovered nodes.
+
+### Removed
+- **Legacy v6.0 1-Hop Graph Expansion** — Deleted redundant N+1 graph traversal blocks from both `knowledgeSearchHandler` and `sessionSearchMemoryHandler` (−130 lines). Synapse Engine handles multi-hop at the storage layer, making these obsolete.
+
+### Interface
+- Added `isDiscovered?: boolean` to `SemanticSearchResult` interface.
+
 ## [8.0.0] - 2026-04-07
 
 ### Major Features
