@@ -616,6 +616,9 @@ export function renderDashboardHTML(version: string): string {
     </div>
 
     <div id="content" class="grid grid-main fade-in">
+      <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 1rem; margin-bottom: -1rem; padding: 0 1rem;">
+        <h1 id="activeProjectTitle" style="margin: 0; font-size: 2.2rem; color: var(--text-primary); text-shadow: 0 0 15px rgba(168, 85, 247, 0.4); font-weight: 700; letter-spacing: -0.02em;"></h1>
+      </div>
       <!-- Left Column -->
       <div class="grid" style="align-content: start;">
         <!-- Current State -->
@@ -1869,6 +1872,7 @@ function loadProject() {
                     document.getElementById('welcome').style.display = 'none';
                     document.getElementById('content').style.display = 'none';
                     document.getElementById('loading').style.display = 'block';
+                    document.getElementById('activeProjectTitle').textContent = "📁 " + project;
                     _a.label = 1;
                 case 1:
                     _a.trys.push([1, 9, 10, 11]);
