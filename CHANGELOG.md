@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [9.1.1] - 2026-04-08 — Dashboard-First Credential Resolution
+
+### Fixed
+- **Dashboard Credentials Take Precedence** — `storage/index.ts` now reads `SUPABASE_URL` and `SUPABASE_KEY` from the dashboard config DB (`prism-config.db`) when environment variables are absent. Previously, starting the server without explicit env vars caused a hard fallback to local SQLite even when valid credentials were stored in the dashboard.
+- **SyncBus Dashboard Fallback** — `sync/factory.ts` now checks dashboard config as a fallback for Supabase credentials, matching the storage layer behavior.
+- **Supabase API Call-Time Credentials** — `utils/supabaseApi.ts` now reads `SUPABASE_URL`/`SUPABASE_KEY` from `process.env` at each request instead of capturing frozen values at module-import time. Dashboard-injected credentials are now visible to all downstream consumers.
+- **Noisy Startup Warnings Silenced** — API key warnings (`BRAVE_API_KEY`, `GOOGLE_API_KEY`, `BRAVE_ANSWERS_API_KEY`) downgraded from `console.error` to debug-level logging. These fired on every server restart and were harmless (features degrade gracefully).
+
+### Engineering
+- TypeScript: clean, zero errors
+- 4 files changed: `src/config.ts`, `src/storage/index.ts`, `src/sync/factory.ts`, `src/utils/supabaseApi.ts`
+
+---
+
 ## [9.1.0] - 2026-04-08 — Task Router v2 & Local Agent Hardening
 
 ### Added
