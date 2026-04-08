@@ -20,9 +20,31 @@ export async function getStorage(): Promise<StorageBackend> {
   const envStorage = process.env.PRISM_STORAGE as "supabase" | "local" | undefined;
   const requestedBackend = (envStorage || await getSetting("PRISM_STORAGE", ENV_PRISM_STORAGE)) as "supabase" | "local";
 
-  // Guardrail: if Supabase is requested but credentials are unresolved/invalid,
-  // transparently fall back to local mode to keep dashboard + core tools usable.
-  if (requestedBackend === "supabase" && !SUPABASE_CONFIGURED) {
+  // Guardrail: if Supabase is requested but env-var credentials are missing,
+  // check the dashboard config DB (prism-config.db) as a fallback before
+  // giving up. Dashboard settings take precedence over absent env vars.
+  let supabaseReady = SUPABASE_CONFIGURED;
+  if (!supabaseReady && requestedBackend === "supabase") {
+    const dashUrl = await getSetting("SUPABASE_URL");
+    const dashKey = await getSetting("SUPABASE_KEY");
+    if (dashUrl && dashKey) {
+      try {
+        const parsed = new URL(dashUrl);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          supabaseReady = true;
+          // Inject into process.env so downstream consumers (SupabaseStorage,
+          // SyncBus) pick them up without needing their own dashboard lookups.
+          process.env.SUPABASE_URL = dashUrl;
+          process.env.SUPABASE_KEY = dashKey;
+          debugLog("[Prism Storage] Using Supabase credentials from dashboard config");
+        }
+      } catch {
+        // Invalid URL — fall through to local fallback
+      }
+    }
+  }
+
+  if (requestedBackend === "supabase" && !supabaseReady) {
     activeStorageBackend = "local";
     console.error(
       "[Prism Storage] Supabase backend requested but SUPABASE_URL/SUPABASE_KEY are invalid or unresolved. Falling back to local storage."

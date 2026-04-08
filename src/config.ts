@@ -51,7 +51,7 @@ export const SERVER_CONFIG = {
 // ─── Required: Brave Search API Key ───────────────────────────
 
 export const BRAVE_API_KEY = process.env.BRAVE_API_KEY;
-if (!BRAVE_API_KEY) {
+if (!BRAVE_API_KEY && process.env.PRISM_DEBUG_LOGGING === "true") {
   console.error("Warning: BRAVE_API_KEY environment variable is missing. Search tools will return errors when called.");
 }
 
@@ -60,7 +60,7 @@ if (!BRAVE_API_KEY) {
 // Without this, the tool will still appear but will error when called.
 
 export const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-if (!GOOGLE_API_KEY) {
+if (!GOOGLE_API_KEY && process.env.PRISM_DEBUG_LOGGING === "true") {
   console.error("Warning: GOOGLE_API_KEY environment variable is missing. Gemini research features will be unavailable.");
 }
 
@@ -69,7 +69,7 @@ if (!GOOGLE_API_KEY) {
 // This is a separate API key from the main Brave Search key.
 
 export const BRAVE_ANSWERS_API_KEY = process.env.BRAVE_ANSWERS_API_KEY;
-if (!BRAVE_ANSWERS_API_KEY) {
+if (!BRAVE_ANSWERS_API_KEY && process.env.PRISM_DEBUG_LOGGING === "true") {
   console.error("Warning: BRAVE_ANSWERS_API_KEY environment variable is missing. Brave Answers tool will be unavailable.");
 }
 
