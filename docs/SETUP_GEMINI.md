@@ -94,3 +94,23 @@ Tell the agent: *"Wrap up the session."* It should execute:
 - **Camoufox/browser tools** called at startup spawn visible black windows — never call browser tools during greeting handlers
 - **`connection closed: EOF` after config changes** — Antigravity does not hot-reload `mcp_config.json`. If a server crashes on first boot (wrong path, missing build), the transport is marked "Closed" permanently. Fix the config, then **restart the IDE** — it will not attempt to reconnect on its own
 - **Clone & Build: use `dist/server.js`** — If you use the "Clone & Build" setup, you must point to the compiled `dist/server.js`, not `src/index.js`. Running `node src/index.js` crashes immediately, which causes the EOF loop above
+
+### CLI Fallback for Non-MCP Environments
+
+When MCP tools aren't available (Antigravity, Bash scripts, CI/CD pipelines), use the `prism load` CLI command instead of querying SQLite directly:
+
+```bash
+# Human-readable output
+prism load my-project --level standard
+
+# Machine-readable JSON (for script parsing)
+prism load my-project --level deep --json
+
+# With role scope
+prism load my-project --role dev --json
+```
+
+The CLI uses the **exact same storage layer** as the MCP `session_load_context` tool — including Supabase support, dashboard settings, and role-scoped context. This is the recommended approach for non-MCP environments.
+
+If installed globally (`npm install -g prism-mcp-server`), use `prism load`. For local dev builds, use `node /path/to/prism/dist/cli.js load`.
+

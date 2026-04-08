@@ -35,6 +35,7 @@ https://github.com/dcostenco/prism-mcp/raw/main/docs/prism_mcp_demo.mp4
 - [Use Cases](#use-cases)
 - [What's New](#whats-new)
 - [How Prism Compares](#how-prism-compares)
+- [CLI Reference](#-cli-reference)
 - [Tool Reference](#tool-reference)
 - [Environment Variables](#environment-variables)
 - [Architecture](#architecture)
@@ -248,12 +249,62 @@ When wrapping up, always call `mcp__prism-mcp__session_save_ledger` and `mcp__pr
 
 > **Format Note:** Claude automatically wraps MCP tools with double underscores (`mcp__prism-mcp__...`), while most other clients use single underscores (`mcp_prism-mcp_...`). Prism's backend natively handles both formats seamlessly.
 
+**CLI Alternative:** If MCP tools aren't available or you're scripting around Claude Code:
+
+```bash
+# Load context before a session
+prism load my-project --level deep
+
+# Machine-readable JSON for parsing in scripts
+prism load my-project --level deep --json
+```
+
 </details>
 
 <details id="antigravity-auto-load">
 <summary><strong>Gemini / Antigravity — Prompt Auto-Load</strong></summary>
 
 See the [Gemini Setup Guide](docs/SETUP_GEMINI.md) for the proven three-layer prompt architecture to ensure reliable session auto-loading.
+
+Antigravity doesn't expose MCP tools to the model. Use the `prism load` CLI as a fallback:
+
+```bash
+# From a shell or run_command tool
+prism load my-project --level standard --json
+
+# Or via the wrapper script
+bash ~/.gemini/antigravity/scratch/prism_session_loader.sh my-project
+```
+
+The CLI uses the same storage layer as the MCP tool (SQLite or Supabase).
+
+</details>
+
+<details>
+<summary><strong>Bash / CI/CD / Scripts</strong></summary>
+
+Use the `prism load` CLI to access session context from any shell environment:
+
+```bash
+# Quick check — human-readable
+prism load my-project
+
+# Parse JSON in scripts
+CONTEXT=$(prism load my-project --level quick --json)
+SUMMARY=$(echo "$CONTEXT" | jq -r '.handoff[0].last_summary')
+VERSION=$(echo "$CONTEXT" | jq -r '.handoff[0].version')
+echo "Project at v$VERSION: $SUMMARY"
+
+# Role-scoped loading
+prism load my-project --role qa --json
+
+# Use in CI/CD to verify context exists before deploying
+if ! prism load my-project --level quick --json | jq -e '.handoff[0].version' > /dev/null 2>&1; then
+  echo "No Prism context found — skipping context-aware deploy"
+fi
+```
+
+> 📦 **Install:** `npm install -g prism-mcp-server` makes the `prism` CLI available globally. For local builds: `node /path/to/prism/dist/cli.js load`.
 
 </details>
 
@@ -788,6 +839,29 @@ Every other AI coding pipeline has a fatal flaw: it asks the same model that wro
 > 💰 **Token Economics:** Progressive Context Loading (Quick ~50 tokens / Standard ~200 / Deep ~1000+) plus auto-compaction means you never blow your Claude/OpenAI token budget fetching 50 pages of raw chat history.
 >
 > 🔌 **BYOM (Bring Your Own Model):** While tools like Mem0 charge per API call, Prism's pluggable architecture lets you run `nomic-embed-text` locally via Ollama for **free vectors**, while using Claude or GPT for high-level reasoning. Zero vendor lock-in.
+
+---
+
+## 💻 CLI Reference
+
+Prism includes a CLI for environments where MCP tools aren't available (CI/CD pipelines, Bash scripts, non-MCP IDEs like Antigravity):
+
+```bash
+# Load session context (same output as session_load_context MCP tool)
+prism load my-project                          # Human-readable, standard depth
+prism load my-project --level deep             # Full context
+prism load my-project --level quick --json     # Machine-readable JSON
+prism load my-project --role dev --json        # Role-scoped loading
+
+# Verification harness
+prism verify status                            # Check verification state
+prism verify status --json                     # Machine-readable output
+prism verify generate                          # Bless current rubric as canonical
+```
+
+> 💡 **When to use the CLI vs MCP tools:** If your environment supports MCP (Claude Desktop, Cursor, Windsurf, Cline), always use the MCP tools — they integrate seamlessly with the agent's tool-calling flow. Use the CLI when you need session context in scripts, CI/CD, or non-MCP IDEs.
+
+> 📦 **Installation:** The CLI is available as `prism` when installed globally (`npm install -g prism-mcp-server`), or via `node dist/cli.js` for local dev builds.
 
 ---
 
