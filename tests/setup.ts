@@ -18,6 +18,11 @@
 
 import { mkdirSync } from "fs";
 import { join } from "path";
+import { config } from "dotenv";
+
+// Load .env from project root so tests can access API keys (GOOGLE_API_KEY, etc.)
+// Must happen before any other Prism module imports resolve config.ts
+config();
 
 /**
  * TEMP_DIR is where test SQLite databases are created.
