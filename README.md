@@ -727,7 +727,7 @@ The Generator strips the `console.log`, resubmits, and the next `EVALUATE` retur
 
 > **Current release: v9.0.5 — JWKS Auth Security Hardening**
 
-- 🔒 **v9.0.5 — JWKS Auth Security Hardening:** JWT audience/issuer claim validation (`PRISM_JWT_AUDIENCE`, `PRISM_JWT_ISSUER`), structured error logging for JWT failures, typed `PrismAuthenticatedRequest` interface, 11 new JWKS unit tests, Smithery server card fix. Vendor-neutral — tested with Auth0, AgentLair, Keycloak, and custom JWKS endpoints.
+- 🔒 **v9.0.5 — JWKS Auth Security Hardening:** JWT audience/issuer claim validation (`PRISM_JWT_AUDIENCE`, `PRISM_JWT_ISSUER`), structured error logging for JWT failures, typed `PrismAuthenticatedRequest` interface, 11 new JWKS unit tests, Smithery server card fix. Vendor-neutral — tested with Auth0, AgentLair ([llms.txt](https://agentlair.com/llms.txt)), Keycloak, and custom JWKS endpoints.
 - 🧠 **v9.0.0 — Autonomous Cognitive OS:** Token-Economic Reinforcement Learning (Surprisal Gate + Cognitive Budget), Affect-Tagged Memory (valence-scored retrieval), and Episodic→Semantic Consolidation. Your agents learn compression and develop intuition. → [Cognitive OS](#-autonomous-cognitive-os-v90)
 - 🧠 **v7.8.0 — Cognitive Architecture:** Episodic-to-Semantic memory consolidation (Hebbian learning), ACT-R Spreading Activation with multi-hop causal reasoning, Uncertainty-Aware Rejection Gate, and Dynamic Fast Weight Decay. → [Cognitive Architecture](#-cognitive-architecture-v78)
 - 🌐 **v7.7.0 — Cloud-Native SSE Transport:** Full Server-Sent Events MCP support for seamless network deployments.
