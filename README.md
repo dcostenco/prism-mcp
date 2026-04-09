@@ -778,8 +778,9 @@ The Generator strips the `console.log`, resubmits, and the next `EVALUATE` retur
 
 ## 🆕 What's New
 
-> **Current release: v9.1.0 — Task Router v2 & Local Agent Hardening**
+> **Current release: v9.2.1 — CLI Full Feature Parity**
 
+- 💻 **v9.2.1 — CLI Full Feature Parity:** `prism load` text mode now delegates to the real `session_load_context` handler, giving CLI-only users the same enriched output as MCP clients: morning briefings, reality drift detection, SDM intuitive recall, visual memory index, role-scoped skill injection, behavioral warnings, importance scores, and agent identity. JSON mode now includes `agent_name` from dashboard settings. Session loader script PATH fix for Homebrew/nvm/volta environments.
 - 🚦 **v9.1.0 — Task Router v2:** File-type complexity signal for intelligent code-vs-config routing, 6-signal weighted heuristic engine, multi-step false-positive fix, expanded file extension classification. Local agent hardened with buffered streaming, system prompts, memory trimming, and stateful `/api/chat` API.
 - 🔒 **v9.0.5 — JWKS Auth Security Hardening:** JWT audience/issuer claim validation (`PRISM_JWT_AUDIENCE`, `PRISM_JWT_ISSUER`), structured error logging for JWT failures, typed `PrismAuthenticatedRequest` interface, 11 new JWKS unit tests, Smithery server card fix. Vendor-neutral — tested with Auth0, AgentLair ([llms.txt](https://agentlair.com/llms.txt)), Keycloak, and custom JWKS endpoints.
 - 🧠 **v9.0.0 — Autonomous Cognitive OS:** Token-Economic Reinforcement Learning (Surprisal Gate + Cognitive Budget), Affect-Tagged Memory (valence-scored retrieval), and Episodic→Semantic Consolidation. Your agents learn compression and develop intuition. → [Cognitive OS](#-autonomous-cognitive-os-v90)
@@ -844,12 +845,16 @@ Every other AI coding pipeline has a fatal flaw: it asks the same model that wro
 
 ## 💻 CLI Reference
 
-Prism includes a CLI for environments where MCP tools aren't available (CI/CD pipelines, Bash scripts, non-MCP IDEs like Antigravity):
+Prism includes a CLI for environments where MCP tools aren't available (CI/CD pipelines, Bash scripts, non-MCP IDEs like Antigravity).
+
+**Text mode** delegates to the real `session_load_context` handler — full feature parity with MCP clients, including morning briefings, reality drift detection, SDM intuitive recall, visual memory, role-scoped skills, behavioral warnings, and agent identity.
+
+**JSON mode** emits a structured envelope for programmatic consumption (scripts, CI/CD, session loaders).
 
 ```bash
-# Load session context (same output as session_load_context MCP tool)
+# Load session context (full enrichments — same as MCP tool)
 prism load my-project                          # Human-readable, standard depth
-prism load my-project --level deep             # Full context
+prism load my-project --level deep             # Full context with all enrichments
 prism load my-project --level quick --json     # Machine-readable JSON
 prism load my-project --role dev --json        # Role-scoped loading
 

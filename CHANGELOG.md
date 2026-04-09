@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [9.2.1] - 2026-04-09 — CLI Full Feature Parity
+
+### Added
+- **CLI Text Mode — Full MCP Parity** — `prism load` (text mode) now delegates to the real `sessionLoadContextHandler`, giving CLI-only users the same enriched output as MCP clients: morning briefings, reality drift detection, SDM intuitive recall, visual memory index, role-scoped skill injection, behavioral warnings, importance scores, recent validations, and agent identity block.
+- **Agent Name in JSON Output** — `prism load --json` now includes `agent_name` from dashboard settings (`prism-config.db`) as a top-level field.
+- **13 New CLI Tests** — Comprehensive vitest suite covering text mode handler delegation, JSON envelope structure, agent_name inclusion/exclusion, no-data edge cases, and feature parity verification.
+
+### Fixed
+- **Session Loader PATH Resolution** — `prism_session_loader.sh` now adds `/opt/homebrew/bin`, nvm, and volta paths to `PATH`, fixing the `node: command not found` error on macOS in non-interactive shells.
+
+### Engineering
+- TypeScript: clean, zero errors
+- 3 files changed: `src/cli.ts`, `tests/tools/cli-load.test.ts` (new), `prism_session_loader.sh`
+- Key architectural decision: CLI text mode delegates to the same handler function used by the MCP tool. No code duplication — future MCP enrichments automatically appear in CLI output.
+
+---
+
+
 ## [9.1.1] - 2026-04-08 — Dashboard-First Credential Resolution
 
 ### Fixed
