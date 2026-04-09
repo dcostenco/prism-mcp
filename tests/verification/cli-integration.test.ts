@@ -8,7 +8,8 @@ import { SqliteStorage } from '../../src/storage/sqlite.js';
 const exec = promisify(execCb);
 
 // This test suite spans actual OS processes to verify the final binary contract.
-describe('CLI Integration — Operator Contract & JSON Modes', () => {
+// Timeout: 30s per test — npx tsx cold-starts take 10-15s on Windows CI runners.
+describe('CLI Integration — Operator Contract & JSON Modes', { timeout: 30_000 }, () => {
   const cliPath = path.resolve(__dirname, '../../src/cli.ts');
   const dbPath = './prism-local.db';
   const harnessPath = './verification_harness.json';
