@@ -95,6 +95,14 @@ program
         // reality drift, SDM recall, visual memory, skill injection,
         // behavioral warnings, etc.) are included automatically.
         const result = await sessionLoadContextHandler({ project, level, role });
+
+        // Surface handler-level errors (e.g. invalid args, storage failures)
+        if (result.isError) {
+          console.error((result.content[0] as any)?.text || 'Unknown error loading context');
+          await closeStorage();
+          process.exit(1);
+        }
+
         let output = '';
         if (result.content?.[0]) {
           output = (result.content[0] as any).text;

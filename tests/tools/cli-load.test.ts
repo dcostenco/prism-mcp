@@ -16,7 +16,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Mock storage ───────────────────────────────────────────────
 const mockLoadContext = vi.fn();
@@ -26,6 +26,7 @@ const mockStorage = {
   close: vi.fn(),
   getLedgerEntries: vi.fn(async () => []),
   getHistory: vi.fn(async () => []),
+  saveHandoff: vi.fn(async () => ({ version: 1 })),
 };
 
 vi.mock("../../src/storage/index.js", () => ({
