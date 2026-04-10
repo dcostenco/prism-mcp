@@ -1228,8 +1228,15 @@ Prism has evolved from smart session logging into a **cognitive memory architect
 | **v7.8** | Multi-Hop Causal Reasoning — spreading activation traverses `caused_by`/`led_to` edges with damped fan effect (`1/ln(fan+e)`) and lateral inhibition | ACT-R spreading activation (Anderson), Collins & Loftus (1975) | ✅ Shipped |
 | **v7.8** | Uncertainty-Aware Rejection Gate — dual-signal (similarity floor + gap distance) safety layer prevents hallucination from low-confidence retrievals | Metacognition research, uncertainty quantification | ✅ Shipped |
 | **v7.8** | Dynamic Fast Weight Decay — `is_rollup` semantic nodes decay 50% slower (`ageModifier = 0.5`) than episodic entries, creating Long-Term Context anchors | ACT-R base-level activation with differential decay rates | ✅ Shipped |
-| **v7.x** | Affect-Tagged Memory — sentiment shapes what gets recalled | Affect-modulated retrieval (neuroscience) | 🔭 Horizon |
-| **v8+** | Zero-Search Retrieval — no index, no ANN, just ask the vector | Holographic Reduced Representations | 🔭 Horizon |
+| **v9.0** | Affect-Tagged Memory — valence-scored retrieval where `\|valence\|` boosts ranking; UX warnings surface historically negative topics | Affect-modulated retrieval (neuroscience), somatic marker hypothesis | ✅ Shipped |
+| **v9.0** | Surprisal Gate — vector-based novelty pricing: high-surprisal saves cost 0.5× tokens, low-surprisal 2.0×; forces LLM data compression | Information-theoretic surprisal (Shannon), predictive coding | ✅ Shipped |
+| **v9.0** | Cognitive Budget — per-project token economy with passive UBI recovery (+100 tokens/hr); agents that over-save enter Cognitive Debt | Resource-bounded rationality (Simon, 1955) | ✅ Shipped |
+| **v9.1** | Task Router v2 — 6-signal weighted heuristic engine routing tasks between cloud host and local LLM based on file-type complexity, scope, and multi-step detection | Heuristic classification, cognitive load theory | ✅ Shipped |
+| **v9.2** | Cross-Backend Reconciliation — automatic Supabase → SQLite sync with idempotent dedup and 5s timeout | Eventual consistency, crdt-style reconciliation | ✅ Shipped |
+| **v9.2** | Split-Brain Drift Detection — dual-backend version comparison with prominent divergence warnings at load time | Byzantine fault detection, split-brain resolution | ✅ Shipped |
+| **v9.2** | TurboQuant QJL Validation — zero R@5 delta between P50 and P95 residual vectors (d=128, N=2K); CV=0.038 at d=768 proves no long tail | QJL estimator (ICLR 2026), Householder orthogonal rotation | ✅ Shipped |
+| **v9.2** | Typed Security Errors — `PrototypePollutionError` with `offendingKey` for forensic logging; null-byte path injection guard in SafetyController | Defense-in-depth (NIST), C-string truncation attack mitigation | ✅ Shipped |
+| **v10+** | Zero-Search Retrieval — no index, no ANN, just ask the vector | Holographic Reduced Representations | 🔭 Horizon |
 
 > Informed by Anderson's ACT-R (Adaptive Control of Thought—Rational), Collins & Loftus spreading activation networks (1975), Kanerva's SDM (1988), Hebb's learning rule, and LeCun's "Why AI Systems Don't Learn" (Dupoux, LeCun, Malik).
 
