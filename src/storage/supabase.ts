@@ -363,7 +363,10 @@ export class SupabaseStorage implements StorageBackend {
 
         const rows = await supabaseGet("session_ledger", queryParams) as Record<string, unknown>[];
 
-        const scored: SemanticSearchResult[] = [];
+        const scored: (SemanticSearchResult & { _residualNorm?: number })[] = [];
+        // v9.3: Import tiebreaker config for optional residualNorm ranking
+        const { PRISM_TURBOQUANT_TIEBREAKER_EPSILON } = await import("../config.js");
+        const eps = PRISM_TURBOQUANT_TIEBREAKER_EPSILON;
         for (const row of (Array.isArray(rows) ? rows : [])) {
           try {
             const compressedBase64 = row.embedding_compressed as string;
@@ -380,6 +383,7 @@ export class SupabaseStorage implements StorageBackend {
                 session_date: (row.session_date || row.created_at) as string,
                 decisions: Array.isArray(row.decisions) ? row.decisions as string[] : [],
                 files_changed: Array.isArray(row.files_changed) ? row.files_changed as string[] : [],
+                _residualNorm: eps > 0 ? compressed.residualNorm : undefined,
               });
             }
           } catch {
@@ -387,7 +391,14 @@ export class SupabaseStorage implements StorageBackend {
           }
         }
 
-        scored.sort((a, b) => b.similarity - a.similarity);
+        // Sort by similarity descending, with optional residualNorm tiebreaker
+        scored.sort((a, b) => {
+          const diff = b.similarity - a.similarity;
+          if (eps > 0 && Math.abs(diff) < eps && a._residualNorm != null && b._residualNorm != null) {
+            return a._residualNorm - b._residualNorm;
+          }
+          return diff;
+        });
         debugLog(
           `[SupabaseStorage] Tier-2 TurboQuant fallback: scored ${rows.length} entries, ` +
           `${scored.length} above threshold`
