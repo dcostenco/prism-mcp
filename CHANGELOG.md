@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [9.4.0] - 2026-04-12 — Adversarial Security Hardening & Bidirectional Sync
+## [9.4.1] - 2026-04-12 — Adversarial Security Hardening & Bidirectional Sync
 
 ### Security — Adversarial Audit (18 Issues Found, 17 Fixed)
 
