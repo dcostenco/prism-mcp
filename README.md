@@ -31,7 +31,7 @@ https://github.com/dcostenco/prism-mcp/raw/main/docs/prism_mcp_demo.mp4
 - [Universal Import: Bring Your History](#-universal-import-bring-your-history)
 - [What Makes Prism Different](#-what-makes-prism-different)
 - [Cognitive Architecture (v7.8)](#-cognitive-architecture-v78)
-- [Data Privacy & Egress](#-data-privacy--egress)
+- [Data Privacy & Egress](#-data-privacy-egress)
 - [Use Cases](#-use-cases)
 - [What's New](#-whats-new)
 - [How Prism Compares](#-how-prism-compares)
@@ -40,7 +40,7 @@ https://github.com/dcostenco/prism-mcp/raw/main/docs/prism_mcp_demo.mp4
 - [Environment Variables](#environment-variables)
 - [Architecture](#architecture)
 - [Scientific Foundation](#-scientific-foundation)
-- [Milestones & Roadmap](#-milestones--roadmap)
+- [Milestones & Roadmap](#-milestones-roadmap)
 - [Troubleshooting FAQ](#-troubleshooting-faq)
 
 ---
@@ -59,7 +59,7 @@ Prism has three pillars:
 
 2. **🔗 Multi-Hop Reasoning** — When your agent searches for "Error X", Prism doesn't just find logs mentioning "Error X". Spreading activation traverses the causal graph and brings back "Workaround Y", which is connected to "Architecture Decision Z" — a literal train of thought. *(See [Cognitive Architecture](#-cognitive-architecture-v78).)*
 
-3. **🏭 Autonomous Execution (Dark Factory)** — When you're ready, Prism can run coding tasks end-to-end with a fail-closed pipeline where an adversarial evaluator catches bugs the generator missed — before you ever see the PR. *(See [Dark Factory](#-dark-factory--adversarial-autonomous-pipelines).)*
+3. **🏭 Autonomous Execution (Dark Factory)** — When you're ready, Prism can run coding tasks end-to-end with a fail-closed pipeline where an adversarial evaluator catches bugs the generator missed — before you ever see the PR. *(See [Dark Factory](#-dark-factory-adversarial-autonomous-pipelines).)*
 
 ---
 
@@ -826,9 +826,9 @@ The Generator strips the `console.log`, resubmits, and the next `EVALUATE` retur
 
 ## 🆕 What's New
 
-> **Current release: v9.4.0 — Adversarial Security Hardening & Bidirectional Sync**
+> **Current release: v9.4.1 — Adversarial Security Hardening & Bidirectional Sync**
 
-- 🔒 **v9.4.0 — Security Hardening & Bidirectional Sync:** Two-pass adversarial audit found 18 vulnerabilities (4C/5H/9M) across Prism and Synalux — 17 fixed. Critical: fail-closed rate limiter, path traversal guards, error sanitization. High: plan name alignment (revenue fix), CORS allowlist, settings injection prevention. New: bidirectional `prism sync push` CLI command pushes local SQLite → Supabase, NextAuth JWT enrichment eliminates N+1 DB queries, concurrency counter guaranteed via `try/finally`, 10MB request body limits.
+- 🔒 **v9.4.1 — Security Hardening & Bidirectional Sync:** Two-pass adversarial audit found 18 vulnerabilities (4C/5H/9M) across Prism and Synalux — 17 fixed. Critical: fail-closed rate limiter, path traversal guards, error sanitization. High: plan name alignment (revenue fix), CORS allowlist, settings injection prevention. New: bidirectional `prism sync push` CLI command pushes local SQLite → Supabase, NextAuth JWT enrichment eliminates N+1 DB queries, concurrency counter guaranteed via `try/finally`, 10MB request body limits.
 - 🎯 **v9.3.0 — TurboQuant ResidualNorm Tiebreaker:** Configurable ranking optimization for Tier-2 search. When compressed cosine scores are within ε of each other, prefers the candidate with lower `residualNorm` (more trustworthy compressed representation). `PRISM_TURBOQUANT_TIEBREAKER_EPSILON=0.005` gives +2pp R@1, +1pp R@5. Empirically validated at N=5K with A/B test. 1066 tests, 0 regressions. Inspired by [@m13v's suggestion](https://github.com/xiaowu0162/LongMemEval/issues/31).
 - 🔒 **v9.2.7 — Security Hardening:** Typed `PrototypePollutionError` class (replaces generic `Error` in `sanitizeForMerge()` — enables catch-site discrimination and forensic logging with `offendingKey`), explicit null-byte path injection guard in `SafetyController.validateActionsInScope()` (C-string truncation attack vector), and corrected CRDT merge semantics documentation (Remove-Wins-from-Either, not Add-Wins). 1055 tests, 0 regressions.
 - 🪟 **v9.2.6 — Windows CI Timeout Fix:** CLI integration tests timed out on Windows + Node 22.x GitHub Actions runners. Added `{ timeout: 30_000 }` to the describe block. 6 new residual distribution tests validating TurboQuant's QJL correction stability (zero R@5 delta between P50 and P95 residual vectors at d=128, 2K corpus).
@@ -914,7 +914,7 @@ prism load my-project --level deep             # Full context with all enrichmen
 prism load my-project --level quick --json     # Machine-readable JSON
 prism load my-project --role dev --json        # Role-scoped loading
 
-# Bidirectional sync (v9.4.0)
+# Bidirectional sync (v9.4.1)
 prism sync push                                # Push local SQLite → Supabase
 prism sync push --json                         # Machine-readable output
 
