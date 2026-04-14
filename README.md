@@ -826,8 +826,9 @@ The Generator strips the `console.log`, resubmits, and the next `EVALUATE` retur
 
 ## 🆕 What's New
 
-> **Current release: v9.4.3 — ESM Bundling Fix (async_hooks)**
+> **Current release: v9.4.5 — Security: Command Injection Fix & Dependency Reduction**
 
+- 🔒 **v9.4.5 — Command Injection Fix & Dep Reduction:** `isOrphanProcess()` in `lifecycle.ts` interpolated a file-sourced PID into `execSync`. Fixed with `execFileSync` (no shell). Removed 2 unused runtime deps (25 → 23). Closes [#53](https://github.com/dcostenco/prism-mcp/issues/53).
 - 🔧 **v9.4.3 — ESM Bundling Fix:** Bundled dist had inlined OpenTelemetry CJS `require("async_hooks")` into ESM chunks, causing `Dynamic require of "async_hooks" is not supported` at runtime. Rebuilt with `tsc`. Affects CLI, session save/load, and MCP server startup.
 - 🔒 **v9.4.2 — Shell Injection Fix:** Deep code review found shell injection in `getGitDrift()` — `oldSha` was interpolated into `execSync` template string. Fixed with SHA format validation + `execFileSync` (no shell). Defense-in-depth.
 - 🔒 **v9.4.1 — Security Hardening & Bidirectional Sync:** Two-pass adversarial audit found 18 vulnerabilities (4C/5H/9M) — 17 fixed. Critical: fail-closed rate limiter, path traversal guards, error sanitization. High: plan name alignment (revenue fix), CORS allowlist, settings injection prevention. New: bidirectional `prism sync push` CLI command pushes local SQLite → Supabase, JWT enrichment eliminates N+1 DB queries, concurrency counter guaranteed via `try/finally`, 10MB request body limits.
@@ -1241,6 +1242,7 @@ Prism has evolved from smart session logging into a **cognitive memory architect
 | **v9.0** | Cognitive Budget — per-project token economy with passive UBI recovery (+100 tokens/hr); agents that over-save enter Cognitive Debt | Resource-bounded rationality (Simon, 1955) | ✅ Shipped |
 | **v9.1** | Task Router v2 — 6-signal weighted heuristic engine routing tasks between cloud host and local LLM based on file-type complexity, scope, and multi-step detection | Heuristic classification, cognitive load theory | ✅ Shipped |
 | **v9.4** | Shell Injection Fix — `execSync` → `execFileSync` + SHA format validation in git drift detection | Defense-in-depth, secure subprocess execution | ✅ Shipped |
+| **v9.4** | Command Injection Fix (lifecycle) — PID file injection via `execSync` template literal; remediated with `execFileSync` array args | Defense-in-depth, attack surface reduction | ✅ Shipped |
 | **v9.2** | Cross-Backend Reconciliation — automatic Supabase → SQLite sync with idempotent dedup and 5s timeout | Eventual consistency, crdt-style reconciliation | ✅ Shipped |
 | **v9.2** | Split-Brain Drift Detection — dual-backend version comparison with prominent divergence warnings at load time | Byzantine fault detection, split-brain resolution | ✅ Shipped |
 | **v9.2** | TurboQuant QJL Validation — zero R@5 delta between P50 and P95 residual vectors (d=128, N=2K); CV=0.038 at d=768 proves no long tail | QJL estimator (ICLR 2026), Householder orthogonal rotation | ✅ Shipped |

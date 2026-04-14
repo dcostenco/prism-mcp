@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [9.4.5] - 2026-04-13 — Security: Command Injection Fix & Dependency Reduction
+
+### Security
+- **[HIGH] Command Injection in `isOrphanProcess`** — `lifecycle.ts:79` interpolated a PID from a file directly into an `execSync` template string (`ps -o ppid= -p ${pid}`). A local attacker could write a malicious PID file (e.g., `1; rm -rf /`) to execute arbitrary commands. Fixed by replacing `execSync` (shell) with `execFileSync` (no shell, args as array) and casting PID to `String(pid)`. Added 5-second timeout guard.
+- **Dependency Reduction (25 → 23)** — Removed 2 unused runtime dependencies:
+  - `@google-cloud/discoveryengine` — zero imports across `src/`
+  - `dotenv` — zero runtime imports; moved to `devDependencies` (test-only)
+
+### Engineering
+- 3 files changed: `src/lifecycle.ts`, `package.json`, `package-lock.json`
+- TypeScript: clean, zero errors
+- CI: all 6 matrix jobs passing (ubuntu/macos/windows × Node 20/22)
+- Closes [#53](https://github.com/dcostenco/prism-mcp/issues/53)
+
+---
+
 ## [9.4.3] - 2026-04-13 — ESM Bundling Fix (async_hooks)
 
 ### Fixed
