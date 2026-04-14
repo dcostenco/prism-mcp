@@ -7,6 +7,18 @@
 
 Prism has evolved from a simple SQLite session logger into a **Quantized, Multimodal, Multi-Agent, Self-Learning, Observable AI Operating System**.
 
+### ✅ v9.4.5 — Command Injection Fix & Dep Reduction (Issue #53) 🔒
+
+> **Problem:** `isOrphanProcess()` in `lifecycle.ts` interpolated a file-sourced PID directly into `execSync`. A tampered PID file could inject arbitrary shell commands.  
+> **Solution:** `execSync` → `execFileSync` (no shell). Removed 2 dead runtime deps (25 → 23).
+
+| Feature | Detail |
+|---------|--------|
+| 🔒 **Command Injection Fix** | `execSync` template literal → `execFileSync` array args with `String(pid)` |
+| 📦 **Dep Reduction** | Removed `@google-cloud/discoveryengine` (unused) and `dotenv` (moved to devDeps) |
+
+---
+
 ### ✅ v9.4.2 — Shell Injection Fix (Git Drift Detection) 🔒
 
 > **Problem:** `getGitDrift()` interpolated `oldSha` directly into a `execSync` template string. A corrupted database entry could inject arbitrary shell commands.
