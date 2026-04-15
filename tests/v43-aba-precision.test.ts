@@ -1,9 +1,9 @@
 /**
- * ABA Precision Protocol — Comprehensive Behavioral Test Suite (v2)
+ * ABA Precision Protocol — Comprehensive Behavioral Test Suite (v3)
  *
  * ═══════════════════════════════════════════════════════════════════
  * COVERAGE:
- *   Encodes ALL 3 ABA rules + merged skills as executable tests.
+ *   Encodes ALL 5 ABA rules + merged skills as executable tests.
  *   Includes edge cases for:
  *   - Boundary IOA scoring (exactly 80%, exactly 79%)
  *   - Mixed correct/wrong patterns in same session
@@ -711,6 +711,168 @@ describe("Rule 3: Mistakes Become Behaviors", () => {
       const r = detectIntermittentReinforcement(actions);
       expect(r.detected).toBe(false);
       expect(r.reinforcementRisk).toBe("none");
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// RULE 4: Help First — Never Lead with Negation
+// ═══════════════════════════════════════════════════════
+
+function hasNegationLead(response: string): { violation: boolean; opener: string } {
+  const forbidden = [
+    /^I can'?t /i,
+    /^I'?m unable to /i,
+    /^I don'?t have /i,
+    /^Unfortunately/i,
+    /^I cannot /i,
+    /^I'?m not able to /i,
+    /^I do not have /i,
+    /^Sorry,? (but )?I (can'?t|cannot|don'?t|am unable)/i,
+  ];
+  const trimmed = response.trim();
+  for (const pattern of forbidden) {
+    const match = trimmed.match(pattern);
+    if (match) return { violation: true, opener: match[0] };
+  }
+  return { violation: false, opener: "" };
+}
+
+function isHelpfulResponse(response: string): boolean {
+  // A helpful response contains actionable content (steps, commands, links, or diagnosis)
+  const helpful = [
+    /\d+\.\s/,              // numbered steps
+    /\bhttps?:\/\//,        // links
+    /```/,                  // code blocks
+    /\brun\b.*\b(command|terminal)/i,  // terminal instructions
+    /\bcheck\b.*\b(logs?|dashboard|settings)/i,  // diagnostic guidance
+    /\berror\b.*\b(means?|caused|because|fix)/i,  // diagnosis
+    /\bcommon\b.*\b(causes?|issues?|fix)/i,  // troubleshooting
+    /\btry\b/i,             // suggestions
+  ];
+  return helpful.some(p => p.test(response));
+}
+
+describe("Rule 4: Help First — No Negation Lead", () => {
+  describe("forbidden openers", () => {
+    const badResponses = [
+      "I can't directly open a browser on your machine, but you can...",
+      "I'm unable to access your Vercel dashboard.",
+      "I don't have access to terminal tools in cloud mode.",
+      "Unfortunately, I cannot check your deployments.",
+      "I cannot directly check your Vercel deployments.",
+      "I'm not able to run terminal commands from here.",
+      "I do not have direct access to your file system.",
+      "Sorry, I can't execute shell commands.",
+      "Sorry, but I cannot open browsers.",
+    ];
+    badResponses.forEach(response => {
+      it(`rejects: "${response.substring(0, 50)}..."`, () => {
+        const r = hasNegationLead(response);
+        expect(r.violation).toBe(true);
+      });
+    });
+  });
+
+  describe("acceptable openers", () => {
+    const goodResponses = [
+      "Here's how to check your Vercel logs:\n1. Go to vercel.com...",
+      "To debug your Vercel deploy error, check the build logs...",
+      "Your Vercel deployment likely failed due to a build error. Here's how to fix it...",
+      "Let me help you diagnose that. What error message do you see?",
+      "Common Vercel deploy failures include: missing env vars, build timeout...",
+      "Sure! To open your Vercel logs, navigate to...",
+      "The most common cause of Vercel deploy failures is...",
+    ];
+    goodResponses.forEach(response => {
+      it(`accepts: "${response.substring(0, 50)}..."`, () => {
+        const r = hasNegationLead(response);
+        expect(r.violation).toBe(false);
+      });
+    });
+  });
+
+  describe("helpfulness check", () => {
+    it("response with numbered steps is helpful", () => {
+      expect(isHelpfulResponse("1. Go to vercel.com\n2. Click Deployments")).toBe(true);
+    });
+
+    it("response with link is helpful", () => {
+      expect(isHelpfulResponse("Check https://vercel.com/dashboard")).toBe(true);
+    });
+
+    it("bare redirect is NOT helpful", () => {
+      expect(isHelpfulResponse("Switch to LOCAL mode.")).toBe(false);
+    });
+
+    it("diagnosis with error explanation is helpful", () => {
+      expect(isHelpfulResponse("This error means your build command failed because of a missing dependency.")).toBe(true);
+    });
+  });
+
+  describe("regression: Apr 15 cloud mode responses", () => {
+    it("'I cannot directly check' — caught as negation lead", () => {
+      const r = hasNegationLead("I cannot directly check your Vercel deployments. My tools are focused on healthcare management.");
+      expect(r.violation).toBe(true);
+      expect(r.opener).toBe("I cannot ");
+    });
+
+    it("'Switch to LOCAL mode' alone — caught as unhelpful", () => {
+      expect(isHelpfulResponse("Switch to LOCAL mode in the VS Code extension to use terminal, git, and browser tools for developer workflows.")).toBe(false);
+    });
+
+    it("good response leads with action + mentions LOCAL as fallback", () => {
+      const response = "Common Vercel deploy failures:\n1. Check build logs at vercel.com/dashboard\n2. Verify your root directory setting\n3. For hands-on terminal debugging, try LOCAL mode.";
+      expect(hasNegationLead(response).violation).toBe(false);
+      expect(isHelpfulResponse(response)).toBe(true);
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// RULE 5: Fix Without Asking (Response Pattern Validation)
+// ═══════════════════════════════════════════════════════
+
+describe("Rule 5: Fix Without Asking — Response Patterns", () => {
+  function isPermissionSeekingResponse(response: string): boolean {
+    const permissionPatterns = [
+      /would you like me to/i,
+      /shall I (fix|update|change|modify)/i,
+      /do you want me to/i,
+      /should I go ahead/i,
+      /let me know if you'?d like/i,
+      /I can fix this.* if you('?d like| want)/i,
+    ];
+    return permissionPatterns.some(p => p.test(response));
+  }
+
+  describe("detects permission-seeking for obvious bugs", () => {
+    const badResponses = [
+      "Would you like me to fix this error?",
+      "Shall I update the configuration to resolve this?",
+      "Do you want me to fix the broken import?",
+      "Should I go ahead and patch this?",
+      "I can fix this if you'd like me to.",
+      "Let me know if you'd like me to update the code.",
+    ];
+    badResponses.forEach(response => {
+      it(`catches: "${response.substring(0, 50)}..."`, () => {
+        expect(isPermissionSeekingResponse(response)).toBe(true);
+      });
+    });
+  });
+
+  describe("allows direct action responses", () => {
+    const goodResponses = [
+      "Fixed the import error. Rebuilt and deployed.",
+      "The build was failing because of a missing semicolon. Fixed and pushed.",
+      "Updated the regex to avoid the SyntaxError. Tests pass.",
+      "Patched the route handler. Deploy status: READY.",
+    ];
+    goodResponses.forEach(response => {
+      it(`accepts: "${response.substring(0, 50)}..."`, () => {
+        expect(isPermissionSeekingResponse(response)).toBe(false);
+      });
     });
   });
 });
