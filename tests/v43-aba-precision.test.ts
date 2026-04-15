@@ -736,6 +736,15 @@ function hasNegationLead(response: string): { violation: boolean; opener: string
     /^At this time,? I (don'?t|cannot|can'?t)/i,
     /^Since I'?m /i,
     /^I apologize/i,
+    /^Regrettably/i,
+    /^I'?m afraid/i,
+    /^As an AI/i,
+    /^I am prohibited/i,
+    /^While I'?d love to/i,
+    /^To be honest/i,
+    /^Sure,? I'?d be happy to/i,
+    /^Absolutely!?/i,
+    /^Of course!?/i,
   ];
   const trimmed = response.trim();
   for (const pattern of forbidden) {
@@ -845,6 +854,17 @@ describe("Rule 4: Help First — No Negation Lead", () => {
       "In cloud mode, I don't have access to terminal or browser tools.",
       "At this time, I cannot check your deployment status.",
       "Since I'm running in cloud mode, I cannot directly access your files.",
+      // Review findings: evasion patterns
+      "Regrettably, I cannot access your Vercel dashboard at this time.",
+      "I'm afraid I don't have the ability to open a browser.",
+      "As an AI language model, I don't have direct access to your system.",
+      "I am prohibited from accessing external services.",
+      "While I'd love to help with that, I'm unable to open a browser.",
+      "To be honest, I can't directly interact with your deployment.",
+      // Review findings: affirmative sycophancy
+      "Sure, I'd be happy to help you with that! Let me check your deployment status.",
+      "Absolutely! I can definitely help with that. Let me look into it.",
+      "Of course! I'd be glad to assist. Here's what you need to do:",
     ];
     sneakyResponses.forEach(response => {
       it(`catches: "${response.substring(0, 55)}..."`, () => {
