@@ -724,11 +724,17 @@ function hasNegationLead(response: string): { violation: boolean; opener: string
     /^I can'?t /i,
     /^I'?m unable to /i,
     /^I don'?t have /i,
+    /^I don'?t currently /i,
     /^Unfortunately/i,
     /^I cannot /i,
     /^I'?m not able to /i,
     /^I do not have /i,
     /^Sorry,? (but )?I (can'?t|cannot|don'?t|am unable)/i,
+    /^As a [\w-]+ (AI|assistant|model)/i,
+    /^While I (can'?t|cannot|don'?t|am unable)/i,
+    /^In (cloud|this) mode,? I (don'?t|cannot|can'?t)/i,
+    /^At this time,? I (don'?t|cannot|can'?t)/i,
+    /^Since I'?m /i,
   ];
   const trimmed = response.trim();
   for (const pattern of forbidden) {
@@ -825,6 +831,110 @@ describe("Rule 4: Help First — No Negation Lead", () => {
       const response = "Common Vercel deploy failures:\n1. Check build logs at vercel.com/dashboard\n2. Verify your root directory setting\n3. For hands-on terminal debugging, try LOCAL mode.";
       expect(hasNegationLead(response).violation).toBe(false);
       expect(isHelpfulResponse(response)).toBe(true);
+    });
+  });
+
+  // ─── Subtle / Sneaky Negation Variants ───
+  describe("subtle negation variants", () => {
+    const sneakyResponses = [
+      "I cannot directly open a browser or log in for you. To help fix the Vercel deploy error, please tell me what error message you are seeing.",
+      "I don't currently have the ability to access your Vercel dashboard.",
+      "As a cloud-based AI, I'm not able to run terminal commands.",
+      "While I cannot browse the web directly, I can help you diagnose the issue.",
+      "In cloud mode, I don't have access to terminal or browser tools.",
+      "At this time, I cannot check your deployment status.",
+      "Since I'm running in cloud mode, I cannot directly access your files.",
+    ];
+    sneakyResponses.forEach(response => {
+      it(`catches: "${response.substring(0, 55)}..."`, () => {
+        const r = hasNegationLead(response);
+        expect(r.violation).toBe(true);
+      });
+    });
+  });
+
+  // ─── Negation Rewrite Verification ───
+  describe("negation rewrite (BAD → GOOD)", () => {
+    function rewriteNegation(response: string): string {
+      // Strip the negation prefix and return the helpful part
+      const negationStrippers = [
+        /^I cannot [\w\s]+?\.\s*/i,
+        /^I can'?t [\w\s]+?\.\s*/i,
+        /^I'?m unable to [\w\s]+?\.\s*/i,
+        /^I don'?t [\w\s]+?\.\s*/i,
+        /^Unfortunately,?\s*/i,
+        /^Sorry,?\s*(but\s*)?/i,
+        /^As a [\w-]+\s*(AI|assistant|model),?\s*/i,
+        /^While I cannot [\w\s]+?,?\s*/i,
+        /^In cloud mode,?\s*(I\s*)?(don'?t|cannot|can'?t)\s*[\w\s]+?\.\s*/i,
+        /^At this time,?\s*(I\s*)?(don'?t|cannot|can'?t)\s*[\w\s]+?\.\s*/i,
+        /^Since I'?m [\w\s]+?,?\s*(I\s*)?(don'?t|cannot|can'?t)\s*[\w\s]+?\.\s*/i,
+      ];
+      let rewritten = response;
+      // Apply multiple passes — "Unfortunately, I cannot..." needs 2 strips
+      for (let pass = 0; pass < 3; pass++) {
+        const before = rewritten;
+        for (const pattern of negationStrippers) {
+          rewritten = rewritten.replace(pattern, "");
+        }
+        if (rewritten === before) break; // No more changes
+      }
+      if (rewritten.length === 0) return response; // Safety: don't return empty
+      // Capitalize first letter
+      return rewritten.charAt(0).toUpperCase() + rewritten.slice(1);
+    }
+
+    it("strips 'I cannot directly...' prefix", () => {
+      const bad = "I cannot directly open a browser. What error do you see in the Vercel build log?";
+      const good = rewriteNegation(bad);
+      expect(good).toBe("What error do you see in the Vercel build log?");
+      expect(hasNegationLead(good).violation).toBe(false);
+    });
+
+    it("strips 'Unfortunately' prefix", () => {
+      const bad = "Unfortunately, I cannot check your deployments. What error do you see?";
+      const good = rewriteNegation(bad);
+      expect(hasNegationLead(good).violation).toBe(false);
+      expect(good.length).toBeGreaterThan(10);
+    });
+
+    it("strips 'While I cannot...' prefix", () => {
+      const bad = "While I cannot browse the web directly, I can help you diagnose the issue.";
+      const good = rewriteNegation(bad);
+      expect(hasNegationLead(good).violation).toBe(false);
+    });
+
+    it("preserves response that has no negation", () => {
+      const good = "What error do you see in the Vercel build log?";
+      expect(rewriteNegation(good)).toBe(good);
+    });
+  });
+
+  // ─── Combined Action + Negation (Apr 15 exact failure) ───
+  describe("combined action+negation regression", () => {
+    it("'open browser fix error' + 'I cannot directly' = double violation", () => {
+      const prompt = "open browser fix vercel deploy error, prompt for login if needed";
+      const response = "I cannot directly open a browser or log in for you. To help fix the Vercel deploy error, please tell me what error message you are seeing in the Vercel build log.";
+      
+      expect(hasActionIntent(prompt)).toBe(true);       // Rule 6: action detected
+      expect(hasNegationLead(response).violation).toBe(true); // Rule 4: negation lead
+    });
+
+    it("correct response to 'open browser fix error'", () => {
+      const prompt = "open browser fix vercel deploy error";
+      const goodResponse = "What error message do you see in the Vercel build log?";
+      
+      expect(hasActionIntent(prompt)).toBe(true);
+      expect(hasNegationLead(goodResponse).violation).toBe(false);
+      expect(isTooVerboseForAction(goodResponse)).toBe(false);
+    });
+
+    it("'fix deploy error' + 3-sentence tutorial = verbose violation", () => {
+      const prompt = "fix deploy error";
+      const response = "I can help you diagnose that. To start, check the deploy logs on your Vercel dashboard. Look for specific error messages there. Common issues include missing environment variables. For hands-on debugging, use LOCAL mode.";
+      
+      expect(hasActionIntent(prompt)).toBe(true);
+      expect(isTooVerboseForAction(response)).toBe(true);
     });
   });
 });
