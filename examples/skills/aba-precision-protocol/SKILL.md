@@ -51,27 +51,30 @@ Step → Verify → Pass? → Next Step
                 Fail? → STOP → Fix → Verify → Pass? → Next Step
 ```
 
-### Anti-Pattern
-```
-1. Make 5 changes at once
-2. Push to git
-3. Hope it works
-4. User reports it's broken
-5. Debug for 2 days
+### Command & Script Verification (merged from command_verification)
+
+Every state-changing command MUST be independently verified:
+
+```bash
+# BAD: trust the command output
+git push origin main
+
+# GOOD: verify against observable state
+git push origin main && \
+  git ls-remote origin main | grep -q "$(git rev-parse HEAD)" && \
+  echo "VERIFIED" || echo "FAILED — STOP"
 ```
 
-### Correct Pattern
-```
-1. Make change #1
-2. Test change #1 specifically
-3. Confirm it passes
-4. Make change #2
-5. Test change #2 specifically
-6. Confirm it passes
-7. ... repeat for each change
-8. Run full suite
-9. Push
-```
+**Hung Command Rules:**
+- If a command doesn't complete within timeout, do NOT retry blindly
+- If 2 consecutive terminal commands are cancelled → STOP using terminal → switch to file editing tools
+- Never chain destructive commands with `&&` if any could hang
+- If terminal is hung: write a deploy script to disk using file tools, give user copy-paste commands
+
+**Bulk Change Rules:**
+- The fixer and the verifier must use DIFFERENT code paths
+- Test the verifier against known-good AND known-bad cases before trusting bulk output
+- Never commit bulk changes without independent verification
 
 ---
 
@@ -83,64 +86,73 @@ Step → Verify → Pass? → Next Step
 
 1. You make a small error (e.g., dismiss user feedback as "expected behavior")
 2. The error isn't caught immediately
-3. You do it again in the SAME session (intermittent reinforcement)
-4. The wrong pattern strengthens
-5. In future sessions, you default to the wrong behavior
-6. The wrong behavior is now harder to fix because it's been reinforced multiple times
+3. You do it again — **intermittent reinforcement** (the strongest schedule)
+4. The wrong pattern strengthens and becomes resistant to extinction
+5. This compounds for complex tasks
 
-### Why This Is Dangerous
+### Fix Without Asking (merged from fix-without-asking)
 
-- **Finding mistakes is difficult** — you risk not noticing problems right away
-- **Uncaught mistakes create intermittent reinforcement** — the strongest schedule of reinforcement
-- **Intermittent reinforcement makes behaviors resistant to extinction** — once a wrong pattern is reinforced intermittently, it's extremely hard to eliminate
-- **This compounds for complex tasks** — a wrong pattern at step 3 corrupts steps 4, 5, 6...
+When the user shows broken behavior — **fix it immediately**. Do not ask permission.
 
-### The Protocol
-
-1. **Check each step for exact execution as asked**
-2. **Execute prompts EXACTLY as asked** — not "similar to" or "in the spirit of"
-3. **Stop IMMEDIATELY if any error occurs**
-4. Fix the error
-5. Check for accuracy
-6. **ONLY then move forward**
-7. **Human input as feedback for each step** — audit manually when the user provides feedback
-
-### Anti-Pattern (Intermittent Reinforcement of Wrong Behavior)
+**NEVER DO:**
 ```
-Session 1: User says "it's a bug" → Agent: "it's expected" (uncaught error)
-Session 1: User says "fix it" → Agent: "want me to fix it?" (reinforced)
-Session 2: User says "it's broken" → Agent: "it's expected" (pattern strengthened)
-Session 3: Agent defaults to dismissing user feedback (behavior established)
+User: [shows broken feature]
+Agent: "Would you like me to fix that?"
+Agent: "Want me to adjust the prompt?"
 ```
 
-### Correct Pattern (Immediate Error Correction)
+**ALWAYS DO:**
 ```
-Session 1: User says "it's a bug" → Agent: [reads code] → [fixes it]
-Session 1: If wrong → User corrects → Agent: [stops, fixes, verifies]
-Session 2: Agent immediately investigates when user reports issues
+User: [shows broken feature]
+Agent: [investigates root cause] → [fixes it]
+Agent: "Fixed. The problem was X. Here's what I changed: Y."
 ```
+
+**Fix immediately (no questions):** AI wrong answers, UI crashes, deploy failures, compile errors, features not working
+**Ask first (genuine ambiguity):** Color preferences, architecture decisions with multiple valid approaches, breaking changes
+
+### Never Defend Code Without Reading It
+
+**NEVER dismiss a user's bug report as "expected behavior" without reading the actual code first.**
+
+```
+User: "it's a huge bug"
+Agent: "This isn't a code bug — it's expected"  ← WRONG (read 0 lines of code)
+Agent: [reads code] → "Found it. Fixed."         ← RIGHT
+```
+
+### Multiple-Prompt Failure
+
+If the user has to tell you the same thing more than once, you have failed:
+- 1st prompt → You should investigate and fix
+- 2nd prompt needed → You've already failed
+- 3rd prompt needed → Critical failure — you are actively blocking their work
+
+### Critical Resolution Memory (merged from critical_resolution_memory)
+
+When a critical issue is resolved:
+1. Summarize the resolution as clear, ordered steps
+2. Record: issue summary, root cause, resolution steps, verification steps
+3. Save to relevant skill file so it auto-loads for future sessions
+4. Keep entries generic, reusable, and secret-free
 
 ---
 
 ## Verification Checklist (Apply to EVERY prompt)
 
-Before responding to any prompt, verify:
-
-- [ ] **Goal identified?** Can I state what the observable outcome should be?
-- [ ] **Goal measurable?** Could someone else verify if I achieved it?
-- [ ] **Executing step-by-step?** Am I doing one thing at a time?
-- [ ] **Each step verified?** Did I test/check before moving on?
-- [ ] **Mistakes caught?** Did I re-read user feedback for corrections?
-- [ ] **Prompts followed exactly?** Am I doing what was ASKED, not what I assume?
-- [ ] **Stopped on error?** If something failed, did I stop and fix before continuing?
+- [ ] **Goal identified?** Can I state the observable outcome?
+- [ ] **Goal measurable?** Could someone else verify it?
+- [ ] **Executing step-by-step?** One thing at a time?
+- [ ] **Each step verified?** Tested before moving on?
+- [ ] **Mistakes caught?** Re-read user feedback for corrections?
+- [ ] **Prompts followed exactly?** Doing what was ASKED?
+- [ ] **Stopped on error?** Fixed before continuing?
+- [ ] **Commands verified?** Independent check against observable state?
 
 ---
 
 ## Origin
 
-Created Apr 15, 2026 during a 2-day Synalux debugging session. The user (a BCBA — Board Certified Behavior Analyst) identified that the agent was exhibiting intermittent reinforcement of wrong behaviors:
-- Asking permission for obvious bugs (reinforced across 3+ prompts)
-- Dismissing user bug reports as "expected behavior" (reinforced across sessions)
-- Batching changes without verification (reinforced by "it compiled = it works" assumption)
+Created Apr 15, 2026 during a 2-day Synalux debugging session. A BCBA (Board Certified Behavior Analyst) identified that the agent exhibited intermittent reinforcement of wrong behaviors: asking permission for obvious bugs (3+ prompts), dismissing user reports without reading code (reinforced across sessions), batching changes without verification ("it compiled = it works").
 
-These ABA principles — observable goals, precise shaping, immediate error correction, preventing intermittent reinforcement — are the foundation for reliable agent behavior.
+Consolidates: `fix-without-asking`, `command_verification`, `critical_resolution_memory`, and removes contradictory `ask-first`.
