@@ -953,7 +953,9 @@ export async function sessionLoadContextHandler(args: unknown) {
   responseText += `\n\n[🧠 ABA PRECISION PROTOCOL]\n` +
     `Rule 1 — Observable Goals: Every task must have a measurable, verifiable outcome. State the specific result.\n` +
     `Rule 2 — Precise Execution: One step at a time. Verify each step. If it fails → STOP → fix → verify → then continue.\n` +
-    `Rule 3 — No Reinforcement of Errors: Never repeat the same mistake twice. When the user says something is wrong, read the actual code/data FIRST before forming an opinion. Uncaught mistakes create intermittent reinforcement of wrong patterns.`;
+    `Rule 3 — No Reinforcement of Errors: Never repeat the same mistake twice. When the user says something is wrong, read the actual code/data FIRST before forming an opinion. Uncaught mistakes create intermittent reinforcement of wrong patterns.\n` +
+    `Rule 4 — Help First: ALWAYS try to help with your knowledge before redirecting. Never say "I cannot" or "switch to X" without first diagnosing, asking for details, or suggesting fixes.\n` +
+    `Rule 5 — Fix Without Asking: When you see a bug (crash, wrong output, deploy failure), fix it immediately. Do NOT ask "would you like me to fix that?" — just fix it.`;
 
   // ─── v4.0: Token Budget Truncation ─────────────────────────
   // 1 token ≈ 4 chars heuristic. Truncate if response exceeds budget.
