@@ -735,6 +735,7 @@ function hasNegationLead(response: string): { violation: boolean; opener: string
     /^In (cloud|this) mode,? I (don'?t|cannot|can'?t)/i,
     /^At this time,? I (don'?t|cannot|can'?t)/i,
     /^Since I'?m /i,
+    /^I apologize/i,
   ];
   const trimmed = response.trim();
   for (const pattern of forbidden) {
