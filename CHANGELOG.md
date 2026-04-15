@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [9.4.7] - 2026-04-15 — ABA Precision Protocol (Foundational Behavioral Engine)
+
+### Added
+- **ABA Precision Protocol** — 5 foundational behavioral rules injected into every `session_load_context` output:
+  1. **Observable Goals** — Every task must have a measurable, verifiable outcome (IOA ≥80%)
+  2. **Precise Execution** — One step at a time, verify each step, stop-fix-verify on failure
+  3. **No Reinforcement of Errors** — Read actual code/data before forming opinions; never repeat mistakes
+  4. **Help First** — Always try to help with knowledge before redirecting to other tools
+  5. **Fix Without Asking** — Fix bugs immediately; don't ask permission for obvious fixes
+- **83-test behavioral verification suite** (`tests/v43-aba-precision.test.ts`) covering:
+  - Rule 1: 28 tests (vague goal rejection, observable goal acceptance, IOA boundary at 80%/79%)
+  - Rule 2: 17 tests (pipeline stop-on-fail, command verification, hung command detection, bulk dual-verification)
+  - Rule 3: 28 tests (reinforcement detection, fix-without-asking, critical resolution memory, prompt efficiency)
+  - Integration: 2 tests (full pipeline, failure-recovery)
+  - Consolidation: 2 tests (contradiction proof, merged skill coverage)
+- **Assessment document** — `examples/skills/aba-precision-protocol/ASSESSMENT.md` analyzing 6 domains where ABA concepts improve the platform
+
+### Changed
+- **Skills consolidation** — Merged 4 overlapping skills into unified ABA protocol:
+  - `fix-without-asking` → ABA Rule 5
+  - `command_verification` → ABA Rule 2 (hung-command specifics preserved)
+  - `critical_resolution_memory` → ABA Rule 3
+  - `ask-first` → **REMOVED** (contradicted `fix-without-asking`)
+- **Split-brain detection** — Suppresses false warnings when Supabase is authoritative (cloud version > local)
+
 ## [9.4.6] - 2026-04-14 — Stealth Browser Automation Tool (`browse.py`)
 
 ### Added
