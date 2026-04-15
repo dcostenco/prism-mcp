@@ -38,7 +38,7 @@ vi.mock("@huggingface/transformers", () => ({
   }),
 }));
 
-describe("LocalEmbeddingAdapter — broken transformers.js install", () => {
+describe("LocalEmbeddingAdapter — broken/corrupted transformers.js install", () => {
   it("loadPromise resolves (non-fatal) even when pipeline construction fails", async () => {
     const { LocalEmbeddingAdapter } = await import("../../src/utils/llm/adapters/local.js");
     const adapter = new LocalEmbeddingAdapter();

@@ -6,9 +6,14 @@ const EMBEDDING_DIMS = 768;
 const MAX_EMBEDDING_CHARS = 8000;
 const DEFAULT_MODEL = "Xenova/nomic-embed-text-v1.5";
 const DEFAULT_REVISION = "main";
+// MODEL_ID_PATTERN allows '.' in the name segment — the separate '..' check below
+// handles directory traversal (e.g., "owner/foo..bar" passes the regex but is invalid).
 const MODEL_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}\/[a-zA-Z0-9._-]{1,128}$/;
+// Allowed: "main", 40-char commit SHA, semver tag like "v1.5" or "v1.5.0"
+const REVISION_PATTERN = /^(main|[a-f0-9]{40}|v\d+(\.\d+){0,2})$/;
 
 export class LocalEmbeddingAdapter implements LLMProvider {
+  /** @internal Resolves once pipeline initialization completes. Callers and tests await this for readiness. */
   readonly loadPromise: Promise<void>;
   private pipe: ((text: string, opts: object) => Promise<unknown>) | null = null;
   private loadError: Error | null = null;
@@ -44,7 +49,14 @@ export class LocalEmbeddingAdapter implements LLMProvider {
     }
 
     const result = await this.pipe(`search_document: ${inputText}`, { pooling: "mean", normalize: true });
-    const vec = Array.from((result as { data: Float32Array }).data);
+    const tensorData = (result as { data?: Float32Array }).data;
+    if (!tensorData || !(tensorData instanceof Float32Array)) {
+      throw new Error(
+        "[LocalEmbeddingAdapter] Unexpected pipeline output shape — expected { data: Float32Array }. " +
+        "This may indicate an incompatible @huggingface/transformers version."
+      );
+    }
+    const vec = Array.from(tensorData);
 
     if (vec.length !== EMBEDDING_DIMS) {
       throw new Error(
@@ -68,11 +80,20 @@ export class LocalEmbeddingAdapter implements LLMProvider {
     }
 
     const hfEndpoint = process.env.HF_ENDPOINT;
-    if (hfEndpoint && !hfEndpoint.includes("huggingface.co")) {
-      console.warn(
-        `[LocalEmbeddingAdapter] HF_ENDPOINT is set to "${hfEndpoint}" — model downloads are redirected. ` +
-        `Only set if you control and trust this server.`
-      );
+    if (hfEndpoint) {
+      try {
+        const parsed = new URL(hfEndpoint);
+        const isTrusted = parsed.hostname === "huggingface.co" ||
+                          parsed.hostname.endsWith(".huggingface.co");
+        if (!isTrusted) {
+          console.warn(
+            `[LocalEmbeddingAdapter] HF_ENDPOINT hostname "${parsed.hostname}" is not huggingface.co — ` +
+            `model downloads are redirected. Only set if you control and trust this server.`
+          );
+        }
+      } catch {
+        console.warn(`[LocalEmbeddingAdapter] HF_ENDPOINT is not a valid URL: "${hfEndpoint}". Ignoring.`);
+      }
     }
 
     let transformers: typeof import("@huggingface/transformers");
@@ -92,6 +113,14 @@ export class LocalEmbeddingAdapter implements LLMProvider {
     const quantized = getSettingSync("local_embedding_quantized", "true") !== "false";
     const dtype = quantized ? "q8" : "fp32";
     const revision = getSettingSync("local_embedding_revision", DEFAULT_REVISION);
+
+    if (!REVISION_PATTERN.test(revision)) {
+      this.loadError = new Error(
+        `[LocalEmbeddingAdapter] Invalid local_embedding_revision: "${revision}". ` +
+        `Allowed values: "main", a 40-char commit SHA, or a semver tag like "v1.5".`
+      );
+      return;
+    }
 
     try {
       const pipelineInstance = await transformers.pipeline("feature-extraction", model, { dtype, revision } as Parameters<typeof transformers.pipeline>[2]);

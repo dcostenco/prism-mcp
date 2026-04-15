@@ -10,8 +10,7 @@ export class DisabledTextAdapter implements LLMProvider {
 
   async generateEmbedding(_text: string): Promise<number[]> {
     throw new Error(
-      "[DisabledTextAdapter] generateEmbedding should not be called directly. " +
-      "The factory routes embeddings to LocalEmbeddingAdapter."
+      "[DisabledTextAdapter] Embedding is handled by a separate adapter — this method should not be called directly."
     );
   }
 }

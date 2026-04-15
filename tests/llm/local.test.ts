@@ -272,4 +272,74 @@ describe("LocalEmbeddingAdapter", () => {
     if (originalEnv === undefined) delete process.env.HF_ENDPOINT;
     else process.env.HF_ENDPOINT = originalEnv;
   });
+
+  it("warns when HF_ENDPOINT is a subdomain-spoofing URL (huggingface.co.evil.com)", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const originalEnv = process.env.HF_ENDPOINT;
+    process.env.HF_ENDPOINT = "https://huggingface.co.evil.com";
+    mockSettings();
+    const { LocalEmbeddingAdapter } = await import("../../src/utils/llm/adapters/local.js");
+    const adapter = new LocalEmbeddingAdapter();
+    await adapter.loadPromise;
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("HF_ENDPOINT"));
+    warnSpy.mockRestore();
+    if (originalEnv === undefined) delete process.env.HF_ENDPOINT;
+    else process.env.HF_ENDPOINT = originalEnv;
+  });
+
+  it("does NOT warn when HF_ENDPOINT is a trusted huggingface.co subdomain", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const originalEnv = process.env.HF_ENDPOINT;
+    process.env.HF_ENDPOINT = "https://endpoints.huggingface.co";
+    mockSettings();
+    const { LocalEmbeddingAdapter } = await import("../../src/utils/llm/adapters/local.js");
+    const adapter = new LocalEmbeddingAdapter();
+    await adapter.loadPromise;
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("HF_ENDPOINT"));
+    warnSpy.mockRestore();
+    if (originalEnv === undefined) delete process.env.HF_ENDPOINT;
+    else process.env.HF_ENDPOINT = originalEnv;
+  });
+
+  // ── Revision validation ───────────────────────────────────────────────────
+
+  it("sets loadError when local_embedding_revision is an invalid format", async () => {
+    mockSettings({ local_embedding_revision: "../../malicious-branch" });
+    const { LocalEmbeddingAdapter } = await import("../../src/utils/llm/adapters/local.js");
+    const adapter = new LocalEmbeddingAdapter();
+    await adapter.loadPromise;
+    await expect(adapter.generateEmbedding("test")).rejects.toThrow(
+      /Invalid local_embedding_revision/
+    );
+  });
+
+  it("accepts valid revision values: main, v1.5, 40-char SHA", async () => {
+    const validRevisions = [
+      "main",
+      "v1.5",
+      "v1.5.0",
+      "a".repeat(40), // 40-char hex SHA
+    ];
+    for (const rev of validRevisions) {
+      mockSettings({ local_embedding_revision: rev });
+      const { LocalEmbeddingAdapter } = await import("../../src/utils/llm/adapters/local.js");
+      const adapter = new LocalEmbeddingAdapter();
+      await adapter.loadPromise;
+      await expect(adapter.generateEmbedding("test")).resolves.toHaveLength(768);
+    }
+  });
+
+  // ── Tensor null guard ─────────────────────────────────────────────────────
+
+  it("throws a descriptive error when pipeline returns result with no data property", async () => {
+    const nullDataPipe = vi.fn().mockResolvedValue({ data: undefined }); // no data
+    mockPipelineFactory.mockResolvedValueOnce(nullDataPipe);
+    mockSettings();
+    const { LocalEmbeddingAdapter } = await import("../../src/utils/llm/adapters/local.js");
+    const adapter = new LocalEmbeddingAdapter();
+    await adapter.loadPromise;
+    await expect(adapter.generateEmbedding("test")).rejects.toThrow(
+      /Unexpected pipeline output shape/
+    );
+  });
 });

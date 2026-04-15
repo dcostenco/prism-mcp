@@ -85,7 +85,7 @@ vi.mock("../../src/utils/llm/adapters/disabledText.js", () => ({
       new Error("Text generation is not available")
     );
     this.generateEmbedding = vi.fn().mockRejectedValue(
-      new Error("[DisabledTextAdapter] generateEmbedding should not be called directly")
+      new Error("[DisabledTextAdapter] Embedding is handled by a separate adapter")
     );
   }),
 }));
