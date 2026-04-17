@@ -1,4 +1,39 @@
-# 🧠 Prism MCP — The Mind Palace for AI Agents
+# 🧠 Prism MCP — The Mind Palace for AI Agents (Local Embeddings Fork)
+
+> **This is a fork of [dcostenco/prism-mcp](https://github.com/dcostenco/prism-mcp).** The changes below are the only differences from upstream.
+
+## What This Fork Changes
+
+Upstream Prism requires a `GOOGLE_API_KEY` (or other cloud API key) for semantic vector search — the feature that powers `session_search_memory`, embedding generation on save, SDM Intuitive Recall, and fact consolidation. **This fork removes that requirement** by adding a fully local embedding provider, so all semantic features work offline with zero API keys.
+
+### Added: Local Embedding Provider
+
+A new `LocalEmbeddingAdapter` runs the [nomic-ai/nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) model on your machine via [`@huggingface/transformers`](https://github.com/huggingface/transformers.js). No network calls, no API keys, no cost.
+
+To enable it, set these in the Prism dashboard or environment:
+
+```
+embedding_provider=local
+text_provider=none        # optional — disables text generation if you don't have a key
+```
+
+The model downloads once (~100 MB quantized) and runs locally on subsequent starts.
+
+### Added: Disabled Text Adapter
+
+A `DisabledTextAdapter` (`text_provider=none`) lets you run Prism without any text generation API key. Features that require text generation (like fact consolidation via Gemini) will throw a clear error pointing you to configure a provider, rather than failing silently.
+
+### Removed: Hardcoded `GOOGLE_API_KEY` Guards
+
+Upstream had six `GOOGLE_API_KEY` checks scattered across handler files that would silently skip embedding generation, semantic search, SDM recall, and fact consolidation when no key was set — even if a local provider was configured. This fork removes all of them. The factory pattern now handles provider resolution: if a provider is configured, it works; if not, it throws a clear error on first call.
+
+**Files changed:** `graphHandlers.ts`, `ledgerHandlers.ts`, `factMerger.ts`, `dashboard/server.ts`, `factory.ts`
+
+### Upstream Status
+
+This fork diverged from upstream at `ecd1424` (v9.4.6). The changes are conceptually independent from upstream's recent work (security hardening, ABA protocol, split-brain fixes), but merging will require conflict resolution since both sides modified some of the same files.
+
+---
 
 [![npm version](https://img.shields.io/npm/v/prism-mcp-server?color=cb0000&label=npm)](https://www.npmjs.com/package/prism-mcp-server)
 [![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-00ADD8?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTUtMTAtNXpNMiAxN2wxMCA1IDEwLTV2LTJMMTI0djJMMiA5djh6Ii8+PC9zdmc+)](https://github.com/modelcontextprotocol/servers)
