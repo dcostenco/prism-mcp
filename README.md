@@ -12,7 +12,7 @@
 
 **Your AI agent forgets everything between sessions. Prism fixes that — then teaches it to think.**
 
-Prism v9.13 is a true **Cognitive Architecture** inspired by human brain mechanics. Beyond flat vector search, your agent now forms principles from experience, follows causal trains of thought, and possesses the self-awareness to know when it lacks information. **Your agents don't just remember; they learn.** With v9.13, semantic search works **100% offline** — no API keys required.
+Prism v10 is a true **Cognitive Architecture** inspired by human brain mechanics. Beyond flat vector search, your agent now forms principles from experience, follows causal trains of thought, and possesses the self-awareness to know when it lacks information. **Your agents don't just remember; they learn.** With v10, the entire cognitive pipeline — including ledger compaction, task routing, and semantic search — runs **100% on-device** via `prism-coder:7b`, a HIPAA-hardened local LLM that underwent 3 rounds of adversarial security review. No API keys. No cloud. No data leaves your machine.
 
 ```bash
 npx -y prism-mcp-server
@@ -125,8 +125,9 @@ Then open `http://localhost:3001` instead.
 | Mind Palace Dashboard | ✅ | ✅ |
 | GDPR export (JSON/Markdown/Vault) | ✅ | ✅ |
 | Semantic vector search | ✅ (`embedding_provider=local`) | ✅ (gemini, openai, or voyage) |
+| **Ledger compaction** | ✅ `prism-coder:7b` via Ollama | ✅ Text provider key |
+| **Task routing (LLM tiebreaker)** | ✅ `prism-coder:7b` via Ollama | N/A (heuristic-only) |
 | Morning Briefings | ❌ | ✅ Text provider key |
-| Auto-compaction | ❌ | ✅ Text provider key |
 | Web Scholar research | ❌ | ✅ [`BRAVE_API_KEY`](#environment-variables) + [`FIRECRAWL_API_KEY`](#environment-variables) (or `TAVILY_API_KEY`) |
 | VLM image captioning | ❌ | ✅ Provider key |
 | Autonomous Pipelines (Dark Factory) | ❌ | ✅ Text provider key |
@@ -562,6 +563,23 @@ To guarantee zero-hallucination MCP tool use, it was further aligned using **GRP
 - **Generation Speed:** 45.1 Tokens/sec
 
 **Integration**: Run via Ollama natively to power autonomous file operations and session routing entirely within the local host environment.
+
+#### 🛡️ HIPAA-Grade Security Hardening (v10.0)
+
+The prism-coder integration underwent **3 rounds of adversarial security review** treating the reviewer as an attacker with HIPAA compliance, data exfiltration, and system stability as threat vectors. **22 findings identified and closed:**
+
+| Defense Layer | What It Prevents |
+|---------------|------------------|
+| **`PRISM_STRICT_LOCAL_MODE`** | Silent cloud fallback — when enabled, compaction throws instead of sending ePHI to Gemini/OpenRouter |
+| **`redirect: "error"`** | SSRF via 3xx redirects to AWS IMDS or internal services |
+| **URL credential redaction** | Passwords in `user:pass@host` URLs stripped from all log paths (startup + per-call) |
+| **Entry-boundary truncation** | Prompt injection via mid-tag XML truncation — payload split at `\n\n` boundaries, never mid-tag |
+| **Full XML escaping** | All 5 XML entities (`& < > " '`) escaped on all user-controlled fields including `id` and `session_date` |
+| **`<task>` boundary tags** | Task description XML-escaped and wrapped in delimiters to prevent routing manipulation |
+| **`setTimeout` cap** | Integer overflow (>2³¹) that silently aborted every local LLM call |
+| **Graceful HIPAA errors** | `try/catch` ensures strict mode returns MCP error response, not server crash |
+
+> 🔒 **HIPAA deployment:** Set `PRISM_LOCAL_LLM_ENABLED=true` + `PRISM_STRICT_LOCAL_MODE=true`. Session data will **never** leave the device — even if Ollama crashes.
 
 ### 🖼️ Visual Memory
 Save UI screenshots, architecture diagrams, and bug states to a searchable vault. Images are auto-captioned by a VLM (Claude Vision / GPT-4V / Gemini) and become semantically searchable across sessions.
@@ -1305,31 +1323,25 @@ Prism MCP is open-source and free for individual developers. For teams and enter
 
 ## 📦 Milestones & Roadmap
 
-> **Current: v9.4.1** — Adversarial Security Hardening & Bidirectional Sync ([CHANGELOG](CHANGELOG.md))
+> **Current: v10.0.0** — HIPAA-Hardened Local LLM Engine + 3-Round Adversarial Security Audit ([CHANGELOG](CHANGELOG.md))
 
 | Release | Headline |
 |---------|----------|
-| **v9.2.4** | 🔄 Cross-Backend Reconciliation — automatic Supabase → SQLite sync on startup, two-layer (handoff + ledger), 5s timeout, 13 tests |
-| **v9.2.3** | 🔧 Code Review Hardening — 10x faster split-brain detection, variable shadowing fix, resource leak fix |
-| **v9.2.2** | 🚨 Split-Brain Detection & Prevention — `--storage` flag, drift detection, session loader hardening |
-| **v9.2.1** | 💻 CLI Full Feature Parity — text mode enrichments, agent identity, PATH fix |
-| **v9.1.0** | 🚦 Task Router v2 — file-type routing signal, 6-signal heuristics, local agent streaming buffer |
-| **v9.0.5** | 🔒 JWKS Auth Security Hardening — audience/issuer validation, JWT failure logging, typed agent identity |
+| **v10.0** | 🛡️ **HIPAA-Hardened Local LLM** — `prism-coder:7b` powers compaction + task routing 100% on-device; 22-finding adversarial audit, `PRISM_STRICT_LOCAL_MODE`, SSRF/injection/exfiltration hardening. Zero API keys required. |
+| **v9.14** | 🧬 Dynamic Hardware Routing & Semantic Tool RAG — MLX SFT pipeline, Nomic pruning, GRPO alignment |
+| **v9.13** | 🔬 Local Embeddings & Zero-API-Key Semantic Search — `nomic-embed-text-v1.5` on-device |
+| **v9.5** | 🛡️ Adversarial Behavioral Hardening — 24 forbidden openers, XML anti-tag system, sycophancy defense |
+| **v9.4** | 🔒 Security Sweep — command injection, path traversal, CORS, fail-closed rate limiter, bidirectional sync |
 | **v9.0** | 🧠 Autonomous Cognitive OS — Surprisal Gate, Cognitive Budget, Affect-Tagged Memory |
-| **v7.8** | 🧠 Cognitive Architecture — Hebbian consolidation, multi-hop reasoning, rejection gate, dynamic decay |
-| **v7.7** | 🌐 Cloud-Native SSE Transport |
-| **v7.5** | 🩺 Intent Health Dashboard + Security Hardening |
+| **v7.8** | 🧠 Cognitive Architecture — Hebbian consolidation, multi-hop reasoning, rejection gate |
 | **v7.4** | ⚔️ Adversarial Evaluation (anti-sycophancy) |
-| **v7.3** | 🏭 Dark Factory fail-closed execution |
-| **v7.2** | ✅ Verification Harness |
-| **v7.1** | 🚦 Task Router |
 | **v7.0** | 🧬 ACT-R Activation Memory |
-| **v6.5** | 🔮 HDC Cognitive Routing |
-| **v6.2** | 🧩 Synthesize & Prune |
 
 ### Future Tracks
-- **v7.x: Affect-Tagged Memory** — Recall prioritization improves by weighting memories with affective/contextual valence.
-- **v8+: Zero-Search Retrieval** — Direct vector-addressed recall reduces retrieval indirection.
+- **v10.1: Semantic Routing** — Replace regex-based task classification with lightweight local embedding model (`all-MiniLM-L6-v2`) for intent-based routing.
+- **v10.2: Background Task Mutex** — Pause background compaction during active user chat streams to prevent resource contention.
+- **v10.3: Agent Self-Evaluation** — Local LLM scores its own compaction quality and requests re-compaction when output confidence is low.
+- **v11+: Zero-Search Retrieval** — Direct vector-addressed recall eliminates retrieval indirection entirely.
 
 👉 **[Full ROADMAP.md →](ROADMAP.md)**
 
