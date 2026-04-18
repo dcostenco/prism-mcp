@@ -1,0 +1,17 @@
+# LoRA configuration for Prism SFT training
+model: "/Users/admin/prism/training/models/qwen-7b-mlx"
+data: "/Users/admin/prism/training/data"
+adapter_path: "/Users/admin/prism/training/models/prism-sft-lora"
+fine_tune_type: "lora"
+train: true
+iters: 10
+batch_size: 1
+num_layers: 16
+learning_rate: 3e-5
+val_batches: 1
+steps_per_report: 5
+steps_per_eval: 10
+save_every: 10
+max_seq_length: 1024
+grad_checkpoint: true
+seed: 42
