@@ -45,31 +45,27 @@ https://github.com/dcostenco/prism-mcp/raw/main/docs/prism_mcp_demo.mp4
 
 ---
 
-## <a name="deep-research-intelligence"></a>🧠 v11.0 Deep Research Intelligence (Auto-Scholar)
+## 🔬 <a name="deep-research-intelligence"></a>v11.0 Deep Research Intelligence (Auto-Scholar)
 
-Prism v11.0 introduces **Deep Research Intelligence**, a multi-provider discovery pipeline that transforms your agent from a "Coder" into a "Clinical Scientist." By grounding Gemini 2.5 Flash's thinking capabilities in real-time academic and web data, Prism can now solve complex reasoning tasks with empirical evidence.
+Prism v11.0 transforms your AI agent from a "Coder" into a "Clinical Scientist." It features a **Tavily-Enhanced Multi-Provider Discovery Pipeline** that grounds Gemini 2.5 Flash's thinking in real-world empirical data.
 
-### 🥊 Discovery Showdown: Free Stack vs. Tavily Stack
+### 🥊 The Global Benchmarks: Prism v11 vs. Standard RAG
 
-| Feature | **Standard (Free Stack)** | **Elite (Tavily Upgrade)** |
+| Feature | **Standard AI Memory (Mem0/Zep)** | **Prism v11.0 (Elite Architecture)** |
 | :--- | :--- | :--- |
-| **Discovery Reach** | PubMed, ERIC, Semantic Scholar, DDG | **Full Web + AI-Optimized Academic Crawl** |
-| **Data Quality** | Snippets & Titles | **Full Page Extraction & Conclusion Scraping** |
-| **Reasoning Depth** | Theoretical & Generic | **Data-Driven & Percentile-Specific** |
-| **Synalux Clinical Value** | "Here is how to help with focus." | **"62% of patients show X; use Strategy Y instead."** |
+| **Search Complexity** | $O(N)$ or $O(\log N)$ (Scales with data) | **$O(1)$ Zero-Search (Constant time via HRR)** |
+| **Discovery Logic** | General Web Search (Snippets) | **Parallel Academic Discovery (PubMed, ERIC, S2)** |
+| **Reasoning Model** | Flat List (Simple Similarity) | **ACT-R Spreading Activation (Causal Graph)** |
+| **Privacy Mode** | Cloud-First (SaaS) | **Local-First (HIPAA-Hardened / Air-Gapped)** |
+| **Intelligence Floor** | Generic GPT-4 Advice | **Data-Driven Clinical Evidence (62% CI Warnings)** |
 
 ### 🔍 Supported Discovery Engines & Databases
 
-Prism (and Synalux) uses a multi-layered discovery pipeline to ensure high-signal reasoning:
-
 1.  **Tavily AI** (Elite): Primary discovery engine for AI-native deep crawling and PDF/Abstract extraction.
-2.  **PubMed (NCBI)** (Academic): The world's largest biomedical database for clinical citations and life science research.
-3.  **ERIC (Education Research)** (Behavioral): Definitive database for ABA, speech therapy, and educational interventions.
-4.  **Semantic Scholar** (Academic): AI-powered research tool providing "TLDR" summaries of scientific papers.
-5.  **DuckDuckGo Lite** (Web Fallback): Privacy-focused web discovery for general context and non-academic info.
-6.  **Brave Search** (Web/Local): Real-time internet index with support for local business data (POIs).
-7.  **Google Search** (Web): High-precision web search via Google Custom Search Engine (CSE).
-8.  **Yahoo Search** (Web): Robust HTML-based fallback scraper.
+2.  **PubMed (NCBI)** (Clinical): The world's largest biomedical database for clinical citations.
+3.  **ERIC (Education Research)** (Behavioral): The definitive database for ABA and pediatric interventions.
+4.  **Semantic Scholar** (Academic): AI-powered research tool providing "TLDR" summaries of 200M+ papers.
+5.  **DuckDuckGo Lite** (Fallback): Privacy-focused web discovery for general context.
 
 <details>
 <summary><strong>See Live Samples (Simplified Terms)</strong></summary>
@@ -96,9 +92,9 @@ Every time you start a new conversation with an AI coding assistant, it starts f
 
 Prism has three pillars:
 
-1. **🧠 Cognitive Memory** — Memories are ranked like a human brain: recently and frequently accessed context surfaces first, while stale context fades naturally via ACT-R activation decay. Raw experience consolidates into semantic principles through Hebbian learning. The result is retrieval quality that no flat vector search can match. *(See [Cognitive Architecture](#cognitive-architecture-v78) and [Scientific Foundation](#scientific-foundation).)*
+1. **🧠 Cognitive Memory ($O(1)$ Zero-Search)** — Prism uses **Holographic Reduced Representations (HRR)** to eliminate "searching" entirely. Memories are unbound mathematically from a superposition vector in constant time ($O(1)$), regardless of library size. Re-ranking is powered by the **ACT-R** model, mimicking biological recency and frequency.
 
-2. **🔗 Multi-Hop Reasoning** — When your agent searches for "Error X", Prism doesn't just find logs mentioning "Error X". Spreading activation traverses the causal graph and brings back "Workaround Y", which is connected to "Architecture Decision Z" — a literal train of thought. *(See [Cognitive Architecture](#cognitive-architecture-v78).)*
+2. **🔗 Multi-Hop Causal Reasoning** — Prism doesn't just find "similar" things. Spreading activation traverses the causal graph and brings back context connected to your current problem through logical "trains of thought."
 
 3. **🏭 Autonomous Execution (Dark Factory)** — When you're ready, Prism can run coding tasks end-to-end with a fail-closed pipeline where an adversarial evaluator catches bugs the generator missed — before you ever see the PR. *(See [Dark Factory](#dark-factory-adversarial-autonomous-pipelines).)*
 
