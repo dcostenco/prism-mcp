@@ -423,14 +423,9 @@ With v9.13.0 shipped, Prism is a **production-hardened, fully-offline-capable, f
 
 ### 🔭 Future Cognitive Tracks
 
-#### v10.0 — Zero-Search Retrieval `[Exploring]`
-- **Problem:** All current retrieval requires an index (FTS5, vector, graph). At extreme scale, index maintenance becomes the bottleneck.
-- **Benefit:** Holographic Reduced Representations (HRR) encode entire memory traces into a single superposition vector. Retrieval is a single dot product — no index, no ANN, just ask the vector.
-- **Dependency:** Requires a 4096+ dim HRR encoding layer on top of existing TurboQuant compressed vectors.
-
 #### v10.1 — Multi-Graph Causal Layer `[Planned]`
 - **Problem:** Semantic and contiguous temporal links cannot satisfy "Why did X happen?" queries effectively.
-- **Benefit:** Intent-aware retrieval routing (MAGMA) traversing an LLM-inferred causal `because` edge-type layer.
+- **Benefit:** Intent-aware retrieval routing traversing an LLM-inferred causal `because` edge-type layer for deep reasoning and multi-hop root-cause analysis.
 
 #### v10.2 — Federated Memory Mesh `[Exploring]`
 - **Problem:** Enterprise teams with 50+ agents need memory isolation with controlled sharing — current Hivemind is flat.
@@ -439,6 +434,10 @@ With v9.13.0 shipped, Prism is a **production-hardened, fully-offline-capable, f
 #### v10.3 — Predictive Prefetch `[Exploring]`
 - **Problem:** Agents wait for explicit search queries to surface relevant context.
 - **Benefit:** Time-of-day and workflow-stage predictive models prefetch likely-needed memories into a warm cache before the agent asks. Leverages existing ACT-R access log patterns as training signal.
+
+#### v11.0 — Zero-Search Retrieval `[Exploring]`
+- **Problem:** All current retrieval requires an index (FTS5, vector, graph). At extreme scale, index maintenance becomes the bottleneck.
+- **Benefit:** Holographic Reduced Representations (HRR) encode entire memory traces into a single superposition vector. Retrieval is a single dot product — no index, no ANN, just ask the vector.
 
 ---
 ## 🧰 Infrastructure Backlog
