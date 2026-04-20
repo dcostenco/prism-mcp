@@ -63,7 +63,7 @@ Prism has three pillars:
 
 ---
 
-## 🚀 Quick Start
+## <a name="quick-start"></a>🚀 Quick Start
 
 ### Prerequisites
 
@@ -138,7 +138,7 @@ Then open `http://localhost:3001` instead.
 
 ---
 
-## ✨ The Magic Moment
+## <a name="the-magic-moment"></a>✨ The Magic Moment
 
 > **Session 1** (Monday evening):
 > ```
@@ -159,7 +159,7 @@ Then open `http://localhost:3001` instead.
 
 ---
 
-## 📖 Setup Guides
+## <a name="setup-guides"></a>📖 Setup Guides
 
 <details>
 <summary><strong>Claude Desktop</strong></summary>
@@ -442,7 +442,7 @@ Prism can be deployed natively to cloud platforms like [Render](https://render.c
 
 ---
 
-## 📥 Universal Import: Bring Your History
+## <a name="universal-import-bring-your-history"></a>📥 Universal Import: Bring Your History
 
 Switching to Prism? Don't leave months of AI session history behind. Prism can **ingest historical sessions from Claude Code, Gemini, and OpenAI** and give your Mind Palace an instant head start — no manual re-entry required.
 
@@ -475,7 +475,7 @@ npx -y prism-mcp-server universal-import --format gemini --path ./gemini_history
 
 ---
 
-## ✨ What Makes Prism Different
+## <a name="what-makes-prism-different"></a>✨ What Makes Prism Different
 
 
 ### 🧠 Your Agent Learns From Mistakes
@@ -629,7 +629,7 @@ Vector math measures *semantic similarity*, not *sentiment*. If an agent searche
 
 ---
 
-## 🧠 Cognitive Architecture (v7.8)
+## <a name="cognitive-architecture-v78"></a>🧠 Cognitive Architecture (v7.8)
 
 > *Prism v7.8 is our biggest leap forward yet. We have moved beyond flat vector search and implemented a true Cognitive Architecture inspired by human brain mechanics. With the new ACT-R Spreading Activation Engine, Episodic-to-Semantic memory consolidation, and Uncertainty-Aware Rejection Gates, Prism doesn't just store logs anymore — it forms principles, follows causal trains of thought, and possesses the self-awareness to know when it lacks information.*
 
@@ -694,7 +694,7 @@ Standard RAG (Retrieval-Augmented Generation) is now a commodity. Everyone has v
 
 ---
 
-## 🔒 Data Privacy & Egress
+## <a name="data-privacy-egress"></a>🔒 Data Privacy & Egress
 
 **Where is my data stored?**
 
@@ -725,7 +725,7 @@ Prism will recreate the directory with empty databases on next startup.
 
 ---
 
-## 🎯 Use Cases
+## <a name="use-cases"></a>🎯 Use Cases
 
 - **Long-running feature work** — Save state at end of day, restore full context next morning. No re-explaining.
 - **Multi-agent collaboration** — Dev, QA, and PM agents share real-time context without stepping on each other's memory.
@@ -859,7 +859,7 @@ The Generator strips the `console.log`, resubmits, and the next `EVALUATE` retur
 
 ---
 
-## 🆕 What's New
+## <a name="whats-new"></a>🆕 What's New
 
 > **Current release: v10.0.1 — HIPAA-Hardened Local LLM Engine**
 
@@ -878,7 +878,7 @@ The Generator strips the `console.log`, resubmits, and the next `EVALUATE` retur
 
 ---
 
-## ⚔️ How Prism Compares
+## <a name="how-prism-compares"></a>⚔️ How Prism Compares
 
 Standard memory servers (like Mem0, Zep, or the baseline Anthropic MCP) act as passive filing cabinets — they wait for the LLM to search them. **Prism is an active cognitive architecture.** Designed specifically for the **Model Context Protocol (MCP)**, Prism doesn't just store vectors — it consolidates experience into principles, traverses causal graphs for multi-hop reasoning, and rejects queries it can't confidently answer.
 
@@ -930,7 +930,7 @@ Every other AI coding pipeline has a fatal flaw: it asks the same model that wro
 
 ---
 
-## 💻 CLI Reference
+## <a name="cli-reference"></a>💻 CLI Reference
 
 Prism includes a CLI for environments where MCP tools aren't available (CI/CD pipelines, Bash scripts, non-MCP IDEs like Antigravity).
 
@@ -961,7 +961,7 @@ prism verify generate                          # Bless current rubric as canonic
 
 ---
 
-## 🔧 Tool Reference
+## <a name="tool-reference"></a>🔧 Tool Reference
 
 Prism ships 30+ tools, but **90% of your workflow uses just three:**
 
@@ -1235,7 +1235,7 @@ All platforms benefit from the **server-side fallback** (v5.2.1): if `session_lo
 
 ---
 
-## 🧬 Scientific Foundation
+## <a name="scientific-foundation"></a>🧬 Scientific Foundation
 
 Prism has evolved from smart session logging into a **cognitive memory architecture** — grounded in real research, not marketing. Every retrieval decision is backed by peer-reviewed models from cognitive psychology, neuroscience, and distributed computing.
 
@@ -1310,7 +1310,7 @@ Prism MCP is open-source and free for individual developers. For teams and enter
 
 ---
 
-## 📦 Milestones & Roadmap
+## <a name="milestones-roadmap"></a>📦 Milestones & Roadmap
 
 > **Current: v10.0.1** — HIPAA-Hardened Local LLM Engine + 3-Round Adversarial Security Audit ([CHANGELOG](CHANGELOG.md))
 
@@ -1334,7 +1334,7 @@ Prism MCP is open-source and free for individual developers. For teams and enter
 👉 **[Full ROADMAP.md →](ROADMAP.md)**
 
 
-## ❓ Troubleshooting FAQ
+## <a name="troubleshooting-faq"></a>❓ Troubleshooting FAQ
 
 **Q: Why is the dashboard project selector stuck on "Loading projects..."?**
 A: Fixed in v7.3.3. The root cause was a multi-layer quote-escaping trap in the `abortPipeline` onclick handler that generated a `SyntaxError` in the browser, silently killing the entire dashboard IIFE. Update to v7.3.3+ (`npx -y prism-mcp-server`). If still stuck, check that Supabase env values are properly set (unresolved placeholders like `${SUPABASE_URL}` cause `/api/projects` to return empty). Prism auto-falls back to local SQLite when Supabase is misconfigured.
