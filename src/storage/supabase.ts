@@ -43,7 +43,7 @@ import {
 } from "./interface.js";
 
 import { debugLog } from "../utils/logger.js";
-import { PRISM_USER_ID } from "../config.js";
+import { PRISM_USER_ID, PRISM_STORAGE } from "../config.js";
 import { getSetting as cfgGet, setSetting as cfgSet, getAllSettings as cfgGetAll } from "./configStorage.js";
 import { runAutoMigrations } from "./supabaseMigrations.js";
 import { SafetyController } from "../darkfactory/safetyController.js";
@@ -51,17 +51,23 @@ import { SafetyController } from "../darkfactory/safetyController.js";
 export class SupabaseStorage implements StorageBackend {
   // ─── Lifecycle ─────────────────────────────────────────────
 
-  async initialize(): Promise<void> {
-    debugLog("[SupabaseStorage] Initialized (REST API, stateless)");
+  async initialize(isLocal: boolean = false): Promise<void> {
+    debugLog("[SupabaseStorage] Initializing (REST API, stateless)");
 
     // Auto-apply pending schema migrations (non-fatal)
-    try {
-      await runAutoMigrations();
-    } catch (err) {
-      console.error(
-        "[SupabaseStorage] Auto-migration failed. Server will continue, but some tools may be unstable.",
-        err instanceof Error ? err.message : err
-      );
+    // ONLY run if the active backend is explicitly set to supabase.
+    // This prevents noise for local SQLite users.
+    if (!isLocal) {
+      try {
+        await runAutoMigrations();
+      } catch (err) {
+        console.error(
+          "[SupabaseStorage] Auto-migration failed. Server will continue, but some tools may be unstable.",
+          err instanceof Error ? err.message : err
+        );
+      }
+    } else {
+      debugLog("[SupabaseStorage] Skipping auto-migrations (running in local/sync mode)");
     }
   }
 

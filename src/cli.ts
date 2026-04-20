@@ -330,7 +330,7 @@ verifyCmd
   .option('--json', 'Emit machine-readable JSON output with stable keys')
   .action(async (options) => {
     const storage = new SqliteStorage();
-    await storage.initialize('./prism-local.db');
+    await storage.initialize(true, './prism-local.db');
 
     // H4 fix: Ensure storage is closed on exit to flush WAL and prevent data loss
     try {
@@ -349,7 +349,7 @@ verifyCmd
   .option('--json', 'Emit machine-readable JSON output with stable keys')
   .action(async (options) => {
     const storage = new SqliteStorage();
-    await storage.initialize('./prism-local.db');
+    await storage.initialize(true, './prism-local.db');
 
     // H4 fix: Ensure storage is closed on exit to flush WAL and prevent data loss
     try {

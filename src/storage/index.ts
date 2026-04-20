@@ -67,7 +67,7 @@ export async function getStorage(): Promise<StorageBackend> {
     );
   }
 
-  await storageInstance.initialize();
+  await storageInstance.initialize(activeStorageBackend === "local");
 
   // ─── v9.2.4: Cross-Backend Handoff Reconciliation ──────────────
   // When running on local SQLite but Supabase credentials exist,

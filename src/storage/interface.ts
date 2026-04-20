@@ -288,7 +288,7 @@ export interface StorageBackend {
   // ─── Lifecycle ─────────────────────────────────────────────
 
   /** Initialize the storage backend (create tables, check connection, etc.) */
-  initialize(): Promise<void>;
+  initialize(isLocal?: boolean): Promise<void>;
 
   /** Gracefully close the storage backend */
   close(): Promise<void>;

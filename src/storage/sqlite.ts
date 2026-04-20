@@ -56,7 +56,7 @@ export class SqliteStorage implements StorageBackend {
 
   // ─── Lifecycle ─────────────────────────────────────────────
 
-  async initialize(dbPath?: string): Promise<void> {
+  async initialize(_isLocal?: boolean, dbPath?: string): Promise<void> {
     // ─── DB Path Resolution ────────────────────────────────────────────
     // Priority:
     //   1. Explicit dbPath argument — used by tests to inject a per-instance
