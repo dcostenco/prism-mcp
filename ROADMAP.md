@@ -7,6 +7,20 @@
 
 Prism has evolved from a simple SQLite session logger into a **Quantized, Multimodal, Multi-Agent, Self-Learning, Observable AI Operating System**.
 
+### ✅ v10.0.0 — HIPAA-Hardened Local LLM Engine 🛡️
+
+> **Problem:** High-compliance environments (healthcare, legal, defense) could not use Prism because session compaction and task routing required sending sensitive data to cloud LLMs. Even with local embeddings, the "brain" of the memory system remained in the cloud.
+> **Solution:** A fully air-gapped cognitive engine. Introducing `prism-coder:7b` (via Ollama) to handle on-device ledger compaction, task routing, and semantic search. Combined with `LocalEmbeddingAdapter`, Prism now operates with **Zero Cloud Dependency** and **Zero API Keys**.
+
+| Feature | Detail |
+|---------|--------|
+| 🛡️ **HIPAA Hardening** | 22-finding adversarial security audit completed. Features `PRISM_STRICT_LOCAL_MODE` to block cloud fallbacks, SSRF protection, and URL credential redaction. |
+| 🧠 **Local Cognitive Engine** | `prism-coder:7b` handles `session_compact_ledger` and `session_task_route` 100% on-device. No session data ever leaves your machine. |
+| 🔒 **Stored Injection Shield** | Full XML escaping and boundary tagging prevents "Prompt Injection" via loaded memories. |
+| ⚡ **Nomic Tool Pruning** | RAG-based tool pruning embeds all 30+ MCP tools; only the Top-3 relevant schemas are injected into context, maximizing local model performance. |
+
+---
+
 ### ✅ v9.13.0 — Local Embeddings & Zero-API-Key Setup 🧠
 
 > **Problem:** Users who wanted fully local, offline operation were blocked by `GOOGLE_API_KEY` guards in the embedding pipeline. Semantic search, session saves, and handoff merging all required a cloud API key even when local embedding generation was feasible.
@@ -379,11 +393,15 @@ Prism has evolved from a simple SQLite session logger into a **Quantized, Multim
 
 </details>
 
-## 📊 The State of Prism (v9.13.0)
+## 📊 The State of Prism (v10.0.0)
 
-With v9.13.0 shipped, Prism is a **production-hardened, fully-offline-capable, fail-closed, adversarially-evaluated autonomous AI Operating System** — the first MCP server that runs your agents *without letting them touch the filesystem unsupervised*, *without letting them grade their own homework*, *without requiring any API keys for core cognitive features*, and *with real-time visibility into project health*:
+With v10 shipped, Prism is a **HIPAA-hardened, production-ready, fully air-gapped autonomous AI Operating System**. It is the first memory engine that runs your agents without sending a single byte of your cognitive history to the cloud:
 
-- **Zero-Key Operation** — `embedding_provider=local` + `text_provider=none` enables full semantic search and session memory with zero cloud API keys. Powered by Nomic Embed v1.5 via transformers.js.
+- **100% Air-Gapped Cognitive Engine** — `prism-coder:7b` manages all ledger compaction and task routing on-device. Zero cloud dependency for the "brain" of your agent.
+
+- **Zero-Key Operation** — `embedding_provider=local` + `text_provider=none` enables full semantic search and session memory with zero cloud API keys. Powered by Nomic Embed v1.5.
+
+- **HIPAA Hardened** — 22-finding adversarial audit. SSRF protection, URL credential redaction, and `PRISM_STRICT_LOCAL_MODE` for high-compliance environments.
 
 - **Memory Security** — All text fields sanitized on save to prevent stored prompt injection. Context output wrapped in boundary tags to prevent context confusion. Boundary tag spoofing blocked. Cross-session and Hivemind multi-agent poisoning attacks prevented at the persistence layer.
 
