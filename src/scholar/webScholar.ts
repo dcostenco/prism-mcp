@@ -4,6 +4,7 @@ import {
   TAVILY_API_KEY,
   GOOGLE_SEARCH_API_KEY,
   GOOGLE_SEARCH_CX,
+  SEMANTIC_SCHOLAR_API_KEY,
   PRISM_SCHOLAR_MAX_ARTICLES_PER_RUN,
   PRISM_USER_ID,
   PRISM_SCHOLAR_TOPICS,
@@ -137,8 +138,20 @@ export async function runWebScholar(overrideTopic?: string, overrideProject?: st
       const tavilyResults = await performTavilySearch(TAVILY_API_KEY!, topic, PRISM_SCHOLAR_MAX_ARTICLES_PER_RUN);
       urls = tavilyResults.map(r => r.url).filter(Boolean);
     } else {
-      const ddgResults = await searchYahooFree(topic, PRISM_SCHOLAR_MAX_ARTICLES_PER_RUN);
-      urls = ddgResults.map(r => r.url).filter(Boolean);
+      // Parallel Academic Discovery (PubMed + ERIC + Semantic Scholar)
+      const academicCount = Math.ceil(PRISM_SCHOLAR_MAX_ARTICLES_PER_RUN / 2);
+      const academicResults = await Promise.all([
+        searchPubMed(topic, academicCount).catch(() => []),
+        searchERIC(topic, academicCount).catch(() => []),
+        searchSemanticScholar(topic, academicCount).catch(() => [])
+      ]);
+      urls = [...new Set(academicResults.flat())].slice(0, PRISM_SCHOLAR_MAX_ARTICLES_PER_RUN);
+      
+      // Final fallback to Yahoo if no academic results
+      if (urls.length === 0) {
+        const ddgResults = await searchYahooFree(topic, PRISM_SCHOLAR_MAX_ARTICLES_PER_RUN);
+        urls = ddgResults.map(r => r.url).filter(Boolean);
+      }
     }
 
     if (urls.length === 0) return `No articles found for "${topic}"`;
@@ -195,6 +208,48 @@ export async function runWebScholar(overrideTopic?: string, overrideProject?: st
 }
 
 // ─── Research Task Bridge (Watcher) ───────────────────────────
+
+async function searchPubMed(query: string, count: number): Promise<string[]> {
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmode=json&retmax=${count}`;
+  try {
+    const searchResp = await fetch(searchUrl);
+    if (!searchResp.ok) throw new Error("PubMed Search failed");
+    const searchData = await searchResp.json();
+    const pmids: string[] = searchData.esearchresult?.idlist || [];
+    return pmids.map(pmid => `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`);
+  } catch (err) {
+    debugLog(`[WebScholar] PubMed search error: ${err}`);
+    return [];
+  }
+}
+
+async function searchERIC(query: string, count: number): Promise<string[]> {
+  const url = `https://api.ies.ed.gov/eric/?search=${encodeURIComponent(query)}&rows=${count}&format=json`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error("ERIC Search failed");
+    const data = await resp.json();
+    return (data.response?.docs || []).map((doc: any) => `https://eric.ed.gov/?id=${doc.id}`);
+  } catch (err) {
+    debugLog(`[WebScholar] ERIC search error: ${err}`);
+    return [];
+  }
+}
+
+async function searchSemanticScholar(query: string, count: number): Promise<string[]> {
+  const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=${count}&fields=url`;
+  try {
+    const headers: Record<string, string> = {};
+    if (SEMANTIC_SCHOLAR_API_KEY) headers["x-api-key"] = SEMANTIC_SCHOLAR_API_KEY;
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) throw new Error("Semantic Scholar Search failed");
+    const data = await resp.json();
+    return (data.data || []).map((paper: any) => paper.url).filter(Boolean);
+  } catch (err) {
+    debugLog(`[WebScholar] Semantic Scholar search error: ${err}`);
+    return [];
+  }
+}
 
 let watcherInterval: ReturnType<typeof setInterval> | null = null;
 
