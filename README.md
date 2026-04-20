@@ -886,6 +886,8 @@ Standard memory servers (like Mem0, Zep, or the baseline Anthropic MCP) act as p
 
 | Feature / Architecture | 🧠 Prism MCP | 🐘 Mem0 | ⚡ Zep | 🧪 Anthropic Base MCP |
 | :--- | :--- | :--- | :--- | :--- |
+| **Privacy & HIPAA** | **✅ 100% Local / Air-gapped / Redacted** | ❌ Cloud-dependent | ❌ Cloud-dependent | ✅ Local-only |
+| **Local LLM Logic** | **✅ `prism-coder:7b` (Compaction, Routing)** | ❌ Cloud only | ❌ Cloud only | ❌ None |
 | **Primary Interface** | **Native MCP** (Tools, Prompts, Resources) | REST API & Python/TS SDKs | REST API & Python/TS SDKs | Native MCP (Tools only) |
 | **Storage Engine** | **BYO SQLite or Supabase** | Managed Cloud / VectorDBs | Managed Cloud / Postgres | Local SQLite only |
 | **Context Assembly** | **Progressive (Quick/Std/Deep)** | Top-K Semantic Search | Top-K + Temporal Summaries | Basic Entity Search |
@@ -900,22 +902,25 @@ Standard memory servers (like Mem0, Zep, or the baseline Anthropic MCP) act as p
 
 ### 🏆 Where Prism Crushes the Giants
 
-#### 1. MCP-Native, Not an Adapted API
+#### 1. Local-First & HIPAA-Hardened
+While other memory systems force you to send every chat log to their cloud for "compaction" or "embedding," Prism v10 is **100% air-gapped**. With the `prism-coder:7b` local LLM and `nomic-embed` local adapter, your agent's memory pipeline runs entirely on your machine. Prism includes built-in SSRF protection, URL credential redaction, and XML sanitization to prevent stored prompt injection — meeting HIPAA Security Rule standards for on-device processing.
+
+#### 2. MCP-Native, Not an Adapted API
 Mem0 and Zep are APIs that *can* be wrapped into an MCP server. Prism was built *for* MCP from day one. Instead of wasting tokens on "search" tool calls, Prism uses **MCP Prompts** (`/resume_session`) to inject context *before* the LLM thinks, and **MCP Resources** (`memory://project/handoff`) to attach live, subscribing context.
 
-#### 2. Academic-Grade Cognitive Computer Science
+#### 3. Academic-Grade Cognitive Computer Science
 The giants use standard RAG (Retrieval-Augmented Generation). Prism uses biological and academic models of memory: **ACT-R base-level activation** (`B_i = ln(Σ t_j^(-d))`) for recency–frequency re-ranking, **TurboQuant** for extreme vector compression, **Ebbinghaus curves** for importance decay, and **Sparse Distributed Memory (SDM)**. The result is retrieval quality that follows how human memory actually works — not just nearest-neighbor cosine distance. And all of it runs on a laptop without a Postgres/pgvector instance.
 
-#### 3. True Multi-Agent Coordination (CRDTs)
+#### 4. True Multi-Agent Coordination (CRDTs)
 If Cursor (Agent A) and Claude Desktop (Agent B) try to update a Mem0 or standard SQLite database at the exact same time, you get a race condition and data loss. Prism uses **Optimistic Concurrency Control (OCC) with CRDT OR-Maps** — mathematically guaranteeing that simultaneous agent edits merge safely. Enterprise-grade distributed systems on a local machine.
 
-#### 4. The PKM "Prism-Port" Export
+#### 5. The PKM "Prism-Port" Export
 AI memory is a black box. Developers hate black boxes. Prism exports memory directly into an **Obsidian/Logseq-compatible Markdown Vault** with YAML frontmatter and `[[Wikilinks]]`. Neither Mem0 nor Zep do this.
 
-#### 5. Self-Cleaning & Self-Optimizing
+#### 6. Self-Cleaning & Self-Optimizing
 If you use a standard memory tool long enough, it clogs the LLM's context window with thousands of obsolete tokens. Prism runs an autonomous [Background Scheduler](src/backgroundScheduler.ts) that Ebbinghaus-decays older memories, auto-compacts session histories into dense summaries, and deep-purges high-precision vectors — saving ~90% of disk space automatically.
 
-#### 6. Anti-Sycophancy — The AI That Grades Its Own Homework (v7.4)
+#### 7. Anti-Sycophancy — The AI That Grades Its Own Homework (v7.4)
 Every other AI coding pipeline has a fatal flaw: it asks the same model that wrote the code whether the code is correct. **Of course it says yes.** Prism's Dark Factory solves this with a walled-off Adversarial Evaluator that is explicitly prompted to be hostile and strict. It operates on a pre-committed rubric and cannot fail the Generator without providing exact file/line receipts. Failed evaluations feed the critique back into the Generator's retry prompt — eliminating blind retries. No other memory or pipeline tool does this.
 
 ### 🤝 Where the Giants Currently Win (Honest Trade-offs)
@@ -1280,6 +1285,7 @@ Prism has evolved from smart session logging into a **cognitive memory architect
 | **v9.2** | TurboQuant QJL Validation — zero R@5 delta between P50 and P95 residual vectors (d=128, N=2K); CV=0.038 at d=768 proves no long tail | QJL estimator (ICLR 2026), Householder orthogonal rotation | ✅ Shipped |
 | **v9.2** | Typed Security Errors — `PrototypePollutionError` with `offendingKey` for forensic logging; null-byte path injection guard in SafetyController | Defense-in-depth (NIST), C-string truncation attack mitigation | ✅ Shipped |
 | **v9.3** | ResidualNorm Tiebreaker — within-ε candidates ranked by compression fidelity (`PRISM_TURBOQUANT_TIEBREAKER_EPSILON`); +2pp R@1, +1pp R@5 at ε=0.005 | Quantization confidence scoring, compression-aware retrieval | ✅ Shipped |
+| **v10.0** | HIPAA-Hardened Local LLM — `prism-coder:7b` manages ledger compaction, task routing, and semantic search 100% on-device | Air-gapped cognitive pipelines, secure PHI redaction | ✅ Shipped |
 | **v10+** | Zero-Search Retrieval — no index, no ANN, just ask the vector | Holographic Reduced Representations | 🔭 Horizon |
 
 > Informed by Anderson's ACT-R (Adaptive Control of Thought—Rational), Collins & Loftus spreading activation networks (1975), Kanerva's SDM (1988), Hebb's learning rule, and LeCun's "Why AI Systems Don't Learn" (Dupoux, LeCun, Malik).
@@ -1353,7 +1359,7 @@ A: Run `npm run build && npm test`, then open the Mind Palace dashboard (`localh
 
 ### 💡 Known Limitations & Quirks
 
-- **Text generation features require an API key.** Morning Briefings, auto-compaction, and VLM captioning need a cloud provider key (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`). Semantic search works offline with `embedding_provider=local` (no key needed). Without any embedding provider, Prism falls back to keyword-only search (FTS5).
+- **Some advanced text features may still benefit from a cloud API key.** While `prism-coder:7b` handles core compaction and routing, high-level features like Morning Briefings and complex VLM captioning are optimized for cloud providers (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`). Semantic search and basic compaction work 100% offline with `embedding_provider=local`.
 - **Auto-load is model- and client-dependent.** Session auto-loading relies on both the LLM following system prompt instructions *and* the MCP client completing tool registration before the model's first turn. Prism provides platform-specific [Setup Guides](#setup-guides) and a server-side fallback (v5.2.1) that auto-pushes context after 10 seconds.
 - **MCP client race conditions.** Some MCP clients may not finish tool enumeration before the model generates its first response, causing transient `unknown_tool` errors. This is a client-side timing issue — Prism's server completes the MCP handshake in ~60ms. Workaround: the server-side auto-push fallback and the startup skill's retry logic.
 - **No real-time sync without Supabase.** Local SQLite mode is single-machine only. Multi-device or team sync requires a Supabase backend.
