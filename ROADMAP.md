@@ -7,9 +7,10 @@
     - [x] Group Relative Policy Optimization (500 iters)
     - [x] VRAM-optimized DPO for Apple Silicon
     - [x] Initial structural alignment for `<think>` reasoning
-- [x] **v11.4.0** - Structural GRPO Alignment
+- [x] **v11.5.0** - Structural GRPO Alignment
     - [x] Achieve 100% Tool-Call Accuracy (Cross-validated on Synalux)
-    - [x] 100.0% JSON Validity via `<think>` → `<tool_call>` enforcement
+    - [x] 100.0% JSON Validity via `<|synalux_think|>` → `<|tool_call|>` enforcement
+    - [x] Centralized thinking tag stripping in `localLlm.ts`
     - [x] VRAM-optimized DPO training pipeline
 - [ ] **v12.0.0** - Distal Memory
     - [ ] Semantic clustering of long-term history
