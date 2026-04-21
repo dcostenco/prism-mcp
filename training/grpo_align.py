@@ -31,59 +31,49 @@ with open(TOOL_SCHEMA) as f:
 def compute_reward(response_text: str) -> float:
     """
     Deterministic reward function for tool-use accuracy.
+    STRICTLY rewards <think> + <tool_call> structure.
     """
     reward = 0.0
 
+    # ── Structural Reward (CRITICAL) ──
+    # Model MUST start with a <think> tag
+    if response_text.strip().startswith('<think>'):
+        reward += 5.0
+    else:
+        reward -= 2.0
+
+    if '<tool_call>' in response_text and '</tool_call>' in response_text:
+        reward += 10.0  # Dominant reward for correct format
+    
     # ── CoT reasoning reward ──
     think_match = re.search(r'<think>(.*?)</think>', response_text, re.DOTALL)
     if think_match:
-        think_len = len(think_match.group(1).strip())
-        if think_len > 100:
-            reward += 0.5  # Substantive reasoning
-        if think_len > 1000:
-            reward -= 0.2  # Anti-thought-farming penalty
+        think_text = think_match.group(1).strip()
+        if len(think_text) > 50:
+            reward += 2.0  # Reward substantive thought
+        if "tool" in think_text.lower() or "requires" in think_text.lower():
+            reward += 1.0  # Reward strategy-oriented thought
 
     # Check if response contains a tool call (try different formats)
     tool_content = None
-    
-    # Format 1: <tool_call>...</tool_call>
     tool_match = re.search(r'<tool_call>\s*(.*?)\s*</tool_call>', response_text, re.DOTALL)
     if tool_match:
         tool_content = tool_match.group(1)
     
-    # Format 2: ```json ... ``` (if it looks like a tool call)
     if not tool_content:
-        json_match = re.search(r'```json\s*(\{.*?\})\s*```', response_text, re.DOTALL)
-        if json_match:
-            potential_json = json_match.group(1)
-            if '"name":' in potential_json:
-                tool_content = potential_json
-    
-    # Format 3: Bare JSON block
-    if not tool_content:
-        bare_match = re.search(r'(\{.*?\})', response_text, re.DOTALL)
-        if bare_match:
-            potential_json = bare_match.group(1)
-            if '"name":' in potential_json:
-                tool_content = potential_json
-
-    if not tool_content:
-        return reward + (0.0 if len(response_text) > 20 else -0.5)
-
-    if response_text.find(tool_content) > 20:
-        reward += 0.5  # Reasoning before action
+        return reward + (0.0 if len(response_text) > 20 else -1.0)
 
     try:
         tool_call = json.loads(tool_content)
-        reward += 1.0  # Valid JSON
+        reward += 2.0  # Valid JSON
     except json.JSONDecodeError:
-        return reward - 1.0
+        return reward - 5.0
 
     tool_name = tool_call.get("name", "")
     if tool_name in VALID_TOOLS:
-        reward += 1.0
+        reward += 5.0
     else:
-        reward -= 2.0
+        reward -= 10.0
         return reward
 
     args = tool_call.get("arguments", {})
@@ -91,12 +81,9 @@ def compute_reward(response_text: str) -> float:
 
     missing_required = params["required"] - set(args.keys())
     if not missing_required:
-        reward += 1.0
+        reward += 5.0
     else:
-        reward -= 1.0 * len(missing_required)
-
-    correct_optional = params["optional"] & set(args.keys())
-    reward += min(len(correct_optional) * 0.5, 2.0)
+        reward -= 5.0 * len(missing_required)
 
     return reward
 
@@ -135,13 +122,13 @@ def generate_grpo_prompts():
 def generate_synthetic_chosen(prompt: str) -> str:
     """Generate a perfect response for a given prompt."""
     if "Load" in prompt and "prism-mcp" in prompt:
-        return '<think>The user wants to load project context for "prism-mcp". I should use the session_load_context tool with project="prism-mcp".</think>\n\nI\'ll load the context for you.\n\n<tool_call>\n{"name": "session_load_context", "arguments": {"project": "prism-mcp", "level": "shallow"}}\n</tool_call>'
+        return '<think>The user wants to load project context for "prism-mcp". This is a read operation. I should use session_load_context with the project name.</think>\n\n<tool_call>\n{"name": "session_load_context", "arguments": {"project": "prism-mcp", "level": "shallow"}}\n</tool_call>'
     if "Save" in prompt and "RBAC" in prompt:
-        return '<think>The user wants to save a session about RBAC roles. I should use the session_save tool.</think>\n\nSaving the session now.\n\n<tool_call>\n{"name": "session_save", "arguments": {"project": "prism-mcp", "summary": "Implemented RBAC roles", "keywords": ["RBAC", "security"]}}\n</tool_call>'
+        return '<think>The user wants to save a work session about RBAC. This is a write operation to the session ledger. I should use session_save.</think>\n\n<tool_call>\n{"name": "session_save", "arguments": {"project": "prism-mcp", "summary": "implemented RBAC roles"}}\n</tool_call>'
     if "Search" in prompt and "JWT" in prompt:
-        return '<think>The user is searching for JWT authentication sessions. I should use session_search.</think>\n\nSearching for JWT sessions.\n\n<tool_call>\n{"name": "session_search", "arguments": {"query": "JWT authentication", "project": "synalux-private"}}\n</tool_call>'
+        return '<think>The user is asking about JWT authentication work. I should use session_search to find relevant history.</think>\n\n<tool_call>\n{"name": "session_search", "arguments": {"query": "JWT authentication", "project": "synalux-private"}}\n</tool_call>'
     if "Store this knowledge" in prompt:
-        return '<think>The user wants to store a specific principle about ACT-R decay. I should use knowledge_save.</think>\n\nStoring that principle in Prism.\n\n<tool_call>\n{"name": "knowledge_save", "arguments": {"project": "prism", "concept": "ACT-R Decay Rate", "description": "The ACT-R decay rate is 0.5 for rollup nodes", "confidence": 1.0}}\n</tool_call>'
+        return '<think>The user wants to store a principle about memory decay. I should use knowledge_save for permanent storage.</think>\n\n<tool_call>\n{"name": "knowledge_save", "arguments": {"project": "prism", "concept": "ACT-R Decay Rate", "description": "The ACT-R decay rate is 0.5 for rollup nodes", "confidence": 1.0}}\n</tool_call>'
     return None
 
 
@@ -151,13 +138,10 @@ def main():
     print("=" * 60)
 
     prompts = generate_grpo_prompts()
-    print(f"Generated {len(prompts)} GRPO training prompts")
-
     dpo_data = []
     
     try:
         from mlx_lm import load, generate
-        
         print("\nLoading SFT model + adapter...")
         model, tokenizer = load(MODEL_PATH, adapter_path=SFT_ADAPTER)
         
@@ -173,7 +157,6 @@ def main():
                     print(f"    [Prompt {i+1} Gen {j+1}] Reward: {reward:+.1f} | Response: {response[:60].replace('\n', ' ')}...")
                     completions.append((response, reward))
                 except Exception as e:
-                    print(f"    [Prompt {i+1} Gen {j+1}] Generation failed: {e}")
                     continue
             
             if len(completions) >= 2:
@@ -181,59 +164,56 @@ def main():
                 best = completions[0]
                 worst = completions[-1]
                 
-                if best[1] < 2.0:
-                    synthetic_chosen = generate_synthetic_chosen(prompt)
-                    if synthetic_chosen:
-                        dpo_data.append({
-                            "prompt": prompt,
-                            "chosen": synthetic_chosen,
-                            "rejected": worst[0],
-                            "chosen_reward": compute_reward(synthetic_chosen),
-                            "rejected_reward": worst[1],
-                        })
+                # Injection is now mandatory for these specific prompts to force structural change
+                synthetic_chosen = generate_synthetic_chosen(prompt)
+                if synthetic_chosen:
+                    dpo_data.append({
+                        "prompt": prompt,
+                        "chosen": synthetic_chosen,
+                        "rejected": worst[0],
+                    })
                 elif best[1] > worst[1]:
                     dpo_data.append({
                         "prompt": prompt,
                         "chosen": best[0],
                         "rejected": worst[0],
-                        "chosen_reward": best[1],
-                        "rejected_reward": worst[1],
                     })
             
             if (i + 1) % 5 == 0:
                 print(f"  Processed {i+1}/{len(prompts)} prompts, {len(dpo_data)} preference pairs")
         
-        print(f"\nGenerated {len(dpo_data)} preference pairs")
-        
         if len(dpo_data) >= 1:
             dpo_train_path = "/Users/admin/prism/training/data/dpo_train.jsonl"
             with open(dpo_train_path, "w") as f:
-                for d in dpo_data:
-                    entry = {
-                        "chosen": [
-                            {"role": "user", "content": d["prompt"]},
-                            {"role": "assistant", "content": d["chosen"]}
-                        ],
-                        "rejected": [
-                            {"role": "user", "content": d["prompt"]},
-                            {"role": "assistant", "content": d["rejected"]}
-                        ]
-                    }
-                    f.write(json.dumps(entry) + "\n")
+                # Heavy repetition to force the structural shift
+                for _ in range(50):
+                    for d in dpo_data:
+                        entry = {
+                            "chosen": [
+                                {"role": "user", "content": d["prompt"]},
+                                {"role": "assistant", "content": d["chosen"]}
+                            ],
+                            "rejected": [
+                                {"role": "user", "content": d["prompt"]},
+                                {"role": "assistant", "content": d["rejected"]}
+                            ]
+                        }
+                        f.write(json.dumps(entry) + "\n")
             
-            print(f"\nRunning DPO alignment training...")
+            print(f"\nRunning Structural DPO training...")
             cmd = [
                 sys.executable, "-m", "mlx_lm.lora",
                 "--model", MODEL_PATH,
                 "--train",
                 "--data", os.path.dirname(dpo_train_path),
                 "--adapter-path", OUTPUT_ADAPTER,
-                "--num-layers", "16",
+                "--num-layers", "12",
                 "--batch-size", "1",
-                "--iters", "200",
-                "--learning-rate", "5e-6",
-                "--steps-per-report", "20",
-                "--save-every", "100",
+                "--iters", "500",
+                "--max-seq-length", "1024",
+                "--learning-rate", "4e-5", # Aggressive for structure
+                "--steps-per-report", "50",
+                "--save-every", "250",
                 "--resume-adapter-file", os.path.join(SFT_ADAPTER, "adapters.safetensors"),
             ]
             subprocess.run(cmd)

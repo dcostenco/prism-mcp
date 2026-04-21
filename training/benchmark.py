@@ -8,6 +8,7 @@ import os
 import time
 import re
 import sys
+import argparse
 
 MODEL_PATH = "/Users/admin/prism/training/models/qwen-7b-mlx"
 ADAPTER_PATH = "/Users/admin/prism/training/models/prism-sft-lora"
@@ -36,15 +37,28 @@ TEST_CASES = [
 
 def parse_tool_call(response: str):
     """Extract tool name and arguments from response."""
+    # Try <tool_call> tags first
     match = re.search(r'<tool_call>\s*(.*?)\s*</tool_call>', response, re.DOTALL)
-    if not match:
-        return None, None
-    
-    try:
-        call = json.loads(match.group(1))
-        return call.get("name"), call.get("arguments", {})
-    except json.JSONDecodeError:
-        return "INVALID_JSON", None
+    if match:
+        try:
+            call = json.loads(match.group(1))
+            return call.get("name"), call.get("arguments", {})
+        except json.JSONDecodeError:
+            pass
+
+    # Try finding ANY JSON-like object with a "name" key
+    # This matches both <|im_start|> and bare JSON formats
+    json_matches = re.finditer(r'(\{.*?\})', response, re.DOTALL)
+    for match in json_matches:
+        try:
+            content = match.group(1)
+            if '"name":' in content:
+                call = json.loads(content)
+                return call.get("name"), call.get("arguments", {})
+        except json.JSONDecodeError:
+            continue
+
+    return None, None
 
 
 def evaluate_response(response: str, expected_tool: str):
@@ -92,7 +106,7 @@ def evaluate_response(response: str, expected_tool: str):
     return result
 
 
-def run_benchmark():
+def run_benchmark(requested_adapter=None):
     """Run full benchmark suite."""
     try:
         from mlx_lm import load, generate
@@ -101,8 +115,8 @@ def run_benchmark():
         sys.exit(1)
     
     # Determine which adapter to use
-    adapter = ADAPTER_PATH if os.path.exists(ADAPTER_PATH) else SFT_ADAPTER
-    if not os.path.exists(adapter):
+    adapter = requested_adapter if requested_adapter else (ADAPTER_PATH if os.path.exists(ADAPTER_PATH) else SFT_ADAPTER)
+    if adapter and not os.path.exists(adapter):
         print(f"ERROR: No adapter found at {adapter}")
         print("Running without adapter (base model only)")
         adapter = None
@@ -119,7 +133,7 @@ def run_benchmark():
     total_tokens = 0
     total_time = 0
     
-    sys_prompt = "You are Prism, an AI coding assistant with persistent memory. Use MCP tools when appropriate. Available tools: session_load_context, session_save, session_search, session_list, session_delete, knowledge_save, knowledge_search, memory_link, session_handoff, session_task_route"
+    sys_prompt = "You are Prism, an AI coding assistant. You MUST use the following format for tool calls:\n<think>\n[reasoning about which tool to use]\n</think>\n\n<tool_call>\n{\"name\": \"tool_name\", \"arguments\": {...}}\n</tool_call>\n\nAvailable tools: session_load_context, session_save, session_search, session_list, session_delete, knowledge_save, knowledge_search, memory_link, session_handoff, session_task_route"
     
     for i, test in enumerate(TEST_CASES):
         prompt_text = f"<|im_start|>system\n{sys_prompt}<|im_end|>\n<|im_start|>user\n{test['prompt']}<|im_end|>\n<|im_start|>assistant\n"
@@ -127,6 +141,8 @@ def run_benchmark():
         start = time.time()
         response = generate(model, tokenizer, prompt=prompt_text, max_tokens=384)
         elapsed = time.time() - start
+        
+        print(f"    Response: {response[:150].replace('\n', ' ')}...")
         
         tokens = len(tokenizer.encode(response))
         total_tokens += tokens
@@ -167,7 +183,7 @@ def compute_metrics(results, total_tokens, total_time):
             categories[cat]["json_valid"] += 1
         if r["params_valid"]:
             categories[cat]["params_valid"] += 1
-        if r["has_reasoning"]:
+        if v := r.get("has_reasoning"):
             categories[cat]["has_reasoning"] += 1
     
     total = len(results)
@@ -250,4 +266,8 @@ def generate_report(results, metrics, adapter_path):
 
 
 if __name__ == "__main__":
-    run_benchmark()
+    parser = argparse.ArgumentParser(description="Prism LLM Benchmark")
+    parser.add_argument("--adapter", type=str, help="Path to LoRA adapter")
+    args = parser.parse_args()
+    
+    run_benchmark(requested_adapter=args.adapter)
