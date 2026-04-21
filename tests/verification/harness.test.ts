@@ -14,7 +14,14 @@ describe("Verification Harness & Runs", () => {
   const dbPath = resolve(__dirname, "test-harness.sqlite");
 
   afterEach(() => {
-    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    try {
+      if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+      // Also clean up WAL/SHM journal files (Windows leaves these locked)
+      if (fs.existsSync(dbPath + '-wal')) fs.unlinkSync(dbPath + '-wal');
+      if (fs.existsSync(dbPath + '-shm')) fs.unlinkSync(dbPath + '-shm');
+    } catch {
+      // EBUSY on Windows — SQLite WAL lock; harmless in CI
+    }
   });
 
   describe("Schema Validation", () => {
@@ -81,7 +88,13 @@ describe("Verification Harness & Runs", () => {
     let storage: SqliteStorage;
 
     beforeEach(async () => {
-      if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+      try {
+        if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+        if (fs.existsSync(dbPath + '-wal')) fs.unlinkSync(dbPath + '-wal');
+        if (fs.existsSync(dbPath + '-shm')) fs.unlinkSync(dbPath + '-shm');
+      } catch {
+        // EBUSY on Windows — SQLite WAL lock; harmless, initialize() will overwrite
+      }
       storage = new SqliteStorage();
       await storage.initialize(true, dbPath);
     });
