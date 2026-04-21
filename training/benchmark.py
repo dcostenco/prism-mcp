@@ -27,17 +27,47 @@ with open(TOOL_SCHEMA) as f:
             "all": set(t["parameters"]["properties"].keys())
         }
 
-# Test prompts with expected behavior
+# Held-out test prompts — NONE overlap with GRPO training prompts.
+# Training used: "Load...prism-mcp", "Save...RBAC", "Explain React Server Components",
+# "Search...JWT", "List...bcba-private", "Delete...billing bug", "Zero-Search architecture",
+# "Store...ACT-R decay", "Search...memory consolidation", "Hand off billing task",
+# "Initialize...synalux-docs", "hello world Python", "schema migration v9.4",
+# "HIPAA security audit", "Log work...abortPipeline".
 TEST_CASES = [
-    {"prompt": "Load context for prism-mcp", "expected_tool": "session_load_context", "category": "tool_call"},
-    {"prompt": "Explain async/await in JavaScript", "expected_tool": None, "category": "reasoning"},
-    {"prompt": "Find sessions about RBAC implementation", "expected_tool": "session_search", "category": "retrieval"}
+    # ── Tool-call tests (should invoke a tool) ──
+    {"prompt": "Show me the context for synalux-portal", "expected_tool": "session_load_context", "category": "tool_call"},
+    {"prompt": "Record this work: migrated Stripe webhooks to v2 API", "expected_tool": "session_save", "category": "tool_call"},
+    {"prompt": "Look up past work on the OAuth2 refresh flow", "expected_tool": "session_search", "category": "retrieval"},
+    {"prompt": "Show all sessions for synalux-docs project", "expected_tool": "session_list", "category": "retrieval"},
+    {"prompt": "Remove the session about the failed deploy last Friday", "expected_tool": "session_delete", "category": "tool_call"},
+    {"prompt": "Remember this: Supabase RLS requires a JWT with the role claim", "expected_tool": "knowledge_save", "category": "tool_call"},
+    {"prompt": "What do we know about edge function cold starts?", "expected_tool": "knowledge_search", "category": "retrieval"},
+    {"prompt": "Connect the RBAC session to the auth session as related", "expected_tool": "memory_link", "category": "tool_call"},
+    {"prompt": "Transfer the frontend task from the dev agent to the QA agent", "expected_tool": "session_handoff", "category": "tool_call"},
+    {"prompt": "Should the local agent or the cloud agent handle this CSS fix?", "expected_tool": "session_task_route", "category": "tool_call"},
+    # ── Reasoning tests (should NOT invoke a tool) ──
+    {"prompt": "What is the difference between gRPC and REST?", "expected_tool": None, "category": "reasoning"},
+    {"prompt": "How does garbage collection work in Go?", "expected_tool": None, "category": "reasoning"},
+    {"prompt": "Explain the CAP theorem in simple terms", "expected_tool": None, "category": "reasoning"},
+    {"prompt": "What are the pros and cons of microservices?", "expected_tool": None, "category": "reasoning"},
+    {"prompt": "Write a bash one-liner to find large files", "expected_tool": None, "category": "reasoning"},
 ]
 
 
 def parse_tool_call(response: str):
-    """Extract tool name and arguments from response."""
-    # Try <tool_call> tags first (highest priority)
+    """Extract tool name and arguments from response.
+    
+    Sanitizes the response first (strips \\ufffd EOS replacement chars),
+    then tries multiple formats:
+    Accepts multiple formats:
+      1. <tool_call>{...}</tool_call>     — Prism canonical format
+      2. <|im_start|>{...}<|im_end|>      — Qwen native ChatML format
+      3. Bare JSON with "name" key        — fallback
+    """
+    # Sanitize: Qwen tokenizer replaces <|im_end|> EOS with \ufffd
+    response = response.replace('\ufffd', '').strip()
+
+    # 1. Try <tool_call> tags (canonical Prism format)
     match = re.search(r'<tool_call>\s*(.*?)\s*</tool_call>', response, re.DOTALL)
     if match:
         try:
@@ -46,8 +76,19 @@ def parse_tool_call(response: str):
         except json.JSONDecodeError:
             return "INVALID_JSON", None
 
-    # Fallback: find JSON objects with a "name" key OUTSIDE of <think> blocks.
-    # Strip think blocks first to avoid false positives from reasoning text.
+    # 2. Try <|im_start|>...<|im_end|> (Qwen native tool format)
+    #    Note: the Qwen tokenizer strips <|im_end|> as the EOS token,
+    #    so the model output often has <|im_start|>{JSON} with no closer.
+    im_match = re.search(r'<\|im_start\|>\s*(\{[\s\S]*\})\s*(?:<\|im_end\|>|$)', response, re.DOTALL)
+    if im_match:
+        try:
+            call = json.loads(im_match.group(1))
+            if call.get("name"):
+                return call.get("name"), call.get("arguments", {})
+        except json.JSONDecodeError:
+            return "INVALID_JSON", None
+
+    # 3. Fallback: bare JSON with "name" key, outside <think> blocks
     stripped = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
     json_matches = re.finditer(r'(\{[^{}]*"name"\s*:[^{}]*\})', stripped, re.DOTALL)
     for match in json_matches:

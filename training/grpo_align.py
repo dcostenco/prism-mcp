@@ -88,11 +88,17 @@ def compute_reward(response_text: str) -> float:
         if len(think_text) > 1000:
             reward -= 0.2  # Anti-thought-farming
 
-    # Check if response contains a tool call
+    # Check if response contains a tool call (multiple format support)
     tool_content = None
+    # 1. <tool_call> tags (canonical)
     tool_match = re.search(r'<tool_call>\s*(.*?)\s*</tool_call>', response_text, re.DOTALL)
     if tool_match:
         tool_content = tool_match.group(1)
+    # 2. <|im_start|>...<|im_end|> (Qwen native)
+    if not tool_content:
+        im_match = re.search(r'<\|im_start\|>\s*(\{.*?\})\s*<\|im_end\|>', response_text, re.DOTALL)
+        if im_match:
+            tool_content = im_match.group(1)
 
     if not tool_content:
         # No tool call — acceptable for reasoning-only prompts

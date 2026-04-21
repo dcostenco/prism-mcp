@@ -153,23 +153,39 @@ export async function callLocalLlm(
       return null;
     }
 
-    // ── v11.4 Structural Processing ──────────────────────────
-    // The Phase 6 model uses <|synalux_think|> ... <|tool_call|> tags.
-    // We strip the thinking part and any outer tags to return the clean content.
+    // ── v11.5.1 Structural Processing ─────────────────────────
+    // The local LLM may emit multiple formats depending on adapter:
+    //   1. <|synalux_think|>...<|tool_call|>  (GRPO-aligned)
+    //   2. <|im_start|>...<|im_end|>          (Qwen native ChatML)
+    //   3. <think>...<tool_call>              (standard format)
+    // We normalize all to return just the clean content/JSON.
     let content = rawContent;
 
-    // Strip <|synalux_think|>...</|synalux_think|> block via regex.
-    // Previous .split().pop() silently kept the thinking block on malformed
-    // closing tags and broke on multiple tag occurrences.
-    const thinkMatch = content.match(/<\|synalux_think\|>[\s\S]*?<\/\|synalux_think\|>\s*/);
-    if (thinkMatch) {
-      content = content.slice(thinkMatch.index! + thinkMatch[0].length).trim();
+    // Strip thinking blocks (all known formats)
+    const thinkPatterns = [
+      /<\|synalux_think\|>[\s\S]*?<\/\|synalux_think\|>\s*/,
+      /<think>[\s\S]*?<\/think>\s*/,
+    ];
+    for (const pattern of thinkPatterns) {
+      const m = content.match(pattern);
+      if (m) {
+        content = content.slice(m.index! + m[0].length).trim();
+        break;
+      }
     }
 
-    // If the response is wrapped in <|tool_call|> tags, extract inner content.
-    const toolCallMatch = content.match(/<\|tool_call\|>([\s\S]*?)<\/\|tool_call\|>/);
-    if (toolCallMatch) {
-      content = toolCallMatch[1].trim();
+    // Extract tool call content (all known wrapper formats)
+    const toolPatterns = [
+      /<\|tool_call\|>([\s\S]*?)<\/\|tool_call\|>/,        // GRPO format
+      /<tool_call>([\s\S]*?)<\/tool_call>/,                 // Standard format
+      /<\|im_start\|>\s*(\{[\s\S]*?\})\s*<\|im_end\|>/,    // Qwen native
+    ];
+    for (const pattern of toolPatterns) {
+      const m = content.match(pattern);
+      if (m) {
+        content = m[1].trim();
+        break;
+      }
     }
 
     debugLog(`[localLlm] Response received (${content.length} chars)`);
