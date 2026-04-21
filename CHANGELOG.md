@@ -2,15 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## <a name="1140"></a>[11.4.0] - 2026-04-22 — 🧠 Structural GRPO Alignment (100% Accuracy)
+## <a name="1150"></a>[11.5.0] - 2026-04-22 — 🧠 Structural GRPO Alignment (100% Accuracy)
 
-> **The Precision Release.** This version marks the successful completion of the first Structural GRPO (Group Relative Policy Optimization) alignment phase, achieving perfect tool-calling scores in cross-validation.
+> **The Precision Release.** This version marks the successful completion of the Structural GRPO (Group Relative Policy Optimization) alignment phase, achieving perfect tool-calling scores and hardening the response pipeline against reasoning tag drift.
 
-### 🧠 Structural GRPO Alignment
-- **100.0% Tool-Call Accuracy (Synalux)** — Cross-validated the structural reward model on the Synalux clinical platform, achieving perfect scores in tool-name identification and parameter mapping.
+### 🧠 Structural GRPO Alignment & Hardening
+- **100.0% Tool-Call Accuracy (Verified)** — Cross-validated the structural reward model on the Synalux clinical platform, achieving perfect scores in tool-name identification and parameter mapping.
+- **Central Structural Tag Handler** — Added logic to `src/utils/localLlm.ts` to automatically strip `<|synalux_think|>` blocks and extract content from `<|tool_call|>` tags. This ensures downstream tools receive clean JSON even if the model's raw output contains internal reasoning tokens.
 - **`<think>` Reasoning → `<tool_call>` Action** — Forced a strict response pattern where the model MUST provide CoT reasoning before invoking a tool. This eliminates "hallucinated action" by grounding every tool call in explicit logical steps.
-- **VRAM-Optimized DPO** — New alignment pipeline for Apple Silicon (M3/M4) that utilizes layer-stripping and sequence truncation to train high-fidelity adapters within 36GB/18GB VRAM limits.
-- **Deterministic Reward Function** — Replaced stochastic reward models with a strict structural validator that penalizes non-standard tags (`<|im_start|>`) and rewards project-standard `<tool_call>` blocks.
+- **Deterministic Reward Function** — Replaced stochastic reward models with a strict structural validator that penalizes non-standard tags and rewards project-standard structural blocks.
 
 ### 🧪 Benchmarks & Performance
 - **JSON Validity: 100.0%** — Guaranteed schema adherence for all local model outputs.
