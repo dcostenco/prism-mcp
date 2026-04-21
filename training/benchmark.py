@@ -142,7 +142,7 @@ def run_benchmark(requested_adapter=None):
         response = generate(model, tokenizer, prompt=prompt_text, max_tokens=384)
         elapsed = time.time() - start
         
-        print(f"    Response: {response[:150].replace('\n', ' ')}...")
+        print(f"    Response: {response[:150].replace(chr(10), ' ')}...")
         
         tokens = len(tokenizer.encode(response))
         total_tokens += tokens
