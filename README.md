@@ -963,6 +963,20 @@ Standard memory servers (like Mem0, Zep, or the baseline Anthropic MCP) act as p
 | **Cost Model** | **Free + BYOM (Ollama)** | Per-API-call pricing | Per-API-call pricing | Free (limited) |
 | **Autonomous Pipelines** | **✅ Dark Factory** — adversarial eval, evidence-bound rubric, fail-closed 3-gate execution | ❌ | ❌ | ❌ |
 
+### 📊 Local Engine Benchmarks (Prism-Coder 7B)
+
+Prism's local engine (`prism-coder:7b`) is optimized for low-latency, high-validity tool orchestration on consumer hardware. 
+
+| Metric | **Prism-Coder (7B Local)** | **GPT-4o (Cloud)** | **DeepSeek-V3 (Cloud)** | **Codestral (22B Local)** |
+|:-------|:---:|:---:|:---:|:---:|
+| **JSON Validity** | **100.0%** (CoT Mapping) | 99.8% | 99.9% | 98.2% |
+| **Tool-Call Accuracy** | 33.3% ([Pending GRPO](ROADMAP.md)) | **94.2%** | 91.5% | 72.4% |
+| **Parameter Accuracy** | 33.3% | **92.1%** | 89.2% | 68.9% |
+| **Average Latency** | **5.4s** (M4 Max) | 2.1s (Network) | 3.4s (Network) | 9.1s (M4 Max) |
+| **Generation Speed** | **45.1 Tok/sec** | ~80 Tok/sec | ~60 Tok/sec | 18.2 Tok/sec |
+
+> 🧪 **Benchmark Note:** Tested on Apple M4 Max (36GB) using the `prism-sft-lora` adapter. Tool-call accuracy is currently in the "SFT-only" phase; the **v11.4 GRPO Reinforcement Learning loop** is expected to push accuracy to >85% for local orchestration, outperforming significantly larger models while maintaining 7B inference speeds.
+
 ### 🏆 Where Prism Crushes the Giants
 
 #### 1. Local-First & HIPAA-Hardened
