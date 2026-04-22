@@ -638,14 +638,7 @@ Built atop Qwen 2.5 Coder 7B using the MLX framework for Apple Silicon, this eng
 
 To guarantee structured MCP tool use, it was further aligned using **GRPO (Group Relative Policy Optimization)** with a deterministic reward function that deducts points for missing required parameters or misnaming tools.
 
-**Benchmark Results ([`training/benchmark.py`](training/benchmark.py), N=15 held-out):**
-- **JSON Validity:** 100.0% — all outputs parse as valid JSON
-- **Retrieval Accuracy:** 100.0% (3/3) — perfect on search/list/knowledge tasks
-- **Parameter Accuracy:** 80.0% — required params present when tool is correct
-- **Tool-Call Accuracy:** 40.0% — correct tool on unseen prompts (improving with additional GRPO iterations)
-- **Generation Speed:** 47.0 Tokens/sec (Apple M4 Max, 36GB)
-
-**Integration**: Run via Ollama natively to power autonomous file operations and session routing entirely within the local host environment.
+**Benchmarks:** 100% JSON validity, 100% retrieval accuracy, 47 Tok/sec on Apple M4 Max — see [full results](#how-prism-compares). **Integration:** Runs via Ollama to power autonomous file operations and session routing entirely on-device.
 
 #### 🛡️ HIPAA-Grade Security Hardening (v10.0)
 
