@@ -618,7 +618,7 @@ A gorgeous glassmorphism UI at `localhost:3000` that lets you see exactly what y
 - **Morning Briefing** — AI-synthesized action plan after 4+ hours away
 - **Brain Health** — memory integrity scan with one-click auto-repair
 
-
+![Mind Palace Dashboard — Neural Knowledge Graph, Project State, and Intent Health](docs/mind-palace-dashboard.png)
 
 ### 🛡️ ABA Precision Security Protocol
 Inspired by Applied Behavior Analysis (ABA) structures in the Synalux platform, Prism incorporates rigorous behavioral safety constraints directly into the MCP connection layer. Advanced output sanitization (`sanitizeMcpOutput`) and behavior-guided guardrails eliminate prompt injection, constrain the generator, and enforce strict, hallucination-free outputs for clinical precision.
