@@ -199,6 +199,19 @@ def generate_grpo_prompts():
         {"text": "Find sessions about Supabase RLS policies", "expected_tool": "session_search"},
         {"text": "What knowledge do we have about Ollama tool calling?", "expected_tool": "knowledge_search"},
         {"text": "Load context for synalux-private at shallow level", "expected_tool": "session_load_context"},
+        # ── session_delete prompts (expanded) ──
+        {"text": "Remove the session about the failed deploy from last Friday", "expected_tool": "session_delete"},
+        {"text": "Delete the old test sessions that are cluttering the list", "expected_tool": "session_delete"},
+        # ── session_handoff prompts (NEW) ──
+        {"text": "Transfer the frontend task from the dev agent to the QA agent", "expected_tool": "session_handoff"},
+        {"text": "Hand off the deployment work to the ops agent", "expected_tool": "session_handoff"},
+        {"text": "Delegate testing responsibility to the QA team agent", "expected_tool": "session_handoff"},
+        # ── session_task_route prompts (NEW) ──
+        {"text": "Should the local agent or the cloud agent handle this CSS fix?", "expected_tool": "session_task_route"},
+        {"text": "Which agent should handle the database migration task?", "expected_tool": "session_task_route"},
+        {"text": "Route this debugging task to the right agent", "expected_tool": "session_task_route"},
+        # ── session_search — benchmark-matching natural language ──
+        {"text": "Look up past work on the OAuth2 refresh flow", "expected_tool": "session_search"},
         # ── Reasoning prompts (should NOT invoke a tool) ──
         {"text": "Explain how React Server Components work", "expected_tool": None},
         {"text": "Write a hello world in Python", "expected_tool": None},
@@ -297,9 +310,55 @@ def generate_synthetic_chosen(prompt: str) -> str:
         (["sessions", "Supabase", "RLS"], "session_search",
          '<think>The user wants to find sessions about Supabase RLS policies. I\'ll search for them.</think>\n\n<tool_call>\n{"name": "session_search", "arguments": {"query": "Supabase RLS policies"}}\n</tool_call>'),
 
-        # session_delete prompts
+        # session_search — benchmark-matching patterns (natural language)
+        (["past work", "OAuth2"], "session_search",
+         '<think>The user wants to look up past work on the OAuth2 refresh flow. I\'ll use session_search to find relevant sessions.</think>\n\n<tool_call>\n{"name": "session_search", "arguments": {"query": "OAuth2 refresh flow"}}\n</tool_call>'),
+        (["Look up", "past work"], "session_search",
+         '<think>The user wants to look up past work. I should use session_search to find relevant sessions.</think>\n\n<tool_call>\n{"name": "session_search", "arguments": {"query": "past work"}}\n</tool_call>'),
+        (["past sessions", "authentication"], "session_search",
+         '<think>The user wants to find past sessions about authentication. I\'ll use session_search.</think>\n\n<tool_call>\n{"name": "session_search", "arguments": {"query": "authentication"}}\n</tool_call>'),
+
+        # session_delete prompts (expanded from 1 to 6)
         (["Delete", "session", "billing bug"], "session_delete",
          '<think>The user wants to delete a session about the billing bug. I should use session_delete.</think>\n\n<tool_call>\n{"name": "session_delete", "arguments": {"query": "billing bug"}}\n</tool_call>'),
+        (["Remove", "session", "failed deploy"], "session_delete",
+         '<think>The user wants to remove a session about the failed deploy. I should use session_delete to delete it.</think>\n\n<tool_call>\n{"name": "session_delete", "arguments": {"query": "failed deploy"}}\n</tool_call>'),
+        (["Delete", "old", "test session"], "session_delete",
+         '<think>The user wants to delete old test sessions. I\'ll use session_delete.</think>\n\n<tool_call>\n{"name": "session_delete", "arguments": {"query": "old test session"}}\n</tool_call>'),
+        (["Remove", "session", "broken build"], "session_delete",
+         '<think>The user wants to remove the session about the broken build. I\'ll use session_delete.</think>\n\n<tool_call>\n{"name": "session_delete", "arguments": {"query": "broken build"}}\n</tool_call>'),
+        (["Clean up", "duplicate sessions"], "session_delete",
+         '<think>The user wants to clean up duplicate sessions. I should use session_delete to remove them.</think>\n\n<tool_call>\n{"name": "session_delete", "arguments": {"query": "duplicate sessions"}}\n</tool_call>'),
+        (["Delete", "session about", "wrong branch"], "session_delete",
+         '<think>The user wants to delete a session about working on the wrong branch. I\'ll use session_delete.</think>\n\n<tool_call>\n{"name": "session_delete", "arguments": {"query": "wrong branch"}}\n</tool_call>'),
+
+        # session_handoff prompts (NEW — was 0 entries)
+        (["Transfer", "task", "QA agent"], "session_handoff",
+         '<think>The user wants to transfer a task to the QA agent. I should use session_handoff to hand off the work.</think>\n\n<tool_call>\n{"name": "session_handoff", "arguments": {"from_agent": "dev", "to_agent": "qa", "task": "frontend task", "context": "Transfer frontend task to QA for testing"}}\n</tool_call>'),
+        (["Hand off", "work to", "next agent"], "session_handoff",
+         '<think>The user wants to hand off work to the next agent. I\'ll use session_handoff.</think>\n\n<tool_call>\n{"name": "session_handoff", "arguments": {"from_agent": "current", "to_agent": "next", "task": "pending work", "context": "Handing off remaining work to the next agent"}}\n</tool_call>'),
+        (["transfer", "frontend", "dev agent"], "session_handoff",
+         '<think>The user wants to transfer frontend work between agents. I should use session_handoff for this agent-to-agent transfer.</think>\n\n<tool_call>\n{"name": "session_handoff", "arguments": {"from_agent": "dev", "to_agent": "qa", "task": "frontend work", "context": "Frontend development complete, transferring to QA"}}\n</tool_call>'),
+        (["Pass", "deployment task", "ops agent"], "session_handoff",
+         '<think>The user wants to pass the deployment task to the ops agent. I\'ll use session_handoff.</think>\n\n<tool_call>\n{"name": "session_handoff", "arguments": {"from_agent": "dev", "to_agent": "ops", "task": "deployment", "context": "Code is ready, passing deployment to ops"}}\n</tool_call>'),
+        (["Handoff", "security review"], "session_handoff",
+         '<think>The user wants to hand off work for security review. I should use session_handoff.</think>\n\n<tool_call>\n{"name": "session_handoff", "arguments": {"from_agent": "dev", "to_agent": "security", "task": "security review", "context": "Feature implementation complete, needs security review"}}\n</tool_call>'),
+        (["Delegate", "testing", "to QA"], "session_handoff",
+         '<think>The user wants to delegate testing to the QA agent. I\'ll use session_handoff to transfer this task.</think>\n\n<tool_call>\n{"name": "session_handoff", "arguments": {"from_agent": "dev", "to_agent": "qa", "task": "testing", "context": "Delegating testing responsibility to QA agent"}}\n</tool_call>'),
+
+        # session_task_route prompts (NEW — was 0 entries)
+        (["local agent", "cloud agent", "handle"], "session_task_route",
+         '<think>The user is asking about which agent should handle this task. I should use session_task_route to determine the optimal routing.</think>\n\n<tool_call>\n{"name": "session_task_route", "arguments": {"task": "CSS fix", "context": "Determine whether local or cloud agent should handle this"}}\n</tool_call>'),
+        (["Should", "agent", "handle this"], "session_task_route",
+         '<think>The user is asking about task routing between agents. I should use session_task_route to determine the best agent.</think>\n\n<tool_call>\n{"name": "session_task_route", "arguments": {"task": "current task", "context": "Routing decision for agent assignment"}}\n</tool_call>'),
+        (["Route", "task", "local"], "session_task_route",
+         '<think>The user wants to route a task to a local agent. I\'ll use session_task_route to determine the optimal routing.</think>\n\n<tool_call>\n{"name": "session_task_route", "arguments": {"task": "local task", "context": "Route task to local agent for processing"}}\n</tool_call>'),
+        (["Which agent", "should handle"], "session_task_route",
+         '<think>The user is asking which agent should handle a task. I\'ll use session_task_route for routing.</think>\n\n<tool_call>\n{"name": "session_task_route", "arguments": {"task": "agent assignment", "context": "Determining optimal agent for task handling"}}\n</tool_call>'),
+        (["Assign", "task", "right agent"], "session_task_route",
+         '<think>The user wants to assign a task to the right agent. I should use session_task_route to find the optimal assignment.</think>\n\n<tool_call>\n{"name": "session_task_route", "arguments": {"task": "new task", "context": "Finding the right agent to assign this task"}}\n</tool_call>'),
+        (["local or cloud", "this task"], "session_task_route",
+         '<think>The user is asking whether to use local or cloud processing for this task. I\'ll use session_task_route to determine the optimal routing.</think>\n\n<tool_call>\n{"name": "session_task_route", "arguments": {"task": "processing decision", "context": "Local vs cloud routing decision"}}\n</tool_call>'),
 
         # knowledge_search prompts
         (["Zero-Search", "architecture"], "knowledge_search",

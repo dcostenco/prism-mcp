@@ -195,7 +195,7 @@ def run_benchmark(requested_adapter=None):
         prompt_text = f"<|im_start|>system\n{sys_prompt}<|im_end|>\n<|im_start|>user\n{test['prompt']}<|im_end|>\n<|im_start|>assistant\n"
         
         start = time.time()
-        response = generate(model, tokenizer, prompt=prompt_text, max_tokens=384)
+        response = generate(model, tokenizer, prompt=prompt_text, max_tokens=768)
         elapsed = time.time() - start
         
         print(f"    Response: {response[:150].replace(chr(10), ' ')}...")
