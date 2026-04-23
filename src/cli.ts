@@ -30,7 +30,7 @@ program
       } else {
         console.log('👤 Not logged in  ·  Run \`prism login\` to authenticate');
       }
-      console.log(`\nRun \`prism --help\` for all commands.\n`);
+      console.log(`\nRun \`prism prompt\` for interactive mode, or \`prism --help\` for all commands.\n`);
     } catch {
       console.log(`\n🧠 Prism v${SERVER_CONFIG.version}\nRun \`prism --help\` for all commands.\n`);
     }
@@ -1040,6 +1040,174 @@ program
       await new Promise(() => { }); // hang forever
     } catch (err) {
       console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+// ─── prism prompt [project] ──────────────────────────────────
+// Interactive terminal mode — like Gemini CLI.
+// Loads project memory, then opens a REPL for natural language queries.
+
+program
+  .command('prompt')
+  .description('Interactive AI prompt mode — ask questions grounded in your Prism memory')
+  .argument('[project]', 'Project to load context for', 'prism-mcp')
+  .option('-s, --storage <backend>', 'Storage backend: local or supabase')
+  .action(async (project: string, options: { storage?: string }) => {
+    if (options.storage) process.env.PRISM_STORAGE = options.storage;
+
+    try {
+      const { initConfigStorage } = await import('./storage/configStorage.js');
+      await initConfigStorage();
+
+      const { getAuthStatus } = await import('./auth.js');
+      const auth = await getAuthStatus();
+
+      console.log(`\n🧠 Prism v${SERVER_CONFIG.version} — Interactive Mode`);
+      if (auth.loggedIn) {
+        console.log(`👤 ${auth.email}  ·  📋 ${auth.plan || 'Free'} plan`);
+      }
+      console.log(`📂 Project: ${project}`);
+
+      // Load project context
+      const storage = await getStorage();
+      const contextData = await storage.loadContext(project, 'standard', PRISM_USER_ID) as any;
+
+      let systemContext = `You are Prism, an AI assistant with access to the user's memory and project history. Answer questions helpfully and concisely.\n\nProject: ${project}\n`;
+
+      if (contextData) {
+        if (contextData.last_summary) {
+          systemContext += `\nLast session: ${contextData.last_summary}`;
+        }
+        if (contextData.pending_todo?.length) {
+          systemContext += `\nOpen TODOs:\n${contextData.pending_todo.map((t: string) => `- ${t}`).join('\n')}`;
+        }
+        if (contextData.key_context) {
+          systemContext += `\nKey context: ${contextData.key_context}`;
+        }
+        if (contextData.keywords?.length) {
+          systemContext += `\nKeywords: ${contextData.keywords.join(', ')}`;
+        }
+        console.log(`✅ Loaded ${contextData.pending_todo?.length || 0} TODOs, ${contextData.keywords?.length || 0} keywords`);
+      } else {
+        console.log('⚠️  No session context found — starting fresh');
+      }
+
+      console.log('\nType your questions below. Press Ctrl+C to exit.\n');
+
+      // Get LLM provider
+      const { getLLMProvider } = await import('./utils/llm/factory.js');
+      let llm: ReturnType<typeof getLLMProvider>;
+      try {
+        llm = getLLMProvider();
+      } catch {
+        console.error('❌ No LLM provider configured. Set GEMINI_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY.');
+        await closeStorage();
+        process.exit(1);
+        return;
+      }
+
+      // Interactive REPL
+      const readline = await import('readline');
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        prompt: '🧠 › ',
+      });
+
+      const history: string[] = [];
+
+      rl.prompt();
+
+      rl.on('line', async (line: string) => {
+        const input = line.trim();
+        if (!input) { rl.prompt(); return; }
+
+        // Built-in commands
+        if (input === '/help') {
+          console.log('\n  /search <query>  — search memory');
+          console.log('  /todos           — show open TODOs');
+          console.log('  /context         — show loaded context');
+          console.log('  /clear           — clear conversation history');
+          console.log('  /exit            — quit\n');
+          rl.prompt();
+          return;
+        }
+        if (input === '/exit' || input === '/quit') {
+          rl.close();
+          return;
+        }
+        if (input === '/clear') {
+          history.length = 0;
+          console.log('🗑️  Conversation cleared.\n');
+          rl.prompt();
+          return;
+        }
+        if (input === '/todos') {
+          if (contextData?.pending_todo?.length) {
+            console.log('\n📋 Open TODOs:');
+            contextData.pending_todo.forEach((t: string, i: number) => console.log(`  ${i + 1}. ${t}`));
+            console.log('');
+          } else {
+            console.log('\n✅ No open TODOs.\n');
+          }
+          rl.prompt();
+          return;
+        }
+        if (input === '/context') {
+          console.log(`\n📂 Project: ${project}`);
+          if (contextData?.last_summary) console.log(`📝 Last: ${contextData.last_summary}`);
+          if (contextData?.active_branch) console.log(`🌿 Branch: ${contextData.active_branch}`);
+          if (contextData?.keywords?.length) console.log(`🏷️  Keywords: ${contextData.keywords.join(', ')}`);
+          console.log('');
+          rl.prompt();
+          return;
+        }
+        if (input.startsWith('/search ')) {
+          const query = input.substring(8).trim();
+          try {
+            const { knowledgeSearchHandler } = await import('./tools/graphHandlers.js');
+            const result = await knowledgeSearchHandler({ query, project, limit: 5 });
+            const text = result.content?.[0] && 'text' in result.content[0] ? result.content[0].text : 'No results';
+            console.log(`\n${text}\n`);
+          } catch (e) {
+            console.log(`\n❌ Search error: ${e instanceof Error ? e.message : String(e)}\n`);
+          }
+          rl.prompt();
+          return;
+        }
+
+        // Build conversation prompt with history
+        history.push(`User: ${input}`);
+        const conversationPrompt = history.join('\n') + '\nAssistant:';
+
+        try {
+          process.stdout.write('\n');
+          const response = await llm.generateText(conversationPrompt, systemContext);
+          const answer = response.trim();
+          history.push(`Assistant: ${answer}`);
+
+          // Keep history bounded (last 20 exchanges)
+          if (history.length > 40) history.splice(0, history.length - 40);
+
+          console.log(`${answer}\n`);
+        } catch (e) {
+          console.log(`\n❌ LLM error: ${e instanceof Error ? e.message : String(e)}\n`);
+        }
+
+        rl.prompt();
+      });
+
+      rl.on('close', async () => {
+        console.log('\n👋 Session ended.');
+        await closeStorage();
+        process.exit(0);
+      });
+
+      // Keep running
+      await new Promise(() => { });
+    } catch (err) {
+      console.error(`❌ Error: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
   });
