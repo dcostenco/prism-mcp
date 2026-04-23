@@ -103,138 +103,85 @@ export function buildPromptStr(): string {
     return `${c.purple}${c.bold}❯${c.reset} `;
 }
 
-/** Action button definitions with known column positions */
+/** Action button definitions */
 export const ACTION_BUTTONS = [
     { icon: '📂', label: 'Image', cmd: '/image' },
     { icon: '📎', label: 'Paste', cmd: '/paste' },
     { icon: '🎤', label: 'Voice', cmd: '/voice' },
     { icon: '💬', label: 'Speak', cmd: '/speak' },
-    { icon: '🔍', label: 'Search', cmd: '/search' },
-    { icon: '📋', label: 'TODOs', cmd: '/todos' },
 ];
 
+// ── OSC 8 Hyperlink helpers ─────────────────────────────────────────
+
+/** Wrap text in an OSC 8 terminal hyperlink (Cmd+Click in VS Code / iTerm2) */
+function osc8(url: string, text: string): string {
+    return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
+}
+
 /**
- * Print the clickable action buttons bar above the prompt.
- * Returns the terminal row where buttons were printed (needed for click detection).
+ * Start a tiny localhost HTTP server to handle button clicks.
+ * Returns { port, close, onAction } — onAction is called when a button is clicked.
  */
-export function printActionBar() {
-    const parts = ACTION_BUTTONS.map(b =>
-        `${c.bgDim} ${b.icon} ${c.cyan}${b.label}${c.reset}${c.bgDim} ${c.reset}`
-    );
-    console.log(`  ${parts.join(' ')}`);
-    console.log(`  ${c.dim}☝ click a button above · / + Tab for all commands${c.reset}`);
+export async function startActionServer(): Promise<{
+    port: number;
+    close: () => void;
+    onAction: (handler: (cmd: string) => void) => void;
+}> {
+    const http = await import('http');
+    let actionHandler: ((cmd: string) => void) | null = null;
+
+    const server = http.createServer((req, res) => {
+        const url = new URL(req.url || '/', `http://localhost`);
+        const cmd = url.pathname.replace('/action/', '/');
+
+        // Send a minimal response that auto-closes the browser tab
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('<html><body><script>window.close()</script><p>✅ Action sent to Prism CLI. You can close this tab.</p></body></html>');
+
+        if (actionHandler && cmd.startsWith('/')) {
+            actionHandler(cmd);
+        }
+    });
+
+    return new Promise((resolve) => {
+        server.listen(0, '127.0.0.1', () => {
+            const addr = server.address();
+            const port = typeof addr === 'object' && addr ? addr.port : 0;
+            resolve({
+                port,
+                close: () => server.close(),
+                onAction: (handler) => { actionHandler = handler; },
+            });
+        });
+    });
+}
+
+/**
+ * Print the clickable action buttons bar using OSC 8 hyperlinks.
+ * Each button is Cmd+Clickable in VS Code terminal and iTerm2.
+ */
+export function printActionBar(port?: number) {
+    if (port) {
+        // OSC 8 clickable buttons
+        const parts = ACTION_BUTTONS.map(btn => {
+            const url = `http://127.0.0.1:${port}/action${btn.cmd}`;
+            const linkText = `${c.bgDim} ${btn.icon} ${c.cyan}${btn.label}${c.reset}${c.bgDim} ${c.reset}`;
+            return osc8(url, linkText);
+        });
+        console.log(`  ${parts.join(' ')}`);
+        console.log(`  ${c.dim}⌘+Click a button · Enter for menu · / + Tab for commands${c.reset}`);
+    } else {
+        // Fallback without links
+        const parts = ACTION_BUTTONS.map(b =>
+            `${c.bgDim} ${b.icon} ${c.cyan}${b.label}${c.reset}${c.bgDim} ${c.reset}`
+        );
+        console.log(`  ${parts.join(' ')}`);
+        console.log(`  ${c.dim}Press Enter for action menu · / + Tab for commands${c.reset}`);
+    }
     console.log('');
 }
 
-/**
- * Calculate column ranges for each button for click detection.
- * Returns array of { startCol, endCol, cmd } for hit-testing.
- */
-export function getButtonHitZones(): Array<{ startCol: number; endCol: number; cmd: string }> {
-    // Buttons are rendered starting at col 2 (2 spaces indent): " [icon label] [icon label] ..."
-    // Each button is: space + icon(2 display cols) + space + label + space
-    // Note: emoji icons are 2 cols wide in terminal
-    let col = 2; // Start after "  " indent
-    const zones: Array<{ startCol: number; endCol: number; cmd: string }> = [];
-
-    for (const btn of ACTION_BUTTONS) {
-        const startCol = col;
-        // Format: " icon label " — space(1) + icon(2) + space(1) + label(N) + space(1) + gap(1)
-        const width = 1 + 2 + 1 + btn.label.length + 1;
-        const endCol = startCol + width;
-        zones.push({ startCol, endCol, cmd: btn.cmd });
-        col = endCol + 1; // +1 for the space between buttons
-    }
-
-    return zones;
-}
-
-// ── Mouse tracking ──────────────────────────────────────────────────────
-
-/** Enable X10 mouse click reporting — terminal sends click coords to stdin */
-export function enableMouseTracking() {
-    process.stdout.write('\x1b[?1000h'); // X10 mouse tracking (click only)
-    process.stdout.write('\x1b[?1006h'); // SGR extended mode (for wide terminals)
-}
-
-/** Disable mouse tracking — restore normal terminal input */
-export function disableMouseTracking() {
-    process.stdout.write('\x1b[?1006l');
-    process.stdout.write('\x1b[?1000l');
-}
-
-/**
- * Parse SGR mouse event from stdin data.
- * SGR format: \x1b[<button;col;rowM (press) or \x1b[<button;col;rowm (release)
- * Returns { button, col, row, isPress } or null if not a mouse event.
- */
-export function parseMouseEvent(data: string): { button: number; col: number; row: number; isPress: boolean } | null {
-    // SGR extended format: ESC [ < Cb ; Cx ; Cy M/m
-    const match = data.match(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
-    if (match) {
-        return {
-            button: parseInt(match[1], 10),
-            col: parseInt(match[2], 10),
-            row: parseInt(match[3], 10),
-            isPress: match[4] === 'M',
-        };
-    }
-
-    // X10 basic format: ESC [ M Cb Cx Cy (3 raw bytes after M)
-    const x10Match = data.match(/\x1b\[M(.)(.)(.)/);
-    if (x10Match) {
-        return {
-            button: x10Match[1].charCodeAt(0) - 32,
-            col: x10Match[2].charCodeAt(0) - 32,
-            row: x10Match[3].charCodeAt(0) - 32,
-            isPress: true,
-        };
-    }
-
-    return null;
-}
-
-/**
- * Install mouse click handler on the readline interface.
- * Intercepts mouse events and dispatches matching button commands.
- * Returns a cleanup function to remove the handler.
- */
-export function installMouseHandler(
-    rl: any,
-    buttonRowOffset: number, // How many rows above current cursor the buttons are
-    onAction: (cmd: string) => void,
-): () => void {
-    const zones = getButtonHitZones();
-
-    const handler = (data: Buffer) => {
-        const str = data.toString();
-        const event = parseMouseEvent(str);
-        if (!event || !event.isPress || event.button !== 0) return; // Only left clicks
-
-        // Get current cursor row to calculate relative button row
-        // The button bar is `buttonRowOffset` rows above the current cursor
-        // We use the click row directly — the terminal sends absolute rows
-        // Since we can't easily know the absolute row of the buttons,
-        // we check if the click col matches any button zone regardless of row
-        // This is a pragmatic simplification since the button bar is always visible
-        for (const zone of zones) {
-            if (event.col >= zone.startCol && event.col <= zone.endCol) {
-                disableMouseTracking();
-                onAction(zone.cmd);
-                return;
-            }
-        }
-    };
-
-    process.stdin.on('data', handler);
-
-    return () => {
-        process.stdin.removeListener('data', handler);
-        disableMouseTracking();
-    };
-}
-
-/** Show readline-based action menu as fallback */
+/** Show readline-based action menu as fallback (Enter on empty line) */
 export function showActionMenu(rl: any): Promise<string | null> {
     return new Promise((resolve) => {
         console.log(`\n  ${c.bold}${c.purple}⚡ Actions${c.reset}`);
