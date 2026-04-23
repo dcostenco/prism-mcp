@@ -889,7 +889,8 @@ export class SqliteStorage implements StorageBackend {
           'files_changed', 'todos', 'decisions', 'metrics', 'keywords',
           'session_date', 'schema_version', 'created_at', 'updated_at',
           'deleted_at', 'archived_at', 'is_rollup', 'rollup_type',
-          'last_accessed_at', 'importance'
+          'last_accessed_at', 'importance', 'role', 'event_type',
+          'confidence_score', 'title', 'agent_name', 'rollup_count',
         ];
 
         const requestedColumns = value.split(',').map(c => c.trim());

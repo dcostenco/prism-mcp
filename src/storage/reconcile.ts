@@ -376,11 +376,13 @@ export async function pushReconciliation(
         const [project, role] = key.split("::");
         projectsToPush.add(project);
 
-        // Load the full handoff from local storage
-        const ctx = await localStorage.loadContext(project, "quick", PRISM_USER_ID, role || "global");
+        // Load the full handoff from local storage (standard level includes last_summary)
+        const ctx = await localStorage.loadContext(project, "standard", PRISM_USER_ID, role || "global");
         if (!ctx) continue;
 
-        // Upsert to Supabase
+        // Upsert to Supabase — only send columns that exist in the remote schema.
+        // Local-only columns (active_branch, key_context) are stripped to avoid
+        // PGRST204 ("column not found in schema cache") errors.
         try {
           const { supabasePost } = await import("../utils/supabaseApi.js");
           await withTimeout(
@@ -392,8 +394,6 @@ export async function pushReconciliation(
               pending_todo: (ctx as any).pending_todo ?? [],
               active_decisions: (ctx as any).active_decisions ?? [],
               keywords: (ctx as any).keywords ?? [],
-              key_context: (ctx as any).key_context ?? null,
-              active_branch: (ctx as any).active_branch ?? null,
               metadata: (ctx as any).metadata ?? {},
             }, {
               on_conflict: "project,user_id,role",
