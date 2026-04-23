@@ -1170,10 +1170,22 @@ Guidelines:
       // ─── REPL with VS Code-style prompt ─────────────────────
       const readline = await import('readline');
       const promptStr = buildPromptStr();
+
+      // Slash command tab-completer
+      const SLASH_COMMANDS = ['/help', '/image', '/paste', '/voice', '/speak', '/search', '/tools', '/todos', '/context', '/exit'];
+      const completer = (line: string): [string[], string] => {
+        if (line.startsWith('/')) {
+          const hits = SLASH_COMMANDS.filter(cmd => cmd.startsWith(line));
+          return [hits.length ? hits : SLASH_COMMANDS, line];
+        }
+        return [[], line];
+      };
+
       const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
         prompt: promptStr,
+        completer,
       });
 
       rl.prompt();
@@ -1181,6 +1193,30 @@ Guidelines:
       rl.on('line', async (line: string) => {
         const input = line.trim();
         if (!input) { rl.prompt(); return; }
+
+        // ─── Button shortcuts: 1=/image, 2=/paste, 3=/voice, 4=/speak ─
+        if (input === '1') {
+          console.log(`\n  ${c.cyan}📂 /image <path> [question]${c.reset} — Drag & drop a file path or type it:`);
+          rl.prompt();
+          return;
+        }
+        if (input === '2') {
+          // Trigger /paste directly
+          console.log(`\n  ${c.cyan}📋 Pasting from clipboard...${c.reset}`);
+          rl.emit('line', '/paste');
+          return;
+        }
+        if (input === '3') {
+          // Trigger /voice directly
+          console.log(`\n  ${c.cyan}🎤 Starting voice recording...${c.reset}`);
+          rl.emit('line', '/voice');
+          return;
+        }
+        if (input === '4') {
+          // Trigger /speak toggle directly
+          rl.emit('line', '/speak');
+          return;
+        }
 
         // ─── Slash commands ─────────────────────────────────
         if (input === '/help') {

@@ -107,7 +107,7 @@ export function buildPromptStr(): string {
 
 /** Print action buttons legend */
 export function printActionLegend() {
-    console.log(`  ${c.dim}[+] /image  [📎] /paste  [🎤] /voice  [💬] /speak  — /help for all${c.reset}`);
+    console.log(`  ${c.dim}[+] 1 /image  [📎] 2 /paste  [🎤] 3 /voice  [💬] 4 /speak  — Tab to autocomplete${c.reset}`);
     console.log('');
 }
 
