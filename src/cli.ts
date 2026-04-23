@@ -1189,8 +1189,27 @@ Guidelines:
       });
 
       let isProcessing = false;  // Guard against concurrent input
-
       rl.prompt();
+
+      // ─── Keyboard shortcuts (Ctrl+I/P/V/S) ─────────────────
+      const keypressReadline = await import('readline');
+      keypressReadline.emitKeypressEvents(process.stdin);
+
+      process.stdin.on('keypress', (_ch: string, key: { ctrl?: boolean; name?: string }) => {
+        if (isProcessing || !key?.ctrl) return;
+        const shortcutMap: Record<string, string> = {
+          i: '/image',
+          p: '/paste',
+          v: '/voice',
+          s: '/speak',
+        };
+        const cmd = shortcutMap[key.name || ''];
+        if (cmd) {
+          // Clear the current input line and dispatch the command
+          rl.write(null, { ctrl: true, name: 'u' });  // Clear line
+          rl.emit('line', cmd);
+        }
+      });
 
       rl.on('line', async (line: string) => {
         if (isProcessing) return;  // Drop input while processing

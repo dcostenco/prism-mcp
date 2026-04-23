@@ -103,81 +103,37 @@ export function buildPromptStr(): string {
     return `${c.purple}${c.bold}❯${c.reset} `;
 }
 
-/** Action button definitions */
+/** Action button definitions with keyboard shortcuts */
 export const ACTION_BUTTONS = [
-    { icon: '📂', label: 'Image', cmd: '/image' },
-    { icon: '📎', label: 'Paste', cmd: '/paste' },
-    { icon: '🎤', label: 'Voice', cmd: '/voice' },
-    { icon: '💬', label: 'Speak', cmd: '/speak' },
+    { icon: '📂', label: 'Image', cmd: '/image', key: '^I' },
+    { icon: '📎', label: 'Paste', cmd: '/paste', key: '^P' },
+    { icon: '🎤', label: 'Voice', cmd: '/voice', key: '^V' },
+    { icon: '💬', label: 'Speak', cmd: '/speak', key: '^S' },
 ];
 
-// ── OSC 8 Hyperlink helpers ─────────────────────────────────────────
-
-/** Wrap text in an OSC 8 terminal hyperlink (Cmd+Click in VS Code / iTerm2) */
-function osc8(url: string, text: string): string {
-    return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
-}
-
 /**
- * Start a tiny localhost HTTP server to handle button clicks.
- * Returns { port, close, onAction } — onAction is called when a button is clicked.
+ * Print the action buttons bar with keyboard shortcuts underneath.
+ * Example output:
+ *    📂 Image   📎 Paste   🎤 Voice   💬 Speak
+ *      ^I         ^P         ^V         ^S
  */
-export async function startActionServer(): Promise<{
-    port: number;
-    close: () => void;
-    onAction: (handler: (cmd: string) => void) => void;
-}> {
-    const http = await import('http');
-    let actionHandler: ((cmd: string) => void) | null = null;
+export function printActionBar() {
+    // Top line: icons + labels
+    const topParts = ACTION_BUTTONS.map(b =>
+        `${c.bgDim} ${b.icon} ${c.cyan}${b.label}${c.reset}${c.bgDim} ${c.reset}`
+    );
+    console.log(`  ${topParts.join(' ')}`);
 
-    const server = http.createServer((req, res) => {
-        const url = new URL(req.url || '/', `http://localhost`);
-        const cmd = url.pathname.replace('/action/', '/');
-
-        // Send a minimal response that auto-closes the browser tab
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end('<html><body><script>window.close()</script><p>✅ Action sent to Prism CLI. You can close this tab.</p></body></html>');
-
-        if (actionHandler && cmd.startsWith('/')) {
-            actionHandler(cmd);
-        }
+    // Bottom line: keyboard shortcuts aligned under each button
+    const shortcutParts = ACTION_BUTTONS.map(b => {
+        // Pad shortcut to match button width: " icon label " = 2+label.length+2 = label.length+4
+        const btnWidth = b.label.length + 4;  // space + emoji(2) + space + label
+        const pad = Math.max(0, Math.floor((btnWidth - b.key.length) / 2));
+        return ' '.repeat(pad) + `${c.dim}${b.key}${c.reset}` + ' '.repeat(Math.max(0, btnWidth - pad - b.key.length));
     });
+    console.log(`  ${shortcutParts.join(' ')}`);
 
-    return new Promise((resolve) => {
-        server.listen(0, '127.0.0.1', () => {
-            const addr = server.address();
-            const port = typeof addr === 'object' && addr ? addr.port : 0;
-            resolve({
-                port,
-                close: () => server.close(),
-                onAction: (handler) => { actionHandler = handler; },
-            });
-        });
-    });
-}
-
-/**
- * Print the clickable action buttons bar using OSC 8 hyperlinks.
- * Each button is Cmd+Clickable in VS Code terminal and iTerm2.
- */
-export function printActionBar(port?: number) {
-    if (port) {
-        // OSC 8 clickable buttons
-        const parts = ACTION_BUTTONS.map(btn => {
-            const url = `http://127.0.0.1:${port}/action${btn.cmd}`;
-            const linkText = `${c.bgDim} ${btn.icon} ${c.cyan}${btn.label}${c.reset}${c.bgDim} ${c.reset}`;
-            return osc8(url, linkText);
-        });
-        console.log(`  ${parts.join(' ')}`);
-        console.log(`  ${c.dim}⌘+Click a button · Enter for menu · / + Tab for commands${c.reset}`);
-    } else {
-        // Fallback without links
-        const parts = ACTION_BUTTONS.map(b =>
-            `${c.bgDim} ${b.icon} ${c.cyan}${b.label}${c.reset}${c.bgDim} ${c.reset}`
-        );
-        console.log(`  ${parts.join(' ')}`);
-        console.log(`  ${c.dim}Press Enter for action menu · / + Tab for commands${c.reset}`);
-    }
+    console.log(`  ${c.dim}Enter for menu · / + Tab for commands${c.reset}`);
     console.log('');
 }
 
