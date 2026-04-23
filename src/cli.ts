@@ -1048,8 +1048,23 @@ program
       const { printBanner, formatToolCall, formatToolResult, formatResponse, formatError, formatWarning, printHelp, formatMcpConnect, formatContextLoaded, printThinking, clearThinking, c } = await import('./agent/terminalUI.js');
 
       // ─── Load project context ───────────────────────────────
+      // Auto-detect Supabase backend if credentials exist
+      if (!process.env.PRISM_STORAGE) {
+        const supaUrl = process.env.SUPABASE_URL || await getSetting('SUPABASE_URL');
+        const supaKey = process.env.SUPABASE_KEY || await getSetting('SUPABASE_KEY');
+        if (supaUrl && supaKey) {
+          process.env.PRISM_STORAGE = 'supabase';
+          if (!process.env.SUPABASE_URL) process.env.SUPABASE_URL = supaUrl;
+          if (!process.env.SUPABASE_KEY) process.env.SUPABASE_KEY = supaKey;
+        }
+      }
       const storage = await getStorage();
-      const contextData = await storage.loadContext(project, 'standard', PRISM_USER_ID) as any;
+      let contextData: any = null;
+      try {
+        contextData = await storage.loadContext(project, 'standard', PRISM_USER_ID);
+      } catch (e) {
+        // Non-fatal — session might not exist yet or DB migrating
+      }
 
       let systemContext = `You are Prism, a powerful AI agent running in the user's terminal. You have access to tools for reading/writing files, running shell commands, fetching web pages, running Supabase/Stripe CLIs, and searching the user's memory.
 
