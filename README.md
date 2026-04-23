@@ -1083,11 +1083,21 @@ Compared against the **[Berkeley Function Calling Leaderboard (BFCL V4)](https:/
 | 2 | Claude Sonnet 4.5 | Flagship | 73.24% | $3 / $15 per 1M tok |
 | 3 | Gemini 3 Pro Preview | Flagship | 72.51% | $3.50 / $10.50 per 1M tok |
 | 4 | GLM-4.6 (Thinking) | Flagship | 72.38% | — |
-| 5 | Grok 4.1 Fast | Flagship | 69.57% | $3 / $15 per 1M tok |
+| 5 | Grok 4.1 Fast (Reasoning) | Flagship | 69.57% | $3 / $15 per 1M tok |
+| 6 | Claude Haiku 4.5 | Mid-tier | 68.70% | $0.80 / $4 per 1M tok |
+| 7 | Gemini 3 Pro Preview (FC) | Flagship | 68.14% | $3.50 / $10.50 per 1M tok |
 | 8 | OpenAI o3 | Flagship | 63.05% | $2 / $8 per 1M tok |
+| 9 | Grok 4 | Flagship | 62.97% | $3 / $15 per 1M tok |
+| 13 | Cohere Command A (Reasoning) | Flagship | 57.06% | Pay-per-use |
+| 14 | DeepSeek V3.2 (Thinking) | Flagship | 56.73% | $0.27 / $1.10 per 1M tok |
 | 15 | Gemini 2.5 Flash | Mid-tier | 56.24% | $0.15 / $0.60 per 1M tok |
 | 16 | GPT-5.2 | Flagship | 55.87% | $2.50 / $10 per 1M tok |
+| 17 | GPT-5 mini | Mid-tier | 55.46% | $0.40 / $1.60 per 1M tok |
 | 20 | GPT-4.1 | Flagship | 53.96% | $2 / $8 per 1M tok |
+| 21 | OpenAI o4-mini | Mid-tier | 53.24% | $1.10 / $4.40 per 1M tok |
+| 23 | Qwen3-235B | Open-weight | 52.15% | Self-hosted |
+| 46 | Mistral Large | Flagship | 38.37% | $2 / $6 per 1M tok |
+| 50 | Llama 4 Maverick (17B-128E) | Open-weight | 37.29% | Self-hosted |
 
 > ⚠️ **Methodology Note:** BFCL V4 tests **general-purpose** tool calling across 2,000+ functions. Prism-Coder's 93.3% is on a **domain-specific** held-out benchmark of 15 prompts targeting Prism's 10 MCP tools. Both measure the same fundamental capability — *can the model select the correct tool and parameters?* — but Prism-Coder's narrower domain allows it to achieve specialist-grade accuracy that exceeds generalist models at 1/1000th the cost.
 
