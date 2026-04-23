@@ -44,14 +44,27 @@ export const c = {
 // Formatting Helpers
 // ---------------------------------------------------------------------------
 
-/** Pad a visible string to a fixed column width, accounting for ANSI codes and emoji */
+/** Calculate the visible terminal width of a string (strips ANSI, accounts for double-width chars) */
+function visibleWidth(str: string): number {
+    // Strip ANSI escape codes
+    const stripped = str.replace(/\x1b\[[0-9;]*m/g, '');
+    let width = 0;
+    for (const char of stripped) {
+        const cp = char.codePointAt(0) || 0;
+        // Surrogate pair / astral plane characters (emoji, symbols) = 2 columns
+        if (cp > 0xFFFF) {
+            width += 2;
+        } else {
+            width += 1;
+        }
+    }
+    return width;
+}
+
+/** Pad a visible string to a fixed column width */
 function padLine(visible: string, targetWidth: number): string {
-    // Strip ANSI codes to count visible chars
-    const stripped = visible.replace(/\x1b\[[0-9;]*m/g, '');
-    // Count emoji as 2 columns each (rough heuristic for common emoji)
-    const emojiCount = (stripped.match(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}]/gu) || []).length;
-    const visibleLen = stripped.length + emojiCount;
-    const padding = Math.max(0, targetWidth - visibleLen);
+    const w = visibleWidth(visible);
+    const padding = Math.max(0, targetWidth - w);
     return visible + ' '.repeat(padding);
 }
 
