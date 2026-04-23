@@ -1048,16 +1048,8 @@ program
       const { printBanner, buildPromptStr, printActionBar, formatToolCall, formatToolResult, formatResponse, formatError, formatWarning, printHelp, formatMcpConnect, formatContextLoaded, printThinking, clearThinking, c } = await import('./agent/terminalUI.js');
 
       // ─── Load project context ───────────────────────────────
-      // Auto-detect Supabase backend if credentials exist
-      if (!process.env.PRISM_STORAGE) {
-        const supaUrl = process.env.SUPABASE_URL || await getSetting('SUPABASE_URL');
-        const supaKey = process.env.SUPABASE_KEY || await getSetting('SUPABASE_KEY');
-        if (supaUrl && supaKey) {
-          process.env.PRISM_STORAGE = 'supabase';
-          if (!process.env.SUPABASE_URL) process.env.SUPABASE_URL = supaUrl;
-          if (!process.env.SUPABASE_KEY) process.env.SUPABASE_KEY = supaKey;
-        }
-      }
+      // Uses local SQLite by default (same backend as the MCP server).
+      // Only uses Supabase if PRISM_STORAGE=supabase is explicitly set.
       const storage = await getStorage();
       let contextData: any = null;
       try {
