@@ -15,26 +15,7 @@ const program = new Command();
 program
   .name('prism')
   .description('Prism — The Mind Palace for AI Agents')
-  .version(SERVER_CONFIG.version)
-  .action(async () => {
-    // Default action: show greeting with auth info
-    try {
-      const { initConfigStorage } = await import('./storage/configStorage.js');
-      await initConfigStorage();
-      const { getAuthStatus } = await import('./auth.js');
-      const auth = await getAuthStatus();
-
-      console.log(`\n🧠 Prism v${SERVER_CONFIG.version} — The Mind Palace for AI Agents`);
-      if (auth.loggedIn) {
-        console.log(`👤 ${auth.email}  ·  📋 ${auth.plan || 'Free'} plan`);
-      } else {
-        console.log('👤 Not logged in  ·  Run \`prism login\` to authenticate');
-      }
-      console.log(`\nRun \`prism prompt\` for interactive mode, or \`prism --help\` for all commands.\n`);
-    } catch {
-      console.log(`\n🧠 Prism v${SERVER_CONFIG.version}\nRun \`prism --help\` for all commands.\n`);
-    }
-  });
+  .version(SERVER_CONFIG.version);
 
 // ─── prism load <project> ─────────────────────────────────────
 // Loads session context using the same storage layer as the MCP
@@ -1616,6 +1597,15 @@ Guidelines:
       process.exit(1);
     }
   });
+
+// If no subcommand given, default to 'prompt' (interactive REPL)
+const knownCommands = program.commands.map(c => c.name());
+const userArgs = process.argv.slice(2);
+if (userArgs.length === 0 || (!knownCommands.includes(userArgs[0]) && !userArgs[0]?.startsWith('-'))) {
+  if (userArgs.length === 0) {
+    process.argv.splice(2, 0, 'prompt');
+  }
+}
 
 program.parse(process.argv);
 
