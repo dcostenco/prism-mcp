@@ -44,6 +44,17 @@ export const c = {
 // Formatting Helpers
 // ---------------------------------------------------------------------------
 
+/** Pad a visible string to a fixed column width, accounting for ANSI codes and emoji */
+function padLine(visible: string, targetWidth: number): string {
+    // Strip ANSI codes to count visible chars
+    const stripped = visible.replace(/\x1b\[[0-9;]*m/g, '');
+    // Count emoji as 2 columns each (rough heuristic for common emoji)
+    const emojiCount = (stripped.match(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}]/gu) || []).length;
+    const visibleLen = stripped.length + emojiCount;
+    const padding = Math.max(0, targetWidth - visibleLen);
+    return visible + ' '.repeat(padding);
+}
+
 /** Print the startup banner */
 export function printBanner(opts: {
     version: string;
@@ -53,23 +64,57 @@ export function printBanner(opts: {
     plan?: string;
     toolCount: number;
     mcpServers?: number;
+    model?: string;
 }) {
-    const w = 56;
-    const line = '─'.repeat(w - 2);
+    const W = 54; // inner content width (between │ markers)
+    const line = '─'.repeat(W);
+
+    // Extract first name from email for greeting
+    const firstName = opts.email
+        ? opts.email.split('@')[0].replace(/[._]/g, ' ').split(' ')[0]
+        : null;
+    const displayName = firstName
+        ? firstName.charAt(0).toUpperCase() + firstName.slice(1)
+        : null;
 
     console.log('');
     console.log(`${c.purple}╭${line}╮${c.reset}`);
-    console.log(`${c.purple}│${c.reset}  ${c.bold}${c.purple}🧠 Prism Agent Terminal${c.reset}  ${c.dim}v${opts.version}${c.reset}${' '.repeat(Math.max(0, w - 30 - opts.version.length))}${c.purple}│${c.reset}`);
-    console.log(`${c.purple}│${c.reset}  ${c.cyan}📂${c.reset} ${opts.project}  ${c.dim}·${c.reset}  ${c.cyan}📁${c.reset} ${opts.cwd.length > 30 ? '...' + opts.cwd.slice(-27) : opts.cwd}${' '.repeat(Math.max(0, w - 10 - opts.project.length - Math.min(opts.cwd.length, 30)))}${c.purple}│${c.reset}`);
 
-    if (opts.email) {
-        const planStr = opts.plan || 'Free';
-        console.log(`${c.purple}│${c.reset}  ${c.green}👤${c.reset} ${opts.email}  ${c.dim}·${c.reset}  ${c.green}📋${c.reset} ${planStr} plan${' '.repeat(Math.max(0, w - 14 - opts.email.length - planStr.length))}${c.purple}│${c.reset}`);
+    // Title line
+    const titleContent = `  ${c.bold}${c.purple}🧠 Prism Agent${c.reset}  ${c.dim}v${opts.version}${c.reset}`;
+    console.log(`${c.purple}│${c.reset}${padLine(titleContent, W)}${c.purple}│${c.reset}`);
+
+    // Separator
+    console.log(`${c.purple}│${c.reset}${' '.repeat(W)}${c.purple}│${c.reset}`);
+
+    // Greeting line
+    if (displayName) {
+        const greetContent = `  ${c.white}${c.bold}Welcome back, ${displayName}${c.reset}`;
+        console.log(`${c.purple}│${c.reset}${padLine(greetContent, W)}${c.purple}│${c.reset}`);
     }
 
-    const toolStr = `${opts.toolCount} tools`;
+    // Project + CWD
+    const cwdShort = opts.cwd.length > 25 ? '...' + opts.cwd.slice(-22) : opts.cwd;
+    const projContent = `  ${c.cyan}📂${c.reset} ${opts.project}  ${c.dim}·${c.reset}  ${c.cyan}📁${c.reset} ${cwdShort}`;
+    console.log(`${c.purple}│${c.reset}${padLine(projContent, W)}${c.purple}│${c.reset}`);
+
+    // Email + Plan
+    if (opts.email) {
+        const planStr = opts.plan || 'Free';
+        const authContent = `  ${c.green}👤${c.reset} ${opts.email}  ${c.dim}·${c.reset}  ${c.green}📋${c.reset} ${planStr}`;
+        console.log(`${c.purple}│${c.reset}${padLine(authContent, W)}${c.purple}│${c.reset}`);
+    }
+
+    // Model
+    if (opts.model) {
+        const modelContent = `  ${c.blue}🤖${c.reset} ${opts.model}`;
+        console.log(`${c.purple}│${c.reset}${padLine(modelContent, W)}${c.purple}│${c.reset}`);
+    }
+
+    // Tools + MCP
     const mcpStr = opts.mcpServers ? `${opts.mcpServers} MCP servers  ·  ` : '';
-    console.log(`${c.purple}│${c.reset}  ${c.blue}🔧${c.reset} ${mcpStr}${toolStr}${' '.repeat(Math.max(0, w - 6 - mcpStr.length - toolStr.length))}${c.purple}│${c.reset}`);
+    const toolContent = `  ${c.orange}🔧${c.reset} ${mcpStr}${opts.toolCount} tools`;
+    console.log(`${c.purple}│${c.reset}${padLine(toolContent, W)}${c.purple}│${c.reset}`);
 
     console.log(`${c.purple}╰${line}╯${c.reset}`);
     console.log('');

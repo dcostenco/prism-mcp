@@ -1114,6 +1114,8 @@ Guidelines:
         ...mcpBridge.getGeminiFunctionDeclarations(),
       ];
 
+      const modelName = 'gemini-2.5-flash';
+
       // ─── Print Banner ───────────────────────────────────────
       printBanner({
         version: SERVER_CONFIG.version,
@@ -1123,6 +1125,7 @@ Guidelines:
         plan: auth.plan,
         toolCount: allToolDeclarations.length,
         mcpServers: connectedMcpCount > 0 ? connectedMcpCount : undefined,
+        model: modelName,
       });
 
       if (contextData) {
@@ -1133,7 +1136,7 @@ Guidelines:
 
       const ai = new GoogleGenerativeAI(GOOGLE_API_KEY);
       const model = ai.getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: modelName,
         systemInstruction: systemContext,
         tools: [{ functionDeclarations: allToolDeclarations }],
       });
