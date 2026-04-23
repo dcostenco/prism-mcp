@@ -154,9 +154,9 @@ def compute_reward(response_text: str, expected_tool: str = None) -> dict:
     elif not should_tool and not has_tool_call:
         # Correctly abstained from tool use
         if len(response_text.strip()) > 30:
-            scores["abstention"] = 0.25  # Substantive prose response
+            scores["abstention"] = 0.40  # Substantive prose response (boosted weight)
         else:
-            scores["abstention"] = 0.10  # Too short but correct decision
+            scores["abstention"] = 0.15  # Too short but correct decision
     elif should_tool and has_tool_call:
         scores["abstention"] = 0.15  # Correct decision to use tool
 
@@ -225,6 +225,17 @@ def generate_grpo_prompts():
         {"text": "How do I implement rate limiting in an API?", "expected_tool": None},
         {"text": "What is the difference between authentication and authorization?", "expected_tool": None},
         {"text": "Explain how a B-tree index works in databases", "expected_tool": None},
+        # ── Hard negatives (sound tool-like but should NOT invoke a tool) ──
+        {"text": "Tell me about session management in web applications", "expected_tool": None},
+        {"text": "How does knowledge graph embedding work?", "expected_tool": None},
+        {"text": "What is the search algorithm behind Elasticsearch?", "expected_tool": None},
+        {"text": "Explain how context switching works in operating systems", "expected_tool": None},
+        {"text": "What is a memory leak and how to debug it?", "expected_tool": None},
+        {"text": "How does session storage differ from local storage in browsers?", "expected_tool": None},
+        {"text": "What is knowledge distillation in machine learning?", "expected_tool": None},
+        {"text": "Explain how to save state in a React application", "expected_tool": None},
+        {"text": "What is context-aware computing?", "expected_tool": None},
+        {"text": "How does a search engine index web pages?", "expected_tool": None},
     ]
 
     with open(GRPO_DATA, "w") as f:
@@ -311,6 +322,86 @@ def generate_synthetic_chosen(prompt: str) -> str:
 
     for keywords, tool_name, response in SYNTHETIC_MAP:
         if all(kw.lower() in prompt.lower() for kw in keywords):
+            return response
+
+    # ── Synthetic gold responses for reasoning/abstention prompts ──
+    # These train the model to answer directly WITHOUT calling tools
+    ABSTENTION_MAP = [
+        ("React Server Components",
+         '<think>This is a general programming question about React Server Components. I can answer this directly from my knowledge without needing to search any project sessions or knowledge base.</think>\n\nReact Server Components (RSC) are a React architecture where components run exclusively on the server. They can directly access databases, file systems, and backend services without exposing credentials to the client. Key benefits: zero client-side JavaScript bundle for server components, direct data fetching, and automatic code splitting. They work alongside Client Components (marked with "use client") which handle interactivity.'),
+        ("hello world in Python",
+         '<think>This is a simple coding question. I should just write the code directly without using any tools.</think>\n\nHere\'s a hello world program in Python:\n\n```python\nprint("Hello, World!")\n```\n\nYou can run this by saving it as `hello.py` and executing `python hello.py` in your terminal.'),
+        ("gRPC and REST",
+         '<think>This is a general knowledge question comparing two API paradigms. No tools needed — I can explain this from my training knowledge.</think>\n\n**gRPC** uses Protocol Buffers for serialization and HTTP/2 for transport, offering binary encoding, bidirectional streaming, and code generation. It\'s ideal for microservice-to-microservice communication.\n\n**REST** uses JSON over HTTP/1.1 with resource-oriented URLs. It\'s simpler, more widely supported, and better for public APIs and browser clients.\n\nKey tradeoffs: gRPC is faster but harder to debug; REST is more human-readable but less efficient.'),
+        ("garbage collection",
+         '<think>This is a general computer science question about garbage collection in Go. I can answer this directly.</think>\n\nGo uses a concurrent, tri-color mark-and-sweep garbage collector. It runs concurrently with the application using write barriers to track pointer updates. The GC has three phases: mark setup (STW), concurrent mark, and mark termination (STW). The GOGC environment variable controls the GC target percentage. Go\'s GC prioritizes low latency over throughput, keeping pause times under 1ms in most cases.'),
+        ("CAP theorem",
+         '<think>This is a distributed systems theory question. I can explain the CAP theorem directly without any tool calls.</think>\n\nThe CAP theorem states that a distributed system can provide at most two of three guarantees simultaneously:\n\n- **Consistency**: Every read receives the most recent write\n- **Availability**: Every request receives a response\n- **Partition tolerance**: The system continues operating despite network partitions\n\nSince network partitions are inevitable in distributed systems, you must choose between CP (consistent but may be unavailable) or AP (available but may return stale data).'),
+        ("pros and cons of microservices",
+         '<think>This is an architecture question. I should provide a balanced analysis directly.</think>\n\n**Pros:** Independent deployment, technology diversity, fault isolation, team autonomy, horizontal scaling per service.\n\n**Cons:** Distributed system complexity, network latency, data consistency challenges, operational overhead (monitoring, logging, tracing), and the need for sophisticated CI/CD pipelines.\n\nMicroservices work best for large teams with well-defined domain boundaries. For small teams, a modular monolith is often more practical.'),
+        ("bash one-liner to find large files",
+         '<think>This is a practical coding question. I should provide the command directly without tool calls.</think>\n\nFind files larger than 100MB in the current directory:\n\n```bash\nfind . -type f -size +100M -exec ls -lh {} \\;\n```\n\nAlternatively, sorted by size:\n\n```bash\nfind . -type f -size +100M -printf "%s %p\\n" | sort -rn | head -20\n```'),
+        ("PostgreSQL database on Docker",
+         '<think>This is a practical setup question. I can provide Docker commands directly.</think>\n\nRun PostgreSQL in Docker:\n\n```bash\ndocker run -d --name postgres \\\n  -e POSTGRES_PASSWORD=mypassword \\\n  -e POSTGRES_DB=mydb \\\n  -p 5432:5432 \\\n  -v pgdata:/var/lib/postgresql/data \\\n  postgres:16\n```\n\nConnect with psql: `docker exec -it postgres psql -U postgres -d mydb`'),
+        ("time complexity of quicksort",
+         '<think>This is a computer science theory question about algorithm complexity. No tools needed.</think>\n\n- **Best case:** O(n log n) — when the pivot divides the array evenly\n- **Average case:** O(n log n) — expected with random pivots\n- **Worst case:** O(n²) — when the pivot is always the smallest/largest element\n- **Space:** O(log n) for the recursive call stack\n\nQuicksort is typically faster in practice than merge sort due to better cache locality and lower constant factors.'),
+        ("JWT tokens work for authentication",
+         '<think>The user is asking about how JWT tokens work. This is a general knowledge question I can answer directly.</think>\n\nJSON Web Tokens (JWT) consist of three base64-encoded parts: Header (algorithm, type), Payload (claims like user ID, expiration), and Signature (HMAC or RSA). The server creates a signed token on login, the client stores it (usually in an HTTP-only cookie), and sends it with each request. The server verifies the signature without database lookups. JWTs are stateless but can\'t be revoked easily — use short expiration times and refresh tokens for security.'),
+        ("reverse a linked list",
+         '<think>This is a coding question. I should write the solution directly.</think>\n\n```python\ndef reverse_linked_list(head):\n    prev = None\n    current = head\n    while current:\n        next_node = current.next\n        current.next = prev\n        prev = current\n        current = next_node\n    return prev\n```\n\nTime: O(n), Space: O(1). This iteratively reverses the pointers in a single pass.'),
+        ("TCP and UDP",
+         '<think>This is a networking fundamentals question. I can answer directly.</think>\n\n**TCP** (Transmission Control Protocol): Connection-oriented, reliable delivery with ordering guarantees, flow control, and congestion control. Used for HTTP, SSH, FTP.\n\n**UDP** (User Datagram Protocol): Connectionless, no delivery guarantees, no ordering, minimal overhead. Used for DNS, video streaming, gaming, VoIP.\n\nChoose TCP when you need reliability; choose UDP when you need speed and can tolerate packet loss.'),
+        ("Observer pattern",
+         '<think>This is a design patterns question. I should explain the pattern directly.</think>\n\nThe Observer pattern defines a one-to-many dependency where when one object (the Subject) changes state, all its dependents (Observers) are notified automatically. The Subject maintains a list of observers and calls their `update()` method on state changes. This decouples the subject from its observers, enabling loose coupling. Common examples: event systems, pub/sub, React\'s state management, and the DOM event model.'),
+        ("optimize a slow SQL query",
+         '<think>This is a database optimization question. I can provide guidance directly.</think>\n\nKey optimization strategies:\n\n1. **EXPLAIN ANALYZE** — Check the query plan for sequential scans\n2. **Add indexes** — On columns used in WHERE, JOIN, and ORDER BY\n3. **Avoid SELECT *** — Only fetch needed columns\n4. **Use LIMIT** — Paginate large result sets\n5. **Denormalize** — For read-heavy workloads\n6. **Materialized views** — Cache expensive aggregations\n7. **Connection pooling** — Reduce connection overhead'),
+        ("CORS and why does it exist",
+         '<think>This is a web security question. I can explain CORS directly.</think>\n\nCORS (Cross-Origin Resource Sharing) is a browser security mechanism that restricts web pages from making requests to domains different from the one serving the page. It exists because of the Same-Origin Policy, which prevents malicious scripts from accessing sensitive data on other sites. Servers opt in to cross-origin requests by sending `Access-Control-Allow-Origin` headers. Preflight OPTIONS requests verify permissions before the actual request.'),
+        ("TypeScript generic function for array filtering",
+         '<think>This is a coding question. I should write the TypeScript code directly.</think>\n\n```typescript\nfunction filterArray<T>(arr: T[], predicate: (item: T) => boolean): T[] {\n  return arr.reduce<T[]>((acc, item) => {\n    if (predicate(item)) acc.push(item);\n    return acc;\n  }, []);\n}\n\n// Usage:\nconst numbers = [1, 2, 3, 4, 5];\nconst evens = filterArray(numbers, n => n % 2 === 0); // [2, 4]\n```'),
+        ("let, const, and var",
+         '<think>This is a JavaScript fundamentals question. No tools needed.</think>\n\n- **var**: Function-scoped, hoisted, can be redeclared. Legacy — avoid in modern code.\n- **let**: Block-scoped, hoisted but not initialized (temporal dead zone), can be reassigned.\n- **const**: Block-scoped, hoisted but not initialized, cannot be reassigned (but objects/arrays are still mutable).\n\nBest practice: Use `const` by default, `let` when reassignment is needed, never use `var`.'),
+        ("WebSocket differ from HTTP long polling",
+         '<think>This is a networking/architecture question. I can answer directly.</think>\n\n**WebSocket**: Full-duplex, persistent connection over a single TCP socket. Low overhead after handshake. Ideal for real-time apps (chat, gaming, live data).\n\n**HTTP Long Polling**: Client sends request, server holds it open until data is available, then responds and client immediately re-requests. Higher overhead due to repeated HTTP headers.\n\nWebSocket is more efficient for high-frequency bidirectional communication; long polling is simpler to implement and works through all proxies.'),
+        ("dependency injection",
+         '<think>This is a software design question. I should explain the concept directly.</think>\n\nDependency Injection (DI) is a design pattern where objects receive their dependencies from external sources rather than creating them internally. Benefits: testability (easy to mock), loose coupling, flexibility to swap implementations, and single responsibility. Three types: constructor injection (most common), setter injection, and interface injection. Frameworks like Spring, Angular, and NestJS provide DI containers that automatically wire dependencies.'),
+        ("eventual consistency",
+         '<think>This is a distributed systems concept question. I can explain directly.</think>\n\nEventual consistency is a consistency model where, given enough time without new updates, all replicas of a data item will converge to the same value. Unlike strong consistency (where reads always return the latest write), eventually consistent systems allow temporary staleness for better availability and partition tolerance. Used in: DynamoDB, Cassandra, DNS, S3. Techniques to manage it: conflict resolution (last-write-wins, CRDTs), read-your-writes consistency, and causal consistency.'),
+        ("regex to validate email",
+         '<think>This is a practical coding question. No tools needed.</think>\n\n```python\nimport re\n\ndef validate_email(email: str) -> bool:\n    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"\n    return bool(re.match(pattern, email))\n```\n\nNote: Perfect email validation via regex is nearly impossible (RFC 5322 is very complex). For production, use a library like `email-validator` in Python or let the mail server validate by sending a confirmation.'),
+        ("SOLID principles",
+         '<think>This is a software engineering fundamentals question. I can explain directly.</think>\n\nSOLID is five design principles for maintainable OOP code:\n\n- **S**ingle Responsibility: One class, one reason to change\n- **O**pen/Closed: Open for extension, closed for modification\n- **L**iskov Substitution: Subtypes must be substitutable for their base types\n- **I**nterface Segregation: Many specific interfaces over one general-purpose interface\n- **D**ependency Inversion: Depend on abstractions, not concretions'),
+        ("rate limiting in an API",
+         '<think>This is a backend engineering question. I can provide implementation guidance directly.</think>\n\nCommon rate limiting algorithms:\n\n1. **Token Bucket**: Tokens added at fixed rate, requests consume tokens. Allows bursts.\n2. **Sliding Window**: Count requests in a rolling time window. Most accurate.\n3. **Fixed Window**: Count requests per fixed time interval. Simple but allows edge bursts.\n\nImplementation: Use Redis with `INCR` + `EXPIRE` for distributed rate limiting. Return `429 Too Many Requests` with `Retry-After` header when limit is exceeded.'),
+        ("authentication and authorization",
+         '<think>This is a security concepts question. I can explain the distinction directly.</think>\n\n**Authentication** (AuthN): Verifying *who* you are. Methods: passwords, OAuth, biometrics, MFA, JWT tokens.\n\n**Authorization** (AuthZ): Determining *what* you can do. Methods: RBAC (role-based), ABAC (attribute-based), ACLs, policy engines (OPA).\n\nAuthentication always comes first — you must know who the user is before checking their permissions. Common mistake: confusing the two, leading to authorization checks that don\'t verify identity.'),
+        ("B-tree index works in databases",
+         '<think>This is a database internals question. I can explain directly.</think>\n\nA B-tree is a self-balancing tree data structure that maintains sorted data and allows searches, insertions, and deletions in O(log n). In databases, B-tree indexes store key-value pairs where keys are column values and values are row pointers. Each node can have multiple children (high fan-out), minimizing disk I/O. B+ trees (the variant used in practice) store all data in leaf nodes, which are linked for efficient range scans.'),
+        # Hard negatives — reasoning prompts that sound tool-like
+        ("session management in web applications",
+         '<think>The user is asking about the general concept of session management in web applications — not asking me to manage a specific Prism session. This is a knowledge question I can answer directly.</think>\n\nWeb session management tracks user state across HTTP requests. Common approaches:\n\n1. **Server-side sessions**: Session data stored on server, client holds only a session ID cookie\n2. **JWT tokens**: Stateless, self-contained tokens with encoded claims\n3. **Cookie-based**: Data stored directly in encrypted cookies\n\nSecurity considerations: HttpOnly and Secure flags, session fixation prevention, idle timeouts, and CSRF protection.'),
+        ("knowledge graph embedding",
+         '<think>The user is asking about knowledge graph embeddings as a machine learning concept — not asking me to search the Prism knowledge base. I should explain the concept directly.</think>\n\nKnowledge graph embedding maps entities and relations into continuous vector spaces while preserving the graph structure. Popular models: TransE (translational distance), DistMult (bilinear), ComplEx (complex-valued), and RotatE (rotational). These embeddings enable link prediction, entity classification, and knowledge completion. Training uses positive triples (h, r, t) and corrupted negative samples.'),
+        ("search algorithm behind Elasticsearch",
+         '<think>The user is asking about Elasticsearch\'s search algorithm as a technical question — not asking me to search anything in Prism. I should explain directly.</think>\n\nElasticsearch uses Apache Lucene for full-text search. Key algorithms: inverted indexes (mapping terms to document IDs), TF-IDF and BM25 for relevance scoring, and analyzers for tokenization and normalization. Queries go through analysis, term matching, scoring, and result aggregation. Distributed search shards queries across nodes and merges results using a scatter-gather pattern.'),
+        ("context switching in operating systems",
+         '<think>The user is asking about OS context switching — not about loading context in Prism. This is a systems question I can answer directly.</think>\n\nContext switching is the process of saving the state (registers, program counter, stack pointer) of a running process and restoring the state of another. Triggers: timer interrupts (preemptive scheduling), system calls, I/O waits. Cost: typically 1-10 microseconds, involving TLB flushes, cache pollution, and pipeline stalls. Threads within the same process have cheaper context switches since they share address spaces.'),
+        ("memory leak and how to debug it",
+         '<think>The user is asking about memory leaks in general — not about Prism memory management. I should explain the concept and debugging techniques.</think>\n\nA memory leak occurs when allocated memory is never freed, causing gradual memory growth. Common causes: unclosed event listeners, retained references in closures, circular references, and forgotten timers.\n\nDebugging tools:\n- **Chrome DevTools**: Heap snapshots, allocation timeline\n- **Valgrind**: C/C++ memory profiler\n- **Node.js**: `--inspect` flag + Chrome DevTools, `process.memoryUsage()`\n- **Python**: `tracemalloc`, `objgraph`'),
+        ("session storage differ from local storage",
+         '<think>The user is asking about browser storage APIs — not about Prism session management. This is a web fundamentals question.</think>\n\n**sessionStorage**: Data persists only for the browser tab/window session. Cleared when the tab closes. Separate per tab.\n\n**localStorage**: Data persists indefinitely until explicitly cleared. Shared across all tabs of the same origin.\n\nBoth have ~5-10MB limits and are synchronous. For larger data, use IndexedDB. Neither should store sensitive data (accessible to any JS on the page).'),
+        ("knowledge distillation in machine learning",
+         '<think>The user is asking about the ML technique of knowledge distillation — not about Prism knowledge management. I should explain the concept.</think>\n\nKnowledge distillation transfers knowledge from a large "teacher" model to a smaller "student" model. The student is trained on the teacher\'s soft probability outputs (softmax with temperature) rather than hard labels, capturing inter-class relationships. Benefits: smaller models with near-teacher performance, faster inference, lower memory. Variants: response-based (output matching), feature-based (intermediate layer matching), and relation-based (structural similarity).'),
+        ("save state in a React application",
+         '<think>The user is asking about React state management patterns — not asking me to save anything in Prism. This is a frontend development question.</think>\n\nReact state management options:\n\n1. **useState/useReducer**: Local component state\n2. **Context API**: Shared state without prop drilling\n3. **Redux/Zustand**: Global state with predictable updates\n4. **React Query/SWR**: Server state caching and synchronization\n5. **URL state**: Using React Router for shareable state\n\nBest practice: Keep state as close to where it\'s used as possible. Lift state up only when siblings need to share it.'),
+        ("context-aware computing",
+         '<think>The user is asking about the academic/industry concept of context-aware computing — not about Prism context loading. This is a general knowledge question.</think>\n\nContext-aware computing refers to systems that sense and adapt to their environment. Context includes: location (GPS), time, user activity, device state, and nearby devices. Applications: smart homes, location-based services, adaptive UIs, and healthcare monitoring. Key challenges: privacy concerns, sensor fusion accuracy, and energy efficiency on mobile devices.'),
+        ("search engine index web pages",
+         '<think>The user is asking about how search engines work — not asking me to search anything. This is a systems/IR question.</think>\n\nSearch engine indexing: 1) **Crawling** — following links to discover pages. 2) **Parsing** — extracting text, metadata, and links. 3) **Indexing** — building inverted indexes mapping terms to documents. 4) **Ranking** — using algorithms like PageRank, BM25, and neural ranking models. Modern engines also use knowledge panels, featured snippets, and personalization. Google processes ~8.5 billion searches per day.'),
+    ]
+
+    for keywords_substr, response in ABSTENTION_MAP:
+        if keywords_substr.lower() in prompt.lower():
             return response
 
     return None
