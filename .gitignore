@@ -52,9 +52,6 @@ undefined-wal
 # Repomix (code review packs)
 repomix*
 
-# Release builds (standalone executables)
-release/
-
 # Local Build / DB
 *.tgz
 *.db
@@ -71,4 +68,3 @@ test_save.js
 test_save2.js
 upvote.js
 test-results.txt
-training/__pycache__/

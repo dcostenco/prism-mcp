@@ -1,8 +1,8 @@
 {
   "name": "prism-mcp-server",
-  "version": "12.0.0",
+  "version": "11.6.0",
   "mcpName": "io.github.dcostenco/prism-mcp",
-  "description": "Prism v12.0: The world's first O(1) Cognitive Memory Architecture for AI Agents. Features Prism Cloud (subscription tiers, JWT auth, Visual App Builder, Team Collaboration), Firecrawl/Tavily native discovery, Zero-Search Retrieval (HDC/HRR), and HIPAA-hardened local-first storage.",
+  "description": "Prism v11.6.0: The world's first O(1) Cognitive Memory Architecture for AI Agents. Features production-grade Agent Infrastructure Resilience (serialized queuing, memory guardian, queue watchdog), 100% Tool-Call Accuracy (GRPO Aligned), Zero-Search Retrieval (HDC/HRR), and HIPAA-hardened local-first storage.",
   "module": "index.ts",
   "type": "module",
   "main": "dist/server.js",
@@ -14,12 +14,6 @@
   "files": [
     "dist"
   ],
-  "pkg": {
-    "assets": [
-      "dist/**/*"
-    ],
-    "outputPath": "release"
-  },
   "scripts": {
     "build": "tsc",
     "lint:dashboard": "node scripts/lint-dashboard-es5.cjs",
@@ -29,13 +23,7 @@
     "test:load": "vitest run tests/load/",
     "test:ci": "vitest run --reporter=junit --outputFile=test-results.xml",
     "test:mcp": "node ./test_cross_mcp.js",
-    "import": "node dist/utils/universalImporter.js",
-    "release:build": "npm run build && node scripts/release-build.mjs",
-    "release:win": "npm run build && npx -y @yao-pkg/pkg dist/cli.js --targets node20-win-x64 --output release/prism-win-x64.exe --compress Brotli",
-    "release:mac": "npm run build && npx -y @yao-pkg/pkg dist/cli.js --targets node20-macos-x64 --output release/prism-macos-x64 --compress Brotli",
-    "release:mac-arm": "npm run build && npx -y @yao-pkg/pkg dist/cli.js --targets node20-macos-arm64 --output release/prism-macos-arm64 --compress Brotli",
-    "release:linux": "npm run build && npx -y @yao-pkg/pkg dist/cli.js --targets node20-linux-x64 --output release/prism-linux-x64 --compress Brotli",
-    "release:all": "npm run build && node scripts/release-build.mjs"
+    "import": "node dist/utils/universalImporter.js"
   },
   "keywords": [
     "mcp",
@@ -103,21 +91,20 @@
     "url": "git+https://github.com/dcostenco/prism-mcp.git"
   },
   "author": "Dmitri Costenco",
-  "license": "BUSL-1.1",
+  "license": "MIT",
   "devDependencies": {
     "@huggingface/transformers": "3.1.0",
     "@types/bun": "latest",
     "@types/jsdom": "^28.0.1",
     "@types/mozilla-readability": "^0.2.1",
     "@types/turndown": "^5.0.6",
-    "@vitest/coverage-v8": "^4.1.5",
     "dotenv": "^17.4.2",
     "tsx": "^4.19.3",
     "vitest": "^4.1.1"
   },
   "peerDependencies": {
-    "@huggingface/transformers": "~3.1.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@huggingface/transformers": "~3.1.0"
   },
   "peerDependenciesMeta": {
     "@huggingface/transformers": {
