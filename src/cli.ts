@@ -1048,8 +1048,17 @@ program
       const { printBanner, buildPromptStr, printActionBar, formatToolCall, formatToolResult, formatResponse, formatError, formatWarning, printHelp, formatMcpConnect, formatContextLoaded, printThinking, clearThinking, c } = await import('./agent/terminalUI.js');
 
       // ─── Load project context ───────────────────────────────
-      // Uses local SQLite by default (same backend as the MCP server).
-      // Only uses Supabase if PRISM_STORAGE=supabase is explicitly set.
+      // Auto-detect Supabase for paid tiers — no explicit PRISM_STORAGE needed.
+      // If credentials exist (env or dashboard config), use cloud storage.
+      if (!process.env.PRISM_STORAGE) {
+        const supaUrl = process.env.SUPABASE_URL || await getSetting('SUPABASE_URL');
+        const supaKey = process.env.SUPABASE_KEY || await getSetting('SUPABASE_KEY');
+        if (supaUrl && supaKey) {
+          process.env.PRISM_STORAGE = 'supabase';
+          if (!process.env.SUPABASE_URL) process.env.SUPABASE_URL = supaUrl;
+          if (!process.env.SUPABASE_KEY) process.env.SUPABASE_KEY = supaKey;
+        }
+      }
       const storage = await getStorage();
       let contextData: any = null;
       try {
@@ -1141,6 +1150,23 @@ Guidelines:
 
       if (contextData) {
         console.log(`  ${formatContextLoaded(contextData.pending_todo?.length || 0, contextData.keywords?.length || 0)}`);
+        if (contextData.last_summary) {
+          // Show last session summary (truncated to 120 chars)
+          const summary = contextData.last_summary.length > 120
+            ? contextData.last_summary.substring(0, 117) + '...'
+            : contextData.last_summary;
+          console.log(`  ${c.dim}📋 Last: ${summary}${c.reset}`);
+        }
+        if (contextData.pending_todo?.length > 0) {
+          console.log(`  ${c.dim}📌 TODOs:${c.reset}`);
+          contextData.pending_todo.slice(0, 3).forEach((t: string) => {
+            const todo = t.length > 80 ? t.substring(0, 77) + '...' : t;
+            console.log(`  ${c.dim}   • ${todo}${c.reset}`);
+          });
+          if (contextData.pending_todo.length > 3) {
+            console.log(`  ${c.dim}   + ${contextData.pending_todo.length - 3} more${c.reset}`);
+          }
+        }
       } else {
         console.log(`  ${formatWarning('No session context found — starting fresh')}`);
       }
