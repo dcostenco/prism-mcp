@@ -1154,11 +1154,6 @@ Guidelines:
         console.log(`  ${formatWarning('No session context found — starting fresh')}`);
       }
 
-      // ─── Controls Bar ───────────────────────────────────────
-      console.log(`  ${c.dim}─────────────────────────────────────────────${c.reset}`);
-      console.log(`  ${c.cyan}🎤${c.reset} ${c.dim}/voice${c.reset}   ${c.cyan}📷${c.reset} ${c.dim}/camera${c.reset}   ${c.cyan}🖼️${c.reset}  ${c.dim}/image${c.reset}   ${c.cyan}📋${c.reset} ${c.dim}/paste${c.reset}`);
-      console.log(`  ${c.green}🔊${c.reset} ${c.dim}/speak${c.reset}   ${c.green}🔍${c.reset} ${c.dim}/search${c.reset}  ${c.green}🛠️${c.reset}  ${c.dim}/tools${c.reset}   ${c.green}❓${c.reset} ${c.dim}/help${c.reset}`);
-
       const ai = new GoogleGenerativeAI(GOOGLE_API_KEY);
       const model = ai.getGenerativeModel({
         model: modelId,
@@ -1170,14 +1165,16 @@ Guidelines:
       const chat = model.startChat({ history: [] });
       let ttsEnabled = false;
 
-      console.log(`\n  ${c.dim}Type your questions below. Use ${c.cyan}/help${c.dim} for commands. ${c.cyan}Ctrl+C${c.dim} to exit.${c.reset}\n`);
+      // ─── Shortcuts hint (compact, one line) ─────────────────
+      console.log(`\n  ${c.dim}Shortcuts: ${c.cyan}^R${c.dim} voice  ${c.cyan}^E${c.dim} camera  ${c.cyan}^T${c.dim} paste  ${c.cyan}/help${c.dim} commands${c.reset}\n`);
 
-      // ─── REPL ───────────────────────────────────────────────
+      // ─── REPL with rich prompt ──────────────────────────────
       const readline = await import('readline');
+      const promptStr = `${c.dim}${modelDisplay}${c.reset} ${c.purple}${c.bold}❯${c.reset} `;
       const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
-        prompt: `${c.purple}${c.bold}❯${c.reset} `,
+        prompt: promptStr,
       });
 
       rl.prompt();
