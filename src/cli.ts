@@ -1045,7 +1045,7 @@ program
       const auth = await getAuthStatus();
 
       // ─── Terminal UI ────────────────────────────────────────
-      const { printBanner, buildPromptStr, printActionBar, enableMouseTracking, disableMouseTracking, installMouseHandler, formatToolCall, formatToolResult, formatResponse, formatError, formatWarning, printHelp, formatMcpConnect, formatContextLoaded, printThinking, clearThinking, c } = await import('./agent/terminalUI.js');
+      const { printBanner, buildPromptStr, printActionBar, formatToolCall, formatToolResult, formatResponse, formatError, formatWarning, printHelp, formatMcpConnect, formatContextLoaded, printThinking, clearThinking, c } = await import('./agent/terminalUI.js');
 
       // ─── Load project context ───────────────────────────────
       // Auto-detect Supabase backend if credentials exist
@@ -1164,8 +1164,25 @@ Guidelines:
       const chat = model.startChat({ history: [] });
       let ttsEnabled = false;
 
-      // ─── Action buttons legend ──────────────────────────────
-      printActionBar();
+      // ─── Clickable action buttons (OSC 8 + localhost handler) ─
+      const { startActionServer } = await import('./agent/terminalUI.js');
+      const actionServer = await startActionServer();
+
+      // Register action handler — when a button is Cmd+Clicked,
+      // the HTTP server dispatches the command back here
+      actionServer.onAction((cmd: string) => {
+        if (cmd === '/image') {
+          console.log(`\n  ${c.cyan}📂 Usage: /image <path> [question]${c.reset}`);
+          rl.prompt();
+        } else if (cmd === '/search') {
+          console.log(`\n  ${c.cyan}🔍 Usage: /search <query>${c.reset}`);
+          rl.prompt();
+        } else {
+          rl.emit('line', cmd);
+        }
+      });
+
+      printActionBar(actionServer.port);
 
       // ─── REPL with VS Code-style prompt ─────────────────────
       const readline = await import('readline');
@@ -1201,10 +1218,9 @@ Guidelines:
               console.log(`  ${c.cyan}📂 Usage: /image <path> [question]${c.reset}`);
               rl.prompt();
             } else if (cmd === '/search') {
-              console.log(`  ${c.cyan}� Usage: /search <query>${c.reset}`);
+              console.log(`  ${c.cyan}🔍 Usage: /search <query>${c.reset}`);
               rl.prompt();
             } else {
-              // Execute the selected command directly
               rl.emit('line', cmd);
             }
           } else {
