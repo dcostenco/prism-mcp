@@ -1,0 +1,56 @@
+Calling `python -m mlx_lm.lora...` directly is deprecated. Use `mlx_lm.lora...` or `python -m mlx_lm lora ...` instead.
+Loading pretrained model
+Loading datasets
+Training
+Trainable parameters: 0.151% (11.534M/7615.617M)
+Starting training..., iters: 1000
+Calculating loss...:   0%|          | 0/2 [00:00<?, ?it/s]Calculating loss...:  50%|█████     | 1/2 [00:00<00:00,  1.14it/s]Calculating loss...: 100%|██████████| 2/2 [00:01<00:00,  2.18it/s]Calculating loss...: 100%|██████████| 2/2 [00:01<00:00,  1.92it/s]
+Iter 1: Val loss 3.802, Val took 1.061s
+Iter 50: Train loss 1.230, Learning Rate 2.000e-05, It/sec 1.744, Tokens/sec 223.806, Trained Tokens 6415, Peak mem 5.963 GB
+Iter 100: Train loss 0.534, Learning Rate 2.000e-05, It/sec 1.713, Tokens/sec 221.878, Trained Tokens 12892, Peak mem 5.963 GB
+Iter 150: Train loss 0.330, Learning Rate 2.000e-05, It/sec 1.600, Tokens/sec 202.328, Trained Tokens 19216, Peak mem 5.963 GB
+Calculating loss...:   0%|          | 0/2 [00:00<?, ?it/s]Calculating loss...:  50%|█████     | 1/2 [00:00<00:00,  1.53it/s]Calculating loss...: 100%|██████████| 2/2 [00:01<00:00,  1.85it/s]Calculating loss...: 100%|██████████| 2/2 [00:01<00:00,  1.79it/s]
+Iter 200: Val loss 1.203, Val took 1.118s
+Iter 200: Train loss 0.238, Learning Rate 2.000e-05, It/sec 1.320, Tokens/sec 168.468, Trained Tokens 25598, Peak mem 5.970 GB
+Iter 200: Saved adapter weights to /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-sft-lora/0000200_adapters.safetensors.
+Iter 250: Train loss 0.154, Learning Rate 2.000e-05, It/sec 0.851, Tokens/sec 113.076, Trained Tokens 32244, Peak mem 6.016 GB
+Iter 300: Train loss 0.147, Learning Rate 2.000e-05, It/sec 0.779, Tokens/sec 99.328, Trained Tokens 38618, Peak mem 6.017 GB
+Iter 350: Train loss 0.148, Learning Rate 2.000e-05, It/sec 0.960, Tokens/sec 114.809, Trained Tokens 44598, Peak mem 6.017 GB
+Calculating loss...:   0%|          | 0/2 [00:00<?, ?it/s]Calculating loss...:  50%|█████     | 1/2 [00:00<00:00,  1.78it/s]Calculating loss...: 100%|██████████| 2/2 [00:01<00:00,  1.85it/s]Calculating loss...: 100%|██████████| 2/2 [00:01<00:00,  1.84it/s]
+Iter 400: Val loss 0.964, Val took 1.105s
+Iter 400: Train loss 0.129, Learning Rate 2.000e-05, It/sec 0.989, Tokens/sec 124.858, Trained Tokens 50912, Peak mem 6.017 GB
+Iter 400: Saved adapter weights to /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-sft-lora/0000400_adapters.safetensors.
+Iter 450: Train loss 0.097, Learning Rate 2.000e-05, It/sec 0.955, Tokens/sec 129.950, Trained Tokens 57714, Peak mem 6.017 GB
+Iter 500: Train loss 0.125, Learning Rate 2.000e-05, It/sec 1.030, Tokens/sec 129.047, Trained Tokens 63976, Peak mem 6.017 GB
+Iter 550: Train loss 0.109, Learning Rate 2.000e-05, It/sec 0.955, Tokens/sec 126.638, Trained Tokens 70609, Peak mem 6.017 GB
+Calculating loss...:   0%|          | 0/2 [00:00<?, ?it/s]Calculating loss...:  50%|█████     | 1/2 [00:00<00:00,  2.50it/s]Calculating loss...: 100%|██████████| 2/2 [00:00<00:00,  2.70it/s]Calculating loss...: 100%|██████████| 2/2 [00:00<00:00,  2.67it/s]
+Iter 600: Val loss 1.006, Val took 0.752s
+Iter 600: Train loss 0.111, Learning Rate 2.000e-05, It/sec 0.915, Tokens/sec 117.386, Trained Tokens 77024, Peak mem 6.017 GB
+Iter 600: Saved adapter weights to /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-sft-lora/0000600_adapters.safetensors.
+Iter 650: Train loss 0.121, Learning Rate 2.000e-05, It/sec 1.117, Tokens/sec 137.792, Trained Tokens 83190, Peak mem 6.017 GB
+Iter 700: Train loss 0.117, Learning Rate 2.000e-05, It/sec 1.024, Tokens/sec 130.789, Trained Tokens 89577, Peak mem 6.017 GB
+Iter 750: Train loss 0.098, Learning Rate 2.000e-05, It/sec 1.017, Tokens/sec 135.672, Trained Tokens 96244, Peak mem 6.017 GB
+Calculating loss...:   0%|          | 0/2 [00:00<?, ?it/s]Calculating loss...:  50%|█████     | 1/2 [00:00<00:00,  2.11it/s]Calculating loss...: 100%|██████████| 2/2 [00:00<00:00,  2.34it/s]Calculating loss...: 100%|██████████| 2/2 [00:00<00:00,  2.30it/s]
+Iter 800: Val loss 0.856, Val took 0.888s
+Iter 800: Train loss 0.100, Learning Rate 2.000e-05, It/sec 1.052, Tokens/sec 138.116, Trained Tokens 102810, Peak mem 6.017 GB
+Iter 800: Saved adapter weights to /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-sft-lora/0000800_adapters.safetensors.
+Iter 850: Train loss 0.100, Learning Rate 2.000e-05, It/sec 1.040, Tokens/sec 138.830, Trained Tokens 109484, Peak mem 6.017 GB
+Iter 900: Train loss 0.127, Learning Rate 2.000e-05, It/sec 1.100, Tokens/sec 135.204, Trained Tokens 115631, Peak mem 6.017 GB
+Iter 950: Train loss 0.094, Learning Rate 2.000e-05, It/sec 1.017, Tokens/sec 136.034, Trained Tokens 122322, Peak mem 6.017 GB
+Calculating loss...:   0%|          | 0/2 [00:00<?, ?it/s]Calculating loss...:  50%|█████     | 1/2 [00:00<00:00,  2.80it/s]Calculating loss...: 100%|██████████| 2/2 [00:00<00:00,  2.39it/s]Calculating loss...: 100%|██████████| 2/2 [00:00<00:00,  2.44it/s]
+Iter 1000: Val loss 0.945, Val took 0.822s
+Iter 1000: Train loss 0.126, Learning Rate 2.000e-05, It/sec 1.141, Tokens/sec 140.437, Trained Tokens 128474, Peak mem 6.017 GB
+Iter 1000: Saved adapter weights to /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-sft-lora/0001000_adapters.safetensors.
+Saved final weights to /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors.
+Starting SFT LoRA training...
+  Base model: /Users/admin/prism/training/models/qwen-7b-mlx
+  Train data: /Users/admin/prism/training/data/sft_dataset.jsonl (3367 examples)
+  Valid data: /Users/admin/prism/training/data/sft_valid.jsonl (372 examples)
+  Output: /Users/admin/prism/training/models/prism-sft-lora
+
+Command: /Users/admin/prism/training/venv/bin/python -m mlx_lm.lora --model /Users/admin/prism/training/models/qwen-7b-mlx --train --data /Users/admin/prism/training/data --adapter-path /Users/admin/prism/training/models/prism-sft-lora --num-layers 16 --batch-size 1 --iters 1000 --val-batches 2 --learning-rate 2e-5 --steps-per-report 50 --steps-per-eval 200 --save-every 200 --max-seq-length 1024
+============================================================
+
+============================================================
+SFT LoRA training complete!
+Adapter saved to: /Users/admin/prism/training/models/prism-sft-lora

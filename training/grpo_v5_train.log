@@ -1,0 +1,22 @@
+Loading pretrained model
+Loading datasets
+Training
+Loading fine-tuned weights from /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors
+Trainable parameters: 0.151% (11.534M/7615.617M)
+Starting training..., iters: 400
+Calculating loss...:   0%|          | 0/17 [00:00<?, ?it/s]Calculating loss...:   6%|▌         | 1/17 [00:00<00:13,  1.20it/s]Calculating loss...:  12%|█▏        | 2/17 [00:01<00:08,  1.75it/s]Calculating loss...:  18%|█▊        | 3/17 [00:01<00:08,  1.71it/s]Calculating loss...:  24%|██▎       | 4/17 [00:02<00:09,  1.35it/s]Calculating loss...:  29%|██▉       | 5/17 [00:03<00:08,  1.45it/s]Calculating loss...:  35%|███▌      | 6/17 [00:03<00:07,  1.53it/s]Calculating loss...:  41%|████      | 7/17 [00:04<00:07,  1.34it/s]Calculating loss...:  47%|████▋     | 8/17 [00:05<00:05,  1.53it/s]Calculating loss...:  53%|█████▎    | 9/17 [00:05<00:05,  1.57it/s]Calculating loss...:  59%|█████▉    | 10/17 [00:06<00:05,  1.40it/s]Calculating loss...:  65%|██████▍   | 11/17 [00:07<00:04,  1.49it/s]Calculating loss...:  71%|███████   | 12/17 [00:08<00:03,  1.55it/s]Calculating loss...:  76%|███████▋  | 13/17 [00:08<00:02,  1.38it/s]Calculating loss...:  82%|████████▏ | 14/17 [00:09<00:01,  1.56it/s]Calculating loss...:  88%|████████▊ | 15/17 [00:09<00:01,  1.61it/s]Calculating loss...:  94%|█████████▍| 16/17 [00:10<00:00,  1.41it/s]Calculating loss...: 100%|██████████| 17/17 [00:11<00:00,  1.48it/s]Calculating loss...: 100%|██████████| 17/17 [00:11<00:00,  1.48it/s]
+Iter 1: Val loss 2.242, Val took 11.493s
+Iter 25: Train loss 1.061, Learning Rate 1.000e-05, It/sec 0.717, Tokens/sec 185.295, Trained Tokens 6461, Peak mem 7.082 GB
+Iter 50: Train loss 0.632, Learning Rate 1.000e-05, It/sec 0.716, Tokens/sec 187.761, Trained Tokens 13016, Peak mem 7.082 GB
+Iter 75: Train loss 0.374, Learning Rate 1.000e-05, It/sec 0.709, Tokens/sec 177.753, Trained Tokens 19280, Peak mem 7.082 GB
+Iter 100: Train loss 0.214, Learning Rate 1.000e-05, It/sec 0.702, Tokens/sec 184.056, Trained Tokens 25831, Peak mem 7.082 GB
+Iter 100: Saved adapter weights to /Users/admin/prism/training/models/prism-grpo-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-grpo-lora/0000100_adapters.safetensors.
+Iter 125: Train loss 0.175, Learning Rate 1.000e-05, It/sec 0.708, Tokens/sec 186.028, Trained Tokens 32402, Peak mem 7.128 GB
+Iter 150: Train loss 0.124, Learning Rate 1.000e-05, It/sec 0.715, Tokens/sec 177.325, Trained Tokens 38599, Peak mem 7.128 GB
+Iter 175: Train loss 0.124, Learning Rate 1.000e-05, It/sec 0.696, Tokens/sec 176.599, Trained Tokens 44938, Peak mem 7.128 GB
+Calculating loss...:   0%|          | 0/17 [00:00<?, ?it/s]Calculating loss...:   6%|▌         | 1/17 [00:00<00:09,  1.64it/s]Calculating loss...:  12%|█▏        | 2/17 [00:01<00:09,  1.65it/s]Calculating loss...:  18%|█▊        | 3/17 [00:02<00:10,  1.30it/s]Calculating loss...:  24%|██▎       | 4/17 [00:02<00:08,  1.54it/s]Calculating loss...:  29%|██▉       | 5/17 [00:03<00:07,  1.58it/s]Calculating loss...:  35%|███▌      | 6/17 [00:03<00:06,  1.58it/s]Calculating loss...:  41%|████      | 7/17 [00:04<00:06,  1.59it/s]Calculating loss...:  47%|████▋     | 8/17 [00:04<00:05,  1.75it/s]Calculating loss...:  53%|█████▎    | 9/17 [00:05<00:05,  1.48it/s]Calculating loss...:  59%|█████▉    | 10/17 [00:06<00:05,  1.32it/s]Calculating loss...:  65%|██████▍   | 11/17 [00:07<00:04,  1.39it/s]Calculating loss...:  71%|███████   | 12/17 [00:08<00:03,  1.48it/s]Calculating loss...:  76%|███████▋  | 13/17 [00:08<00:02,  1.66it/s]Calculating loss...:  82%|████████▏ | 14/17 [00:09<00:01,  1.67it/s]Calculating loss...:  88%|████████▊ | 15/17 [00:09<00:01,  1.67it/s]Calculating loss...:  94%|█████████▍| 16/17 [00:10<00:00,  1.43it/s]Calculating loss...: 100%|██████████| 17/17 [00:11<00:00,  1.32it/s]Calculating loss...: 100%|██████████| 17/17 [00:11<00:00,  1.48it/s]
+Iter 200: Val loss 1.138, Val took 11.467s
+Iter 200: Train loss 0.092, Learning Rate 1.000e-05, It/sec 0.706, Tokens/sec 186.275, Trained Tokens 51532, Peak mem 7.128 GB
+Iter 200: Saved adapter weights to /Users/admin/prism/training/models/prism-grpo-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-grpo-lora/0000200_adapters.safetensors.
+Iter 225: Train loss 0.119, Learning Rate 1.000e-05, It/sec 0.728, Tokens/sec 182.012, Trained Tokens 57782, Peak mem 7.128 GB
+Iter 250: Train loss 0.099, Learning Rate 1.000e-05, It/sec 0.813, Tokens/sec 216.088, Trained Tokens 64428, Peak mem 7.128 GB

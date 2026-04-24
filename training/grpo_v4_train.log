@@ -1,0 +1,308 @@
+
+============================================================
+Decomposed Reward Function Verification (v3.0):
+============================================================
+  [+0.800] Perfect: think + correct tool + all params
+          fmt=+0.25 tool=+0.25 prm=+0.15 abs=+0.15
+  [+0.550] No think, correct tool
+          fmt=+0.00 tool=+0.25 prm=+0.15 abs=+0.15
+  [+0.050] Hallucinated tool name
+          fmt=+0.00 tool=-0.25 prm=+0.15 abs=+0.15
+  [-0.250] Invalid JSON
+          fmt=-0.05 tool=-0.20 prm=+0.00 abs=+0.00
+  [+0.300] Correct abstention (reasoning)
+          fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+  [+0.200] False positive: tool used unnecessarily
+          fmt=+0.20 tool=+0.10 prm=+0.15 abs=-0.25
+  [+0.240] Missing required params
+          fmt=+0.00 tool=+0.25 prm=-0.16 abs=+0.15
+  [+0.050] Short abstention
+          fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.15
+============================================================
+
+============================================================
+GRPO Alignment v3.0 — Decomposed 4-Component Rewards
+  Synthetic injection: ON
+  Data repetition: 3x
+  Iterations: 300
+  Learning rate: 1e-05
+============================================================
+
+Loading SFT model + adapter...
+    [Prompt 1 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 1 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 1 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 1 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 2 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 2 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 2 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 2 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 3 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 3 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 3 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 3 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 4 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 4 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 4 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 4 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 5 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 5 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 5 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 5 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 6 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 6 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 6 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 6 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 7 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 7 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 7 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 7 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 8 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 8 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 8 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 8 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 9 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 9 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 9 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 9 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 10 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 10 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 10 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 10 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 11 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 11 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 11 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 11 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 12 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 12 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 12 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 12 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 13 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 13 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 13 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 13 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 14 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 14 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 14 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 14 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 15 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 15 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 15 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 15 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 16 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 16 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 16 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 16 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 17 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 17 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 17 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 17 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 18 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 18 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 18 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 18 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 19 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 19 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 19 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 19 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 20 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 20 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 20 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 20 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 21 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 21 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 21 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 21 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 22 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 22 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 22 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 22 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 23 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 23 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 23 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 23 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 24 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 24 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 24 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 24 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 25 Gen 1] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 25 Gen 2] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 25 Gen 3] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 25 Gen 4] R=-0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=-0.20
+    [Prompt 26 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 26 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 26 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 26 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 27 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 27 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 27 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 27 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 28 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 28 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 28 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 28 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 29 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 29 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 29 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 29 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 30 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 30 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 30 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 30 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 31 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 31 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 31 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 31 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 32 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 32 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 32 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 32 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 33 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 33 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 33 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 33 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 34 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 34 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 34 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 34 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 35 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 35 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 35 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 35 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 36 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 36 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 36 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 36 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 37 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 37 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 37 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 37 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 38 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 38 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 38 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 38 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 39 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 39 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 39 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 39 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 40 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 40 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 40 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 40 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 41 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 41 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 41 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 41 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 42 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 42 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 42 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 42 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 43 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 43 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 43 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 43 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 44 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 44 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 44 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 44 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 45 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 45 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 45 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 45 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 46 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 46 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 46 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 46 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 47 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 47 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 47 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 47 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 48 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 48 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 48 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 48 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 49 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 49 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 49 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 49 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 50 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 50 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 50 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 50 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 51 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 51 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 51 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 51 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 52 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 52 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 52 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 52 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 53 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 53 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 53 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 53 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 54 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 54 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 54 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 54 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 55 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 55 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 55 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 55 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 56 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 56 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 56 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 56 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 57 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 57 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 57 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 57 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 58 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 58 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 58 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 58 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 59 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 59 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 59 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 59 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 60 Gen 1] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 60 Gen 2] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 60 Gen 3] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+    [Prompt 60 Gen 4] R=+0.300 fmt=-0.10 tool=+0.00 prm=+0.00 abs=+0.40
+
+Generated 59 preference pairs
+  Train: 53 unique × 3 = 159 examples (SFT on gold chosen)
+  Valid: 6 unique × 3 = 18 examples
+
+Running SFT alignment on gold responses...
+Command: /Users/admin/prism/training/venv/bin/python -m mlx_lm lora --model /Users/admin/prism/training/models/qwen-7b-mlx --train --data /Users/admin/prism/training/data --adapter-path /Users/admin/prism/training/models/prism-grpo-lora --num-layers 16 --batch-size 2 --iters 300 --max-seq-length 2048 --learning-rate 1e-05 --steps-per-report 25 --save-every 100 --resume-adapter-file /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors
+Loading pretrained model
+Loading datasets
+Training
+Loading fine-tuned weights from /Users/admin/prism/training/models/prism-sft-lora/adapters.safetensors
+Trainable parameters: 0.151% (11.534M/7615.617M)
+Starting training..., iters: 300
+Calculating loss...:   0%|          | 0/9 [00:00<?, ?it/s]Calculating loss...:  11%|█         | 1/9 [00:01<00:09,  1.15s/it]Calculating loss...:  22%|██▏       | 2/9 [00:01<00:06,  1.11it/s]Calculating loss...:  33%|███▎      | 3/9 [00:02<00:05,  1.17it/s]Calculating loss...:  44%|████▍     | 4/9 [00:03<00:04,  1.21it/s]Calculating loss...:  56%|█████▌    | 5/9 [00:04<00:03,  1.25it/s]Calculating loss...:  67%|██████▋   | 6/9 [00:04<00:02,  1.28it/s]Calculating loss...:  78%|███████▊  | 7/9 [00:05<00:01,  1.30it/s]Calculating loss...:  89%|████████▉ | 8/9 [00:06<00:00,  1.34it/s]Calculating loss...: 100%|██████████| 9/9 [00:07<00:00,  1.35it/s]Calculating loss...: 100%|██████████| 9/9 [00:07<00:00,  1.26it/s]
+Iter 1: Val loss 2.176, Val took 7.144s
+Iter 25: Train loss 1.029, Learning Rate 1.000e-05, It/sec 0.741, Tokens/sec 186.509, Trained Tokens 6290, Peak mem 7.075 GB
+Iter 50: Train loss 0.622, Learning Rate 1.000e-05, It/sec 0.682, Tokens/sec 178.935, Trained Tokens 12846, Peak mem 7.076 GB
+Iter 75: Train loss 0.401, Learning Rate 1.000e-05, It/sec 0.696, Tokens/sec 182.202, Trained Tokens 19387, Peak mem 7.088 GB
+Iter 100: Train loss 0.172, Learning Rate 1.000e-05, It/sec 0.693, Tokens/sec 176.611, Trained Tokens 25760, Peak mem 7.088 GB
+Iter 100: Saved adapter weights to /Users/admin/prism/training/models/prism-grpo-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-grpo-lora/0000100_adapters.safetensors.
+Iter 125: Train loss 0.137, Learning Rate 1.000e-05, It/sec 0.686, Tokens/sec 176.331, Trained Tokens 32185, Peak mem 7.153 GB
+Iter 150: Train loss 0.115, Learning Rate 1.000e-05, It/sec 0.672, Tokens/sec 176.866, Trained Tokens 38760, Peak mem 7.153 GB
+Iter 175: Train loss 0.099, Learning Rate 1.000e-05, It/sec 0.665, Tokens/sec 175.187, Trained Tokens 45343, Peak mem 7.153 GB
+Calculating loss...:   0%|          | 0/9 [00:00<?, ?it/s]Calculating loss...:  11%|█         | 1/9 [00:00<00:06,  1.19it/s]Calculating loss...:  22%|██▏       | 2/9 [00:01<00:05,  1.21it/s]Calculating loss...:  33%|███▎      | 3/9 [00:02<00:04,  1.22it/s]Calculating loss...:  44%|████▍     | 4/9 [00:03<00:04,  1.24it/s]Calculating loss...:  56%|█████▌    | 5/9 [00:04<00:03,  1.25it/s]Calculating loss...:  67%|██████▋   | 6/9 [00:04<00:02,  1.26it/s]Calculating loss...:  78%|███████▊  | 7/9 [00:05<00:01,  1.25it/s]Calculating loss...:  89%|████████▉ | 8/9 [00:06<00:00,  1.26it/s]Calculating loss...: 100%|██████████| 9/9 [00:07<00:00,  1.27it/s]Calculating loss...: 100%|██████████| 9/9 [00:07<00:00,  1.25it/s]
+Iter 200: Val loss 1.458, Val took 7.187s
+Iter 200: Train loss 0.110, Learning Rate 1.000e-05, It/sec 0.704, Tokens/sec 177.794, Trained Tokens 51654, Peak mem 7.153 GB
+Iter 200: Saved adapter weights to /Users/admin/prism/training/models/prism-grpo-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-grpo-lora/0000200_adapters.safetensors.
+Iter 225: Train loss 0.100, Learning Rate 1.000e-05, It/sec 0.675, Tokens/sec 175.424, Trained Tokens 58155, Peak mem 7.153 GB
+Iter 250: Train loss 0.097, Learning Rate 1.000e-05, It/sec 0.651, Tokens/sec 172.742, Trained Tokens 64784, Peak mem 7.153 GB
+Iter 275: Train loss 0.096, Learning Rate 1.000e-05, It/sec 0.757, Tokens/sec 193.728, Trained Tokens 71184, Peak mem 7.153 GB
+Calculating loss...:   0%|          | 0/9 [00:00<?, ?it/s]Calculating loss...:  11%|█         | 1/9 [00:00<00:07,  1.11it/s]Calculating loss...:  22%|██▏       | 2/9 [00:01<00:06,  1.12it/s]Calculating loss...:  33%|███▎      | 3/9 [00:02<00:05,  1.15it/s]Calculating loss...:  44%|████▍     | 4/9 [00:03<00:04,  1.17it/s]Calculating loss...:  56%|█████▌    | 5/9 [00:04<00:03,  1.19it/s]Calculating loss...:  67%|██████▋   | 6/9 [00:05<00:02,  1.21it/s]Calculating loss...:  78%|███████▊  | 7/9 [00:05<00:01,  1.23it/s]Calculating loss...:  89%|████████▉ | 8/9 [00:06<00:00,  1.22it/s]Calculating loss...: 100%|██████████| 9/9 [00:07<00:00,  1.22it/s]Calculating loss...: 100%|██████████| 9/9 [00:07<00:00,  1.20it/s]
+Iter 300: Val loss 1.529, Val took 7.526s
+Iter 300: Train loss 0.095, Learning Rate 1.000e-05, It/sec 0.652, Tokens/sec 169.846, Trained Tokens 77700, Peak mem 7.153 GB
+Iter 300: Saved adapter weights to /Users/admin/prism/training/models/prism-grpo-lora/adapters.safetensors and /Users/admin/prism/training/models/prism-grpo-lora/0000300_adapters.safetensors.
+Saved final weights to /Users/admin/prism/training/models/prism-grpo-lora/adapters.safetensors.
+
+GRPO alignment complete! Adapter: /Users/admin/prism/training/models/prism-grpo-lora
