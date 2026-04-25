@@ -216,6 +216,59 @@ TOOL_PROMPTS = {
             ("Route this coding task appropriately", {"task_description": "coding task routing"}),
         ]
     },
+    "knowledge_set_retention": {
+        "default_args": {"project": "prism-mcp", "ttl_days": 90},
+        "prompts": [
+            ("Set a 90-day retention policy for the billing project.", {"project": "billing", "ttl_days": 90}),
+            ("Auto-expire entries older than 30 days for staging project.", {"project": "staging", "ttl_days": 30}),
+            ("Configure TTL of 60 days for the analytics project's memory.", {"project": "analytics", "ttl_days": 60}),
+            ("Set data retention to 7 days for the test project.", {"project": "test", "ttl_days": 7}),
+            ("I want entries older than 180 days to auto-expire in prism-mcp.", {"project": "prism-mcp", "ttl_days": 180}),
+            ("Set a retention policy on the bcba-private project to keep only the last 14 days.", {"project": "bcba-private", "ttl_days": 14}),
+            ("Enable auto-expiry for the demo project. 30 day TTL.", {"project": "demo", "ttl_days": 30}),
+            ("Configure memory retention: 90 days for synalux-portal.", {"project": "synalux-portal", "ttl_days": 90}),
+            ("Set TTL to 45 days for the dev project.", {"project": "dev", "ttl_days": 45}),
+            ("Disable auto-expiry for the production project.", {"project": "production", "ttl_days": 0}),
+            ("Turn off retention for prism-mcp.", {"project": "prism-mcp", "ttl_days": 0}),
+            ("I need old entries to automatically clean up after 120 days in the analytics project.", {"project": "analytics", "ttl_days": 120}),
+            ("Set retention.", {"project": "prism-mcp", "ttl_days": 90}),
+            ("Auto-expire old memory after 60 days.", {"project": "prism-mcp", "ttl_days": 60}),
+            ("Retention policy: 30 days, project analytics.", {"project": "analytics", "ttl_days": 30}),
+        ]
+    },
+    "session_save_image": {
+        "default_args": {"project": "prism-mcp", "file_path": "/tmp/screenshot.png", "description": "Screenshot"},
+        "prompts": [
+            ("Save the screenshot at /tmp/screenshot.png to the dashboard project. Description: Login page redesign mockup.", {"project": "dashboard", "file_path": "/tmp/screenshot.png", "description": "Login page redesign mockup"}),
+            ("Store this image /tmp/diagram.png in the prism-mcp project visual memory. It shows the architecture overview.", {"project": "prism-mcp", "file_path": "/tmp/diagram.png", "description": "Architecture overview diagram"}),
+            ("Remember this screenshot: /tmp/bug.png for the billing project. Shows the payment form glitch.", {"project": "billing", "file_path": "/tmp/bug.png", "description": "Payment form glitch"}),
+            ("Add /tmp/mockup.jpg to visual memory for synalux-portal. It's the new landing page design.", {"project": "synalux-portal", "file_path": "/tmp/mockup.jpg", "description": "New landing page design"}),
+            ("Save image /tmp/graph.svg to the analytics project — performance benchmark chart.", {"project": "analytics", "file_path": "/tmp/graph.svg", "description": "Performance benchmark chart"}),
+            ("Put this diagram into visual memory: /tmp/flow.png for prism-mcp. Shows the data flow pipeline.", {"project": "prism-mcp", "file_path": "/tmp/flow.png", "description": "Data flow pipeline"}),
+            ("Store /tmp/ui-state.webp for the dashboard project. It's the current UI state before refactor.", {"project": "dashboard", "file_path": "/tmp/ui-state.webp", "description": "UI state before refactor"}),
+            ("Save this to visual memory: /tmp/error.png for billing. Shows the 500 error page.", {"project": "billing", "file_path": "/tmp/error.png", "description": "500 error page"}),
+            ("Save image.", {"project": "prism-mcp", "file_path": "/tmp/screenshot.png", "description": "Screenshot"}),
+            ("Save the screenshot to project memory.", {"project": "prism-mcp", "file_path": "/tmp/screenshot.png", "description": "Screenshot"}),
+            ("Store the diagram /tmp/class-diagram.png for prism-mcp. Class inheritance diagram.", {"project": "prism-mcp", "file_path": "/tmp/class-diagram.png", "description": "Class inheritance diagram"}),
+            ("Remember this image /tmp/before.png for the refactor project — shows state before changes.", {"project": "refactor", "file_path": "/tmp/before.png", "description": "State before changes"}),
+            ("Upload /tmp/wireframe.png to the design project's visual memory vault. Wireframe for settings page.", {"project": "design", "file_path": "/tmp/wireframe.png", "description": "Settings page wireframe"}),
+            ("Persist this screenshot to memory: /tmp/test-results.png for the qa project. Test run results dashboard.", {"project": "qa", "file_path": "/tmp/test-results.png", "description": "Test run results dashboard"}),
+            ("Archive the image at /tmp/deploy-status.png for the ops project. Deployment status overview.", {"project": "ops", "file_path": "/tmp/deploy-status.png", "description": "Deployment status overview"}),
+        ]
+    },
+    "session_view_image": {
+        "default_args": {"project": "prism-mcp", "image_id": "abc123"},
+        "prompts": [
+            ("Show me the image abc123 from prism-mcp.", {"project": "prism-mcp", "image_id": "abc123"}),
+            ("View the screenshot with ID def456 from the dashboard project.", {"project": "dashboard", "image_id": "def456"}),
+            ("Pull up image 8f2a1b3c from the billing project visual memory.", {"project": "billing", "image_id": "8f2a1b3c"}),
+            ("Retrieve the diagram we saved earlier. ID is xyz789, project prism-mcp.", {"project": "prism-mcp", "image_id": "xyz789"}),
+            ("Let me see that screenshot from before. Image ID aaa111, analytics project.", {"project": "analytics", "image_id": "aaa111"}),
+            ("Display image bbb222 from synalux-portal.", {"project": "synalux-portal", "image_id": "bbb222"}),
+            ("Open the visual memory entry ccc333 for the ops project.", {"project": "ops", "image_id": "ccc333"}),
+            ("View image.", {"project": "prism-mcp", "image_id": "abc123"}),
+        ]
+    },
 }
 
 # === REASONING PROMPTS (diverse, NO tool) ===
@@ -362,6 +415,20 @@ DISAMBIGUATION_THINK = {
     "knowledge_search": [
         "The user wants to search the knowledge base for accumulated insights. knowledge_search queries curated knowledge items, not raw session history.",
         "This is about searching institutional knowledge. knowledge_search looks through curated KIs, which is what's needed.",
+    ],
+    "knowledge_set_retention": [
+        "The user wants to SET a retention policy / TTL / auto-expire rule. This CONFIGURES when entries expire — it does NOT delete anything right now. I need knowledge_set_retention, NOT knowledge_forget (which immediately deletes entries).",
+        "This is about configuring auto-expiry, not deleting. knowledge_set_retention sets a TTL policy. knowledge_forget performs immediate bulk deletion — completely different.",
+        "Setting a retention policy means configuring future auto-cleanup. The right tool is knowledge_set_retention (sets TTL). knowledge_forget would immediately delete — that's not what the user wants.",
+    ],
+    "session_save_image": [
+        "The user wants to save/store an image or screenshot to visual memory. I need session_save_image which stores images in the visual memory vault. session_save_handoff is for passing state to the next agent — not for images.",
+        "This is about persisting an image file. session_save_image handles visual memory (screenshots, diagrams). session_save_handoff and session_save_ledger are for text-based state — wrong tools for images.",
+        "The user wants to store a visual (image/screenshot/diagram). session_save_image is the only tool that handles file-based visual memory. session_save_handoff is for agent state transfer, not images.",
+    ],
+    "session_view_image": [
+        "The user wants to view/retrieve a previously saved image from visual memory. session_view_image fetches the image by ID.",
+        "This is about retrieving a stored image. session_view_image returns the image content from the visual memory vault.",
     ],
 }
 

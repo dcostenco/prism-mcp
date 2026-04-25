@@ -74,10 +74,74 @@ PRISM_INTENT_PATTERNS = [
 ]
 
 def validate_tool_call(prompt, tool_name, tool_args):
-    """Layer 3: reject false-positive tool calls on general programming prompts."""
+    """Layer 3: reject false-positive tool calls on general programming prompts,
+    AND remap tool calls when the model picks a close semantic neighbor
+    for a tool it wasn't trained on."""
+    
+    prompt_lower = prompt.lower()
+    
+    # --- Layer 3a: Tool Remapping (fix known model blind spots) ---
+    
+    # Known target tools that should never be remapped FROM
+    RETENTION_TOOL = "knowledge_set_retention"
+    IMAGE_SAVE_TOOL = "session_save_image"
+    IMAGE_VIEW_TOOL = "session_view_image"
+    NO_REMAP = {RETENTION_TOOL, IMAGE_SAVE_TOOL, IMAGE_VIEW_TOOL, "NO_TOOL"}
+    
+    if tool_name not in NO_REMAP:
+        # Remap ANY tool → knowledge_set_retention
+        # when the prompt is clearly about setting retention/TTL/auto-expire policy
+        retention_patterns = [
+            r'\bretention\s+polic', r'\bttl\b', r'\bauto.?expir',
+            r'\bset\s+.*retention\b', r'\bconfigure\s+.*retention\b',
+            r'\bretention\b.*\bday', r'\bexpir.*\b\d+\s*day',
+            r'\bkeep\s+only\s+.*last\s+\d+\s+day',
+            r'\b\d+[\s-]day\s+retention\b',
+        ]
+        if any(re.search(p, prompt_lower) for p in retention_patterns):
+            tool_args_remap = dict(tool_args)
+            # Extract ttl_days from prompt
+            days_match = re.search(r'(\d+)[\s-]*day', prompt_lower)
+            if days_match:
+                tool_args_remap["ttl_days"] = int(days_match.group(1))
+            if "older_than_days" in tool_args_remap:
+                tool_args_remap["ttl_days"] = tool_args_remap.pop("older_than_days")
+            return RETENTION_TOOL, tool_args_remap
+        
+        # Remap ANY tool → session_save_image
+        # when the prompt is clearly about saving/storing an image/screenshot/diagram
+        image_save_patterns = [
+            r'\bsave\s+(?:the\s+|an?\s+)?(?:image|screenshot|diagram|photo|picture)\b',
+            r'\bstore\s+(?:the\s+|an?\s+)?(?:image|screenshot|diagram)\b',
+            r'\bimage\s+at\s+/', r'\bscreenshot\s+at\s+/',
+            r'\b(?:image|screenshot|diagram)\s+.*\.(?:png|jpg|jpeg|svg|webp|gif)\b',
+            r'\bvisual\s+memory\b',
+            r'\bremember\s+(?:this\s+)?(?:image|screenshot)\b',
+            r'\.(?:png|jpg|jpeg|svg|webp|gif)\b.*\b(?:save|store|persist|archive)\b',
+            r'\b(?:save|store|persist|archive)\b.*\.(?:png|jpg|jpeg|svg|webp|gif)\b',
+        ]
+        if any(re.search(p, prompt_lower) for p in image_save_patterns):
+            tool_args_remap = dict(tool_args)
+            path_match = re.search(r'(/\S+\.(?:png|jpg|jpeg|svg|webp|gif))', prompt)
+            if path_match:
+                tool_args_remap["file_path"] = path_match.group(1)
+            return IMAGE_SAVE_TOOL, tool_args_remap
+        
+        # Remap ANY tool → session_view_image
+        # when the prompt is about viewing/retrieving a saved image
+        image_view_patterns = [
+            r'\bview\s+(?:the\s+)?(?:image|screenshot|diagram)\b',
+            r'\bshow\s+(?:me\s+)?(?:the\s+)?(?:image|screenshot)\b',
+            r'\bretrieve\s+(?:the\s+)?(?:image|diagram)\b',
+            r'\bpull\s+up\s+(?:image|screenshot)\b',
+            r'\bdisplay\s+image\b',
+        ]
+        if any(re.search(p, prompt_lower) for p in image_view_patterns):
+            return IMAGE_VIEW_TOOL, dict(tool_args)
+    
+    # --- Layer 3b: False-positive rejection (existing behavior) ---
     if tool_name == "NO_TOOL":
         return tool_name, tool_args
-    prompt_lower = prompt.lower()
     is_general = any(re.search(p, prompt_lower) for p in GENERAL_PROGRAMMING_PATTERNS)
     if not is_general:
         return tool_name, tool_args
