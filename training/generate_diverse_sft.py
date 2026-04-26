@@ -15,7 +15,7 @@ import json
 import random
 
 TOOL_CALL_OPEN = "<|tool_call|>"
-TOOL_CALL_CLOSE = "<|tool_call_end|>"
+TOOL_CALL_CLOSE = "</|tool_call|>"
 
 # === DIVERSE PHRASINGS PER TOOL ===
 # Each tool has 15-20 varied prompts with different styles
@@ -25,17 +25,17 @@ TOOL_PROMPTS = {
         "default_args": {"project": "prism-mcp", "level": "deep", "toolAction": "Loading context", "toolSummary": "Loading project context"},
         "prompts": [
             ("Load context for prism-mcp project", {"project": "prism-mcp"}),
-            ("Pull up the context for synalux-portal", {"project": "synalux-portal"}),
+            ("Pull up the context for docs-portal", {"project": "docs-portal"}),
             ("Hey, start a new session. Show me where we left off on prism-mcp.", {"project": "prism-mcp"}),
-            ("Initialize session context for bcba-private", {"project": "bcba-private"}),
-            ("What was our last state on the synalux project?", {"project": "synalux-portal"}),
+            ("Initialize session context for billing-portal", {"project": "billing-portal"}),
+            ("What was our last state on the synalux project?", {"project": "docs-portal"}),
             ("Resume work on prism-mcp", {"project": "prism-mcp"}),
             ("Show me what we were working on last time", {"project": "prism-mcp"}),
             ("Boot up the prism-mcp context please", {"project": "prism-mcp"}),
-            ("I want to continue where we left off on synalux-portal", {"project": "synalux-portal"}),
-            ("Get me up to speed on the bcba-private project", {"project": "bcba-private"}),
+            ("I want to continue where we left off on docs-portal", {"project": "docs-portal"}),
+            ("Get me up to speed on the billing-portal project", {"project": "billing-portal"}),
             ("Restore the previous session state", {"project": "prism-mcp"}),
-            ("Pull up everything we had on the synalux docs", {"project": "synalux-docs"}),
+            ("Pull up everything we had on the internal docs", {"project": "docs-portal"}),
             ("What's the current state of prism-mcp?", {"project": "prism-mcp"}),
             ("Load context.", {"project": "prism-mcp"}),
             ("Start session.", {"project": "prism-mcp"}),
@@ -90,20 +90,20 @@ TOOL_PROMPTS = {
     "session_save_handoff": {
         "default_args": {"project": "prism-mcp"},
         "prompts": [
-            ("Create a handoff for the synalux-portal project", {"project": "synalux-portal"}),
+            ("Create a handoff for the docs-portal project", {"project": "docs-portal"}),
             ("I'm handing this off to the night shift. Save the state for prism-mcp.", {"project": "prism-mcp"}),
             ("Save handoff notes for the next session", {"project": "prism-mcp"}),
-            ("Prepare the handoff — someone else will pick this up tomorrow", {"project": "synalux-portal"}),
-            ("Create transition notes for bcba-private", {"project": "bcba-private"}),
-            ("Pass the baton — save where we are on synalux-docs", {"project": "synalux-docs"}),
+            ("Prepare the handoff — someone else will pick this up tomorrow", {"project": "docs-portal"}),
+            ("Create transition notes for billing-portal", {"project": "billing-portal"}),
+            ("Pass the baton — save where we are on docs-portal", {"project": "docs-portal"}),
             ("I need to switch contexts. Save the handoff state.", {"project": "prism-mcp"}),
             ("Make sure the next person knows where we left off", {"project": "prism-mcp"}),
-            ("Handoff time. Save the current project state.", {"project": "synalux-portal"}),
+            ("Handoff time. Save the current project state.", {"project": "docs-portal"}),
             ("End my shift. Create handoff notes.", {"project": "prism-mcp"}),
             ("Save handoff.", {"project": "prism-mcp"}),
             ("Write handoff for the prism project", {"project": "prism-mcp"}),
             ("Archive current state so the next agent can resume", {"project": "prism-mcp"}),
-            ("Freeze the state and prepare handoff notes", {"project": "synalux-portal"}),
+            ("Freeze the state and prepare handoff notes", {"project": "docs-portal"}),
             ("Wrap up and hand off to the next session", {"project": "prism-mcp"}),
         ]
     },
@@ -178,12 +178,12 @@ TOOL_PROMPTS = {
         "prompts": [
             ("Compact old ledger entries for the prism-mcp project", {"project": "prism-mcp"}),
             ("The ledger is getting huge. Summarize and archive the old stuff.", {"project": "prism-mcp"}),
-            ("Clean up the session history, compact entries", {"project": "synalux-portal"}),
+            ("Clean up the session history, compact entries", {"project": "docs-portal"}),
             ("Archive old entries and roll them up", {"project": "prism-mcp"}),
             ("The session log is too long. Compact it.", {"project": "prism-mcp"}),
             ("Compress the older ledger entries into summaries", {"project": "prism-mcp"}),
             ("Run compaction on the prism-mcp ledger", {"project": "prism-mcp"}),
-            ("Tidy up the session history", {"project": "synalux-portal"}),
+            ("Tidy up the session history", {"project": "docs-portal"}),
             ("Compact ledger.", {"project": "prism-mcp"}),
             ("Roll up old sessions into summaries", {"project": "prism-mcp"}),
         ]
@@ -193,7 +193,7 @@ TOOL_PROMPTS = {
         "prompts": [
             ("Export prism-mcp memory to /tmp/export", {"output_dir": "/tmp/export", "project": "prism-mcp"}),
             ("Dump everything to a file so I can back it up. JSON format, save to /tmp/prism-backup.", {"output_dir": "/tmp/prism-backup", "format": "json"}),
-            ("Export all memory data for bcba-private to my desktop", {"output_dir": "/Users/admin/Desktop", "project": "bcba-private"}),
+            ("Export all memory data for billing-portal to my desktop", {"output_dir": "/tmp/export", "project": "billing-portal"}),
             ("Back up the knowledge base to JSON", {"output_dir": "/tmp/export", "format": "json"}),
             ("Save a snapshot of all session data to /tmp/dump", {"output_dir": "/tmp/dump"}),
             ("Create a portable export of the prism project", {"output_dir": "/tmp/export", "project": "prism-mcp"}),
@@ -224,9 +224,9 @@ TOOL_PROMPTS = {
             ("Configure TTL of 60 days for the analytics project's memory.", {"project": "analytics", "ttl_days": 60}),
             ("Set data retention to 7 days for the test project.", {"project": "test", "ttl_days": 7}),
             ("I want entries older than 180 days to auto-expire in prism-mcp.", {"project": "prism-mcp", "ttl_days": 180}),
-            ("Set a retention policy on the bcba-private project to keep only the last 14 days.", {"project": "bcba-private", "ttl_days": 14}),
+            ("Set a retention policy on the billing-portal project to keep only the last 14 days.", {"project": "billing-portal", "ttl_days": 14}),
             ("Enable auto-expiry for the demo project. 30 day TTL.", {"project": "demo", "ttl_days": 30}),
-            ("Configure memory retention: 90 days for synalux-portal.", {"project": "synalux-portal", "ttl_days": 90}),
+            ("Configure memory retention: 90 days for docs-portal.", {"project": "docs-portal", "ttl_days": 90}),
             ("Set TTL to 45 days for the dev project.", {"project": "dev", "ttl_days": 45}),
             ("Disable auto-expiry for the production project.", {"project": "production", "ttl_days": 0}),
             ("Turn off retention for prism-mcp.", {"project": "prism-mcp", "ttl_days": 0}),
@@ -242,7 +242,7 @@ TOOL_PROMPTS = {
             ("Save the screenshot at /tmp/screenshot.png to the dashboard project. Description: Login page redesign mockup.", {"project": "dashboard", "file_path": "/tmp/screenshot.png", "description": "Login page redesign mockup"}),
             ("Store this image /tmp/diagram.png in the prism-mcp project visual memory. It shows the architecture overview.", {"project": "prism-mcp", "file_path": "/tmp/diagram.png", "description": "Architecture overview diagram"}),
             ("Remember this screenshot: /tmp/bug.png for the billing project. Shows the payment form glitch.", {"project": "billing", "file_path": "/tmp/bug.png", "description": "Payment form glitch"}),
-            ("Add /tmp/mockup.jpg to visual memory for synalux-portal. It's the new landing page design.", {"project": "synalux-portal", "file_path": "/tmp/mockup.jpg", "description": "New landing page design"}),
+            ("Add /tmp/mockup.jpg to visual memory for docs-portal. It's the new landing page design.", {"project": "docs-portal", "file_path": "/tmp/mockup.jpg", "description": "New landing page design"}),
             ("Save image /tmp/graph.svg to the analytics project — performance benchmark chart.", {"project": "analytics", "file_path": "/tmp/graph.svg", "description": "Performance benchmark chart"}),
             ("Put this diagram into visual memory: /tmp/flow.png for prism-mcp. Shows the data flow pipeline.", {"project": "prism-mcp", "file_path": "/tmp/flow.png", "description": "Data flow pipeline"}),
             ("Store /tmp/ui-state.webp for the dashboard project. It's the current UI state before refactor.", {"project": "dashboard", "file_path": "/tmp/ui-state.webp", "description": "UI state before refactor"}),
@@ -264,7 +264,7 @@ TOOL_PROMPTS = {
             ("Pull up image 8f2a1b3c from the billing project visual memory.", {"project": "billing", "image_id": "8f2a1b3c"}),
             ("Retrieve the diagram we saved earlier. ID is xyz789, project prism-mcp.", {"project": "prism-mcp", "image_id": "xyz789"}),
             ("Let me see that screenshot from before. Image ID aaa111, analytics project.", {"project": "analytics", "image_id": "aaa111"}),
-            ("Display image bbb222 from synalux-portal.", {"project": "synalux-portal", "image_id": "bbb222"}),
+            ("Display image bbb222 from docs-portal.", {"project": "docs-portal", "image_id": "bbb222"}),
             ("Open the visual memory entry ccc333 for the ops project.", {"project": "ops", "image_id": "ccc333"}),
             ("View image.", {"project": "prism-mcp", "image_id": "abc123"}),
         ]
@@ -489,7 +489,7 @@ def build_completion(tool_name, args, default_args):
     else:
         think = random.choice(GENERIC_THINK).format(tool_name=tool_name)
     
-    return f"<think>\n{think}\n</think>\n\n{TOOL_CALL_OPEN}\n{tool_json}\n{TOOL_CALL_CLOSE}"
+    return f"<|synalux_think|>\n{think}\n</|synalux_think|>\n\n{TOOL_CALL_OPEN}\n{tool_json}\n{TOOL_CALL_CLOSE}"
 
 
 def build_reasoning_completion(prompt):
@@ -536,14 +536,595 @@ def build_reasoning_completion(prompt):
     else:
         think = random.choice(REASONING_THINK[:5])  # generic no-tool
     
-    return f"<think>\n{think}\n</think>\n\nI'll answer this directly.\n\n"
+    return f"<|synalux_think|>\n{think}\n</|synalux_think|>\n\nI'll answer this directly.\n\n"
 
+
+
+# ============================================================================
+# EXPERIMENT 1: Proactive Clarification (Human-in-the-Loop)
+# ============================================================================
+# In benchmarks, models guess params. In production, guessing a memory_id
+# for session_forget_memory DELETES USER DATA. Train the model to ask.
+
+CLARIFICATION_TRACES = [
+    # Destructive action without ID
+    {
+        "user": "Nuke the last memory entry.",
+        "think": "The user wants to delete a memory, but didn't provide the memory ID. "
+                 "session_forget_memory requires a memory_id (UUID). This is a destructive action — "
+                 "I must NEVER guess a memory ID. I need to ask for confirmation with the specific entry.",
+        "response": "<|synalux_answer|>I can delete a memory entry, but I need to confirm which one. "
+                    "Could you provide the memory ID? You can find it by running a memory search first."
+                    "</|synalux_answer|>",
+    },
+    # Ambiguous project delete
+    {
+        "user": "Forget everything about that old project.",
+        "think": "The user wants to use knowledge_forget to clear a project's history, but didn't specify "
+                 "which project. This is irreversible. I must confirm the project name before proceeding.",
+        "response": "<|synalux_answer|>I can clear a project's memory, but this is permanent. "
+                    "Which project did you mean? And would you like a dry run first to see what would be deleted?"
+                    "</|synalux_answer|>",
+    },
+    # Missing required param — conversation_id
+    {
+        "user": "Save the ledger.",
+        "think": "The user wants to save a session ledger entry, but session_save_ledger requires a summary "
+                 "of what was accomplished. The user gave no summary. I should ask what to record rather than "
+                 "saving an empty entry.",
+        "response": "<|synalux_answer|>Sure! What should I record as the summary for this session? "
+                    "For example: 'Fixed auth bug' or 'Implemented user profiles'.</|synalux_answer|>",
+    },
+    # Destructive with wrong type hint
+    {
+        "user": "Hard delete memory John.",
+        "think": "The user wants a hard delete (irreversible) of a memory entry. 'John' is not a valid UUID — "
+                 "session_forget_memory requires a UUID like '550e8400-e29b-41d4-a716-446655440000'. "
+                 "I must not attempt to search and guess. I need the exact ID.",
+        "response": "<|synalux_answer|>Hard delete is irreversible. I need the exact memory UUID, not a name. "
+                    "Try searching first: I can search for entries related to 'John' and show you the IDs."
+                    "</|synalux_answer|>",
+    },
+    # Bulk action without scope
+    {
+        "user": "Clean up all the old sessions.",
+        "think": "The user wants to compact or forget old sessions, but hasn't specified which project, "
+                 "how old is 'old', or whether they want compaction (summary) vs deletion. "
+                 "I need to ask for scope before proceeding with any destructive operation.",
+        "response": "<|synalux_answer|>I can help clean up! A few questions:\n"
+                    "1. Which project? Or all projects?\n"
+                    "2. How old — older than 30 days? 90 days?\n"
+                    "3. Do you want to compact (summarize and archive) or permanently delete?"
+                    "</|synalux_answer|>",
+    },
+    # Ambiguous retention policy
+    {
+        "user": "Set retention to like... a month or something.",
+        "think": "The user wants to set a retention policy with knowledge_set_retention, but 'a month or something' "
+                 "is vague. The tool requires an exact ttl_days integer (minimum 7). I should confirm 30 days "
+                 "and the project name.",
+        "response": "<|synalux_answer|>I'll set a 30-day retention policy. Which project should this apply to? "
+                    "And just to confirm — entries older than 30 days will be automatically archived."
+                    "</|synalux_answer|>",
+    },
+]
+
+
+# ============================================================================
+# EXPERIMENT 2: Think-to-Self-Correct Traces
+# ============================================================================
+# Real reasoning is non-linear. The model should catch its own mistakes
+# inside the think block BEFORE emitting the wrong tool call.
+
+SELF_CORRECTION_TRACES = [
+    # Tool confusion: save vs handoff
+    {
+        "user": "Pass the billing module to the QA team for review.",
+        "think": "The user wants to save this session... Wait, looking more carefully at the prompt, "
+                 "they said 'pass to QA team'. That makes this a handoff between agents, not a session save. "
+                 "I should use session_save_handoff, not session_save_ledger. The from_agent would be the "
+                 "current role and to_agent would be 'qa'.",
+        "tool": "session_save_handoff",
+        "args": {"project": "billing-portal", "key_context": "Billing module ready for QA review"},
+    },
+    # Tool confusion: search vs load
+    {
+        "user": "What was the last thing we did on the analytics project?",
+        "think": "The user wants to load context... Actually no, they're asking about past work, not "
+                 "trying to resume. This is a search/recall operation, not a context load. I should use "
+                 "session_search_memory to find recent sessions, not session_load_context.",
+        "tool": "session_search_memory",
+        "args": {"query": "last work on analytics project"},
+    },
+    # Keyword trap: 'context manager' → Python concept, NOT Prism tool
+    {
+        "user": "Write me a Python context manager for database connections.",
+        "think": "The user mentioned 'context manager'. My first instinct is session_load_context... "
+                 "but wait — 'context manager' is a Python language feature (__enter__/__exit__), not "
+                 "Prism's session context system. This is a general coding question. I should answer "
+                 "directly with Python code, not call any tool.",
+        "response": "<|synalux_answer|>Here's a Python context manager for database connections:\n\n"
+                    "```python\nfrom contextlib import contextmanager\nimport sqlite3\n\n"
+                    "@contextmanager\ndef db_connection(path):\n    conn = sqlite3.connect(path)\n"
+                    "    try:\n        yield conn\n        conn.commit()\n    except Exception:\n"
+                    "        conn.rollback()\n        raise\n    finally:\n        conn.close()\n```"
+                    "</|synalux_answer|>",
+    },
+    # Tool confusion: knowledge_search vs session_search_memory
+    {
+        "user": "How did we fix that caching bug?",
+        "think": "The user wants to search for information about a past bug fix. I could use "
+                 "knowledge_search or session_search_memory. Let me think... knowledge_search is for "
+                 "cross-session distilled knowledge, while session_search_memory is for raw session "
+                 "history. Since bugs are typically discussed in sessions (not distilled into knowledge), "
+                 "session_search_memory is the right choice here.",
+        "tool": "session_search_memory",
+        "args": {"query": "caching bug fix"},
+    },
+    # Over-eager tool call: 'forget' keyword → ML concept
+    {
+        "user": "Explain catastrophic forgetting in neural networks.",
+        "think": "I see the word 'forget' and my immediate association is knowledge_forget or "
+                 "session_forget_memory. But re-reading the prompt, this is about 'catastrophic forgetting' — "
+                 "a well-known phenomenon in continual learning where neural networks lose previously learned "
+                 "information. This is a general ML concept. No tool needed.",
+        "response": "<|synalux_answer|>Catastrophic forgetting occurs when a neural network, trained on "
+                    "Task A and then retrained on Task B, loses its ability to perform Task A. This happens "
+                    "because gradient descent overwrites the weights that encoded Task A. Key mitigations:\n\n"
+                    "1. **EWC (Elastic Weight Consolidation)** — penalizes changes to important weights\n"
+                    "2. **Progressive Networks** — freeze old columns, add new ones\n"
+                    "3. **Replay Buffers** — mix old data into new training\n"
+                    "4. **LoRA/Adapters** — keep base weights frozen, only train lightweight adapters"
+                    "</|synalux_answer|>",
+    },
+    # Sequential self-correction chain
+    {
+        "user": "Upvote the session about the OAuth implementation.",
+        "think": "The user wants to upvote a memory entry using knowledge_upvote. But knowledge_upvote "
+                 "requires a UUID (the entry id), not a description. I could search for it first... "
+                 "Actually, should I search and then upvote in sequence? No — I should just search first "
+                 "and present the results, then let the user confirm which entry to upvote. Guessing the "
+                 "wrong UUID would upvote the wrong memory.",
+        "tool": "session_search_memory",
+        "args": {"query": "OAuth implementation"},
+    },
+]
+
+
+# ============================================================================
+# EXPERIMENT 3: Implicit State Resolution
+# ============================================================================
+# Users say "save my work" not "save ledger for project analytics-dashboard".
+# Train the model to extract args from system state, not just explicit text.
+
+# State block format injected into system prompts during training:
+STATE_BLOCK_TEMPLATE = "[CURRENT STATE: Project={project}, Role={role}, ActiveFile={file}]"
+
+IMPLICIT_STATE_TRACES = [
+    # "Save my work" — extract project from state
+    {
+        "state": {"project": "analytics-dashboard", "role": "coder", "file": "auth.ts"},
+        "user": "Save my work.",
+        "think": "The user said 'save my work' without specifying a project. Looking at the current state: "
+                 "Project=analytics-dashboard, Role=coder. I should use session_save_ledger with "
+                 "project='analytics-dashboard' extracted from the state context.",
+        "tool": "session_save_ledger",
+        "args": {"project": "analytics-dashboard", "conversation_id": "current", "summary": "Work session saved"},
+    },
+    # "Load context" — no project specified, infer from state
+    {
+        "state": {"project": "backend-api", "role": "developer", "file": "routes.py"},
+        "user": "Load context.",
+        "think": "The user wants to load context but didn't specify which project. From the current state: "
+                 "Project=backend-api. I'll load context for 'backend-api' at standard level.",
+        "tool": "session_load_context",
+        "args": {"project": "backend-api", "toolAction": "Loading context", "toolSummary": "Loading project context"},
+    },
+    # "Search for that migration" — project from state
+    {
+        "state": {"project": "data-pipeline", "role": "coder", "file": "migrate_v3.sql"},
+        "user": "Search for that migration we discussed.",
+        "think": "The user wants to search memory. They said 'that migration' — looking at the state, "
+                 "the active file is 'migrate_v3.sql' in the 'data-pipeline' project. I should scope the "
+                 "search to project='data-pipeline' with query about migration.",
+        "tool": "session_search_memory",
+        "args": {"query": "migration discussion", "project": "data-pipeline"},
+    },
+    # "What were we doing?" — pure state inference
+    {
+        "state": {"project": "ml-inference", "role": "coder", "file": "model_server.py"},
+        "user": "What were we doing?",
+        "think": "The user is asking about recent work. From state: Project=ml-inference. This is a recall "
+                 "question, not a load operation. I'll search memory scoped to 'ml-inference'.",
+        "tool": "session_search_memory",
+        "args": {"query": "recent work", "project": "ml-inference"},
+    },
+    # "Create a handoff" — role from state
+    {
+        "state": {"project": "auth-service", "role": "developer", "file": "oauth.ts"},
+        "user": "Hand this off to QA.",
+        "think": "The user wants a handoff to QA. From state: Project=auth-service, Role=developer. "
+                 "I should create a handoff from 'developer' to 'qa' for 'auth-service'.",
+        "tool": "session_save_handoff",
+        "args": {"project": "auth-service", "key_context": "Ready for QA review"},
+    },
+    # "Log the fix" — extract summary from state + user text
+    {
+        "state": {"project": "monitoring-stack", "role": "coder", "file": "alertmanager.yml"},
+        "user": "Log the fix we just made.",
+        "think": "The user wants to save a ledger entry about a fix. From state: Project=monitoring-stack, "
+                 "ActiveFile=alertmanager.yml. I'll create a ledger entry for the monitoring-stack project "
+                 "with context from the active file.",
+        "tool": "session_save_ledger",
+        "args": {"project": "monitoring-stack", "conversation_id": "current",
+                 "summary": "Fixed alertmanager configuration"},
+    },
+]
+
+
+# ============================================================================
+# EXPERIMENT 4: Speculative / Parallel Tool Calling
+# ============================================================================
+# When a query is ambiguous, fire BOTH session_search_memory AND
+# knowledge_search in parallel. Cuts latency 2x on complex queries.
+
+PARALLEL_CALL_TRACES = [
+    # Ambiguous recall — search both systems
+    {
+        "user": "How did we fix that bug?",
+        "think": "The user is asking about a past bug fix. This could be in recent session history "
+                 "(session_search_memory) or in long-term distilled knowledge (knowledge_search). "
+                 "Since I'm uncertain, I should search BOTH in parallel to maximize recall and minimize latency.",
+        "tools": [
+            ("session_search_memory", {"query": "bug fix"}),
+            ("knowledge_search", {"query": "bug fix"}),
+        ],
+    },
+    # Vague reference to past work
+    {
+        "user": "What do we know about the database schema?",
+        "think": "The user wants information about a database schema. This could be from a recent session discussion "
+                 "or from accumulated knowledge insights. I'll search both memory systems in parallel.",
+        "tools": [
+            ("session_search_memory", {"query": "database schema"}),
+            ("knowledge_search", {"query": "database schema"}),
+        ],
+    },
+    # Past decision recall
+    {
+        "user": "Why did we choose PostgreSQL over MongoDB?",
+        "think": "The user is asking about a past architectural decision. Decisions are often captured in both "
+                 "session ledger entries and distilled into knowledge items. Searching both maximizes the chance "
+                 "of finding the original reasoning.",
+        "tools": [
+            ("session_search_memory", {"query": "PostgreSQL vs MongoDB decision"}),
+            ("knowledge_search", {"query": "PostgreSQL MongoDB architecture decision"}),
+        ],
+    },
+    # Broad topic with potential in both stores
+    {
+        "user": "Everything we have on authentication.",
+        "think": "This is a broad information gathering request. Authentication work could span many sessions "
+                 "and also be distilled into knowledge items. I'll search both systems in parallel and "
+                 "synthesize the results.",
+        "tools": [
+            ("session_search_memory", {"query": "authentication"}),
+            ("knowledge_search", {"query": "authentication implementation"}),
+        ],
+    },
+    # Historical patterns
+    {
+        "user": "Have we seen this error before?",
+        "think": "The user encountered an error and wants to check if it's been seen before. This could be in "
+                 "session history (debugging sessions) or knowledge base (documented issues). Searching both "
+                 "in parallel will catch it regardless of where it was recorded.",
+        "tools": [
+            ("session_search_memory", {"query": "error encountered previously"}),
+            ("knowledge_search", {"query": "known errors and debugging"}),
+        ],
+    },
+]
+
+
+
+def expand_self_correction_traces():
+    """Auto-generate additional self-correction traces from templates.
+    
+    Addresses R3-2: 6 hand-crafted traces are ~0.1% of dataset (statistically
+    invisible). This expands to 60 traces across 6 confusion categories.
+    """
+    # Template: (user_prompt, wrong_tool, correct_tool, correction_reasoning, args)
+    confusion_matrix = [
+        # save_ledger ↔ save_handoff confusion
+        ("Record what we did today: fixed the auth flow.", "session_save_handoff", "session_save_ledger",
+         "Wait — the user wants to LOG work, not hand off to another agent. session_save_ledger records accomplishments. session_save_handoff transfers state.",
+         {"project": "billing-portal", "conversation_id": "current", "summary": "Fixed the auth flow"}),
+        ("Pass the project state to the morning shift.", "session_save_ledger", "session_save_handoff",
+         "Actually, 'pass to morning shift' means a handoff between agents, not a session log. I need session_save_handoff, not session_save_ledger.",
+         {"project": "billing-portal", "key_context": "Project state for morning shift handoff"}),
+        # search_memory ↔ load_context confusion
+        ("Resume work on analytics.", "session_search_memory", "session_load_context",
+         "The user says 'resume work'. My first thought was to search, but 'resume' means they want to continue from where they left off. session_load_context is correct.",
+         {"project": "analytics"}),
+        ("Find sessions about the deployment issue.", "session_load_context", "session_search_memory",
+         "The user wants to FIND past sessions, not resume/load context. session_search_memory searches history semantically.",
+         {"query": "deployment issue"}),
+        # knowledge_search ↔ session_search_memory 
+        ("What patterns did we establish for error handling?", "session_search_memory", "knowledge_search",
+         "The user is asking about established PATTERNS — these are distilled insights, not raw session history. knowledge_search queries curated KIs.",
+         {"query": "error handling patterns"}),
+        ("What happened in yesterday's session?", "knowledge_search", "session_search_memory",
+         "'Yesterday's session' is raw session history, not curated knowledge. I need session_search_memory.",
+         {"query": "yesterday session work"}),
+        # forget ↔ set_retention confusion
+        ("Auto-expire old entries after 30 days for analytics.", "knowledge_forget", "knowledge_set_retention",
+         "The user wants auto-expiry (a POLICY), not immediate deletion. knowledge_set_retention sets TTL rules. knowledge_forget deletes immediately.",
+         {"project": "analytics", "ttl_days": 30}),
+        ("Delete all entries from the test project now.", "knowledge_set_retention", "knowledge_forget",
+         "The user wants immediate deletion, not a future policy. knowledge_forget performs immediate bulk deletion.",
+         {"project": "test", "confirm_all": True}),
+        # NLP keyword traps → no tool
+        ("How do I implement session management in Express.js?", "session_load_context", None,
+         "The word 'session' here refers to HTTP sessions in Express.js, not Prism's session_load_context. This is a coding question — no tool needed.",
+         None),
+    ]
+    
+    # Generate variations for each confusion pattern
+    variation_prefixes = [
+        "", "Hey, ", "Can you ", "Please ", "I need to ", "Go ahead and ",
+    ]
+    
+    expanded = []
+    for user, wrong, correct, reasoning, args in confusion_matrix:
+        for prefix in variation_prefixes:
+            trace = {
+                "user": f"{prefix}{user}" if prefix else user,
+                "think": f"My first instinct is to call {wrong}. {reasoning}",
+            }
+            if correct and args:
+                trace["tool"] = correct
+                trace["args"] = args
+            else:
+                trace["response"] = ("<|synalux_answer|>This is a general programming question. "
+                                    "I'll answer directly without using any tools.<|/synalux_answer|>")
+            expanded.append(trace)
+    
+    return expanded
+
+
+# General coding anchor data to prevent catastrophic forgetting (R3-4)
+GENERAL_CODING_ANCHORS = [
+    {"user": "Write a Python function to reverse a string.", 
+     "response": "```python\ndef reverse_string(s: str) -> str:\n    return s[::-1]\n```"},
+    {"user": "How do I read a JSON file in Python?",
+     "response": "```python\nimport json\nwith open('data.json', 'r') as f:\n    data = json.load(f)\n```"},
+    {"user": "Explain the difference between let, const, and var in JavaScript.",
+     "response": "`var` is function-scoped and hoisted. `let` is block-scoped and mutable. `const` is block-scoped and immutable (for primitives). Use `const` by default, `let` when reassignment is needed, avoid `var`."},
+    {"user": "Write a async/await fetch example in JavaScript.",
+     "response": "```javascript\nasync function fetchData(url) {\n  const response = await fetch(url);\n  if (!response.ok) throw new Error(`HTTP ${response.status}`);\n  return await response.json();\n}\n```"},
+    {"user": "What is a closure in Python?",
+     "response": "A closure is a function that captures variables from its enclosing scope. The inner function retains access to outer scope variables even after the outer function has returned.\n```python\ndef counter():\n    count = 0\n    def increment():\n        nonlocal count\n        count += 1\n        return count\n    return increment\n```"},
+    {"user": "How do I sort a list of dictionaries by a key in Python?",
+     "response": "```python\nusers = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]\nsorted_users = sorted(users, key=lambda x: x['age'])\n```"},
+    {"user": "Write a basic REST API endpoint in Python using FastAPI.",
+     "response": "```python\nfrom fastapi import FastAPI\napp = FastAPI()\n\n@app.get('/items/{item_id}')\nasync def read_item(item_id: int, q: str = None):\n    return {'item_id': item_id, 'query': q}\n```"},
+    {"user": "What is the difference between == and === in JavaScript?",
+     "response": "`==` performs type coercion before comparison (e.g., `'5' == 5` is true). `===` checks both value AND type without coercion (e.g., `'5' === 5` is false). Always prefer `===` to avoid subtle bugs."},
+    {"user": "How do I handle errors in async Python code?",
+     "response": "```python\nimport asyncio\n\nasync def safe_fetch(url):\n    try:\n        async with aiohttp.ClientSession() as session:\n            async with session.get(url) as resp:\n                return await resp.json()\n    except aiohttp.ClientError as e:\n        print(f'Network error: {e}')\n        return None\n```"},
+    {"user": "Write a SQL query to find duplicate records.",
+     "response": "```sql\nSELECT email, COUNT(*) as cnt\nFROM users\nGROUP BY email\nHAVING COUNT(*) > 1;\n```"},
+    {"user": "What is dependency injection and why is it useful?",
+     "response": "Dependency injection is a design pattern where objects receive their dependencies from external sources rather than creating them internally. Benefits: testability (mock deps in tests), loose coupling, single responsibility. Example: passing a database client to a service constructor instead of instantiating it inside the service."},
+    {"user": "How do I create a virtual environment in Python?",
+     "response": "```bash\npython3 -m venv myenv\nsource myenv/bin/activate  # macOS/Linux\nmyenv\\Scripts\\activate     # Windows\npip install -r requirements.txt\n```"},
+    {"user": "Write a TypeScript interface for a User object.",
+     "response": "```typescript\ninterface User {\n  id: number;\n  name: string;\n  email: string;\n  role: 'admin' | 'user' | 'guest';\n  createdAt: Date;\n}\n```"},
+    {"user": "How do I use list comprehension with conditions in Python?",
+     "response": "```python\n# Filter and transform\nevens = [x * 2 for x in range(20) if x % 2 == 0]\n\n# Nested comprehension\nflat = [item for sublist in nested_list for item in sublist]\n\n# Conditional expression\nlabels = ['even' if x % 2 == 0 else 'odd' for x in range(10)]\n```"},
+    {"user": "What is the difference between TCP and UDP?",
+     "response": "**TCP**: Connection-oriented, reliable delivery, ordered packets, flow control. Used for HTTP, SSH, databases.\n**UDP**: Connectionless, no delivery guarantee, no ordering, minimal overhead. Used for DNS, streaming, gaming.\nTCP trades latency for reliability; UDP trades reliability for speed."},
+    {"user": "Write a decorator in Python that measures function execution time.",
+     "response": "```python\nimport time\nfrom functools import wraps\n\ndef timer(func):\n    @wraps(func)\n    def wrapper(*args, **kwargs):\n        start = time.perf_counter()\n        result = func(*args, **kwargs)\n        elapsed = time.perf_counter() - start\n        print(f'{func.__name__} took {elapsed:.4f}s')\n        return result\n    return wrapper\n```"},
+    {"user": "How do I flatten a nested dictionary in Python?",
+     "response": "```python\ndef flatten(d, prefix='', sep='.'):\n    items = {}\n    for k, v in d.items():\n        key = f'{prefix}{sep}{k}' if prefix else k\n        if isinstance(v, dict):\n            items.update(flatten(v, key, sep))\n        else:\n            items[key] = v\n    return items\n```"},
+    {"user": "Explain the CAP theorem in distributed systems.",
+     "response": "The CAP theorem states that a distributed system can satisfy at most 2 of 3 guarantees: **Consistency** (all nodes see the same data), **Availability** (every request gets a response), **Partition tolerance** (system works despite network splits). Since network partitions are inevitable, you must choose CP (consistent but may reject requests) or AP (available but may serve stale data)."},
+    {"user": "Write a React component that fetches data on mount.",
+     "response": "```tsx\nimport { useState, useEffect } from 'react';\n\nfunction UserList() {\n  const [users, setUsers] = useState([]);\n  const [loading, setLoading] = useState(true);\n\n  useEffect(() => {\n    fetch('/api/users')\n      .then(res => res.json())\n      .then(data => { setUsers(data); setLoading(false); })\n      .catch(() => setLoading(false));\n  }, []);\n\n  if (loading) return <div>Loading...</div>;\n  return <ul>{users.map(u => <li key={u.id}>{u.name}</li>)}</ul>;\n}\n```"},
+    {"user": "What is the difference between a process and a thread?",
+     "response": "**Process**: Independent execution unit with its own memory space, file descriptors, and resources. Communication via IPC (pipes, sockets, shared memory).\n**Thread**: Lightweight execution unit within a process, sharing the same memory space. Communication via shared variables (requires synchronization).\nProcesses are isolated but heavy; threads are fast but prone to race conditions."},
+]
+
+
+def generate_coding_anchors(target_count: int = 1200):
+    """Synthetically expand 20 hand-crafted coding examples to 1200+.
+    
+    R4-1: 20 examples = 0.3% of 6000+ tool traces is mathematically invisible.
+    This generates coding Q&A across language × domain × pattern combinations
+    to anchor the model's base coding capabilities at 15-20% of the dataset.
+    """
+    # Base languages and their patterns
+    languages = {
+        "python": {
+            "patterns": [
+                ("Write a {concept} in Python.", "```python\n{code}\n```"),
+                ("How do I {task} in Python?", "{explanation}\n```python\n{code}\n```"),
+                ("Explain {concept} in Python with an example.", "{explanation}\n```python\n{code}\n```"),
+            ],
+            "concepts": [
+                ("decorator", "A decorator wraps a function to extend its behavior.", "def my_decorator(func):\n    def wrapper(*args, **kwargs):\n        print('Before')\n        result = func(*args, **kwargs)\n        print('After')\n        return result\n    return wrapper"),
+                ("context manager", "Context managers handle resource setup/teardown via __enter__/__exit__.", "class FileManager:\n    def __init__(self, path):\n        self.path = path\n    def __enter__(self):\n        self.file = open(self.path, 'r')\n        return self.file\n    def __exit__(self, *args):\n        self.file.close()"),
+                ("generator", "Generators yield values lazily using the yield keyword.", "def fibonacci():\n    a, b = 0, 1\n    while True:\n        yield a\n        a, b = b, a + b"),
+                ("dataclass", "Dataclasses reduce boilerplate for data-holding classes.", "from dataclasses import dataclass\n\n@dataclass\nclass Point:\n    x: float\n    y: float\n    \n    def distance(self, other):\n        return ((self.x - other.x)**2 + (self.y - other.y)**2)**0.5"),
+                ("async function", "Async functions use async/await for concurrent I/O.", "import asyncio\n\nasync def fetch_all(urls):\n    async with aiohttp.ClientSession() as session:\n        tasks = [session.get(url) for url in urls]\n        return await asyncio.gather(*tasks)"),
+                ("class inheritance", "Inheritance allows classes to extend parent behavior.", "class Animal:\n    def __init__(self, name):\n        self.name = name\n    def speak(self):\n        raise NotImplementedError\n\nclass Dog(Animal):\n    def speak(self):\n        return f'{self.name} says Woof!'"),
+                ("error handling", "Try/except blocks handle runtime exceptions gracefully.", "def safe_divide(a, b):\n    try:\n        return a / b\n    except ZeroDivisionError:\n        return None\n    except TypeError as e:\n        raise ValueError(f'Invalid types: {e}')"),
+                ("list comprehension", "List comprehensions create lists concisely.", "squares = [x**2 for x in range(10) if x % 2 == 0]"),
+                ("property decorator", "Properties enable getter/setter access patterns.", "class Circle:\n    def __init__(self, radius):\n        self._radius = radius\n    @property\n    def area(self):\n        return 3.14159 * self._radius ** 2"),
+                ("type hints", "Type hints improve code clarity and IDE support.", "from typing import Optional, List\n\ndef process_items(items: List[str], limit: Optional[int] = None) -> List[str]:\n    if limit:\n        return items[:limit]\n    return items"),
+            ],
+        },
+        "javascript": {
+            "patterns": [
+                ("Write a {concept} in JavaScript.", "```javascript\n{code}\n```"),
+                ("How do I {task} in JavaScript?", "{explanation}\n```javascript\n{code}\n```"),
+            ],
+            "concepts": [
+                ("Promise chain", "Promises handle async operations with .then().", "fetch('/api/users')\n  .then(res => res.json())\n  .then(data => console.log(data))\n  .catch(err => console.error(err));"),
+                ("async/await", "async/await provides cleaner async syntax.", "async function fetchUser(id) {\n  try {\n    const res = await fetch(`/api/users/${id}`);\n    return await res.json();\n  } catch (err) {\n    console.error(err);\n  }\n}"),
+                ("closure", "Closures capture variables from the enclosing scope.", "function counter() {\n  let count = 0;\n  return {\n    increment: () => ++count,\n    getCount: () => count,\n  };\n}"),
+                ("class with methods", "ES6 classes use constructor and methods.", "class EventEmitter {\n  constructor() { this.listeners = {}; }\n  on(event, cb) { (this.listeners[event] ??= []).push(cb); }\n  emit(event, ...args) { this.listeners[event]?.forEach(cb => cb(...args)); }\n}"),
+                ("array methods", "Array methods like map/filter/reduce transform data.", "const total = orders\n  .filter(o => o.status === 'completed')\n  .map(o => o.amount)\n  .reduce((sum, amt) => sum + amt, 0);"),
+                ("destructuring", "Destructuring extracts values from objects/arrays.", "const { name, age, role = 'user' } = user;\nconst [first, ...rest] = items;"),
+                ("module pattern", "ES modules organize code with import/export.", "// utils.js\nexport const formatDate = (d) => d.toISOString().split('T')[0];\nexport const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);"),
+                ("error handling", "Try/catch handles async and sync errors.", "async function safeParse(json) {\n  try {\n    return JSON.parse(json);\n  } catch (e) {\n    console.warn('Invalid JSON:', e.message);\n    return null;\n  }\n}"),
+            ],
+        },
+        "typescript": {
+            "patterns": [
+                ("Write a {concept} in TypeScript.", "```typescript\n{code}\n```"),
+            ],
+            "concepts": [
+                ("generic function", "Generics provide type-safe reusable functions.", "function first<T>(arr: T[]): T | undefined {\n  return arr.length > 0 ? arr[0] : undefined;\n}"),
+                ("interface", "Interfaces define object shapes for type checking.", "interface ApiResponse<T> {\n  data: T;\n  status: number;\n  message: string;\n  timestamp: Date;\n}"),
+                ("enum", "Enums define named constants.", "enum HttpStatus {\n  OK = 200,\n  NotFound = 404,\n  ServerError = 500,\n}"),
+                ("utility types", "TypeScript provides built-in utility types.", "type UserUpdate = Partial<User>;\ntype ReadonlyUser = Readonly<User>;\ntype UserName = Pick<User, 'firstName' | 'lastName'>;"),
+                ("type guard", "Type guards narrow types at runtime.", "function isString(val: unknown): val is string {\n  return typeof val === 'string';\n}"),
+            ],
+        },
+        "sql": {
+            "patterns": [
+                ("Write a SQL query to {task}.", "```sql\n{code}\n```"),
+            ],
+            "concepts": [
+                ("join tables", "JOINs combine rows from multiple tables.", "SELECT u.name, o.total\nFROM users u\nINNER JOIN orders o ON u.id = o.user_id\nWHERE o.created_at > '2024-01-01';"),
+                ("window function", "Window functions compute over row sets.", "SELECT name, salary,\n  RANK() OVER (PARTITION BY dept ORDER BY salary DESC) as rank\nFROM employees;"),
+                ("CTE", "CTEs improve readability of complex queries.", "WITH monthly AS (\n  SELECT DATE_TRUNC('month', created_at) AS month, SUM(amount) AS total\n  FROM orders GROUP BY 1\n)\nSELECT month, total, LAG(total) OVER (ORDER BY month) AS prev\nFROM monthly;"),
+                ("upsert", "UPSERT inserts or updates on conflict.", "INSERT INTO users (email, name)\nVALUES ('a@b.com', 'Alice')\nON CONFLICT (email)\nDO UPDATE SET name = EXCLUDED.name;"),
+                ("index optimization", "Indexes speed up query performance.", "CREATE INDEX idx_orders_user_date\nON orders (user_id, created_at DESC)\nWHERE status = 'active';"),
+            ],
+        },
+        "react": {
+            "patterns": [
+                ("Write a React component that {task}.", "```tsx\n{code}\n```"),
+            ],
+            "concepts": [
+                ("custom hook", "Custom hooks extract reusable stateful logic.", "function useDebounce<T>(value: T, delay: number): T {\n  const [debounced, setDebounced] = useState(value);\n  useEffect(() => {\n    const timer = setTimeout(() => setDebounced(value), delay);\n    return () => clearTimeout(timer);\n  }, [value, delay]);\n  return debounced;\n}"),
+                ("form handling", "Controlled forms manage state via onChange.", "function LoginForm() {\n  const [email, setEmail] = useState('');\n  const handleSubmit = (e) => {\n    e.preventDefault();\n    console.log('Login:', email);\n  };\n  return (\n    <form onSubmit={handleSubmit}>\n      <input value={email} onChange={e => setEmail(e.target.value)} />\n      <button type='submit'>Login</button>\n    </form>\n  );\n}"),
+                ("context provider", "Context avoids prop drilling.", "const ThemeContext = createContext('light');\n\nfunction ThemeProvider({ children }) {\n  const [theme, setTheme] = useState('light');\n  return (\n    <ThemeContext.Provider value={{ theme, setTheme }}>\n      {children}\n    </ThemeContext.Provider>\n  );\n}"),
+                ("conditional rendering", "Components render conditionally.", "function StatusBadge({ status }) {\n  const colors = { active: 'green', inactive: 'gray', error: 'red' };\n  return <span style={{ color: colors[status] }}>{status}</span>;\n}"),
+                ("data fetching", "useEffect fetches data on mount.", "function UserProfile({ id }) {\n  const [user, setUser] = useState(null);\n  useEffect(() => {\n    fetch(`/api/users/${id}`)\n      .then(r => r.json())\n      .then(setUser);\n  }, [id]);\n  if (!user) return <div>Loading...</div>;\n  return <h1>{user.name}</h1>;\n}"),
+            ],
+        },
+    }
+    
+    anchors = list(GENERAL_CODING_ANCHORS)  # Start with the 20 hand-crafted ones
+    
+    for lang, lang_data in languages.items():
+        for pattern_template, response_template in lang_data["patterns"]:
+            for concept, explanation, code in lang_data["concepts"]:
+                user_prompt = pattern_template.format(concept=concept, task=concept)
+                response = response_template.format(
+                    concept=concept, explanation=explanation, code=code, task=concept
+                )
+                anchors.append({"user": user_prompt, "response": response})
+    
+    # If we haven't hit target_count, duplicate with slight variations
+    if len(anchors) < target_count:
+        original_count = len(anchors)
+        multiplier = (target_count // original_count) + 1
+        expanded = []
+        prefixes = ["", "Can you ", "Please ", "Show me how to ", "I need to "]
+        for i in range(multiplier):
+            prefix = prefixes[i % len(prefixes)]
+            for anchor in anchors[:original_count]:
+                expanded.append({
+                    "user": f"{prefix}{anchor['user']}" if prefix else anchor["user"],
+                    "response": anchor["response"],
+                })
+                if len(expanded) >= target_count:
+                    break
+            if len(expanded) >= target_count:
+                break
+        anchors = expanded
+    
+    return anchors[:target_count]
+
+
+def generate_experiment_traces():
+    """Generate training data for all 4 real-world UX experiments.
+
+    Returns a list of ChatML-formatted training examples.
+    """
+    data = []
+
+    # Exp 1: Proactive Clarification
+    for trace in CLARIFICATION_TRACES:
+        think = f"<|synalux_think|>\n{trace['think']}\n</|synalux_think|>\n"
+        completion = f"{think}{trace['response']}"
+        data.append({
+            "text": f"<|im_start|>user\n{trace['user']}<|im_end|>\n<|im_start|>assistant\n{completion}<|im_end|>"
+        })
+
+    # Exp 2: Self-Correction (hand-crafted + expanded + UPSAMPLED)
+    # R4-4: Upsample 10× to reach ~5% of dataset mass
+    all_self_correction = list(SELF_CORRECTION_TRACES) + expand_self_correction_traces()
+    upsampled_self_correction = all_self_correction * 10  # R4-4: 54 × 10 = 540 traces
+    for trace in upsampled_self_correction:
+        think = f"<|synalux_think|>\n{trace['think']}\n</|synalux_think|>\n"
+        if "tool" in trace:
+            tc = json.dumps({"name": trace["tool"], "arguments": trace["args"]})
+            completion = f"{think}{TOOL_CALL_OPEN}\n{tc}\n{TOOL_CALL_CLOSE}"
+        else:
+            completion = f"{think}{trace['response']}"
+        data.append({
+            "text": f"<|im_start|>user\n{trace['user']}<|im_end|>\n<|im_start|>assistant\n{completion}<|im_end|>"
+        })
+
+    # Exp 3: Implicit State Resolution
+    for trace in IMPLICIT_STATE_TRACES:
+        state = STATE_BLOCK_TEMPLATE.format(**trace["state"])
+        think = f"<|synalux_think|>\n{trace['think']}\n</|synalux_think|>\n"
+        tc = json.dumps({"name": trace["tool"], "arguments": trace["args"]})
+        completion = f"{think}{TOOL_CALL_OPEN}\n{tc}\n{TOOL_CALL_CLOSE}"
+        # System prompt includes state block
+        text = (
+            f"<|im_start|>system\n{state}<|im_end|>\n"
+            f"<|im_start|>user\n{trace['user']}<|im_end|>\n"
+            f"<|im_start|>assistant\n{completion}<|im_end|>"
+        )
+        data.append({"text": text})
+
+    # Exp 4: Parallel Tool Calling
+    for trace in PARALLEL_CALL_TRACES:
+        think = f"<|synalux_think|>\n{trace['think']}\n</|synalux_think|>\n"
+        # Multiple tool calls separated by newline
+        tool_blocks = []
+        for tool_name, args in trace["tools"]:
+            tc = json.dumps({"name": tool_name, "arguments": args})
+            tool_blocks.append(f"{TOOL_CALL_OPEN}\n{tc}\n{TOOL_CALL_CLOSE}")
+        completion = think + "\n".join(tool_blocks)
+        data.append({
+            "text": f"<|im_start|>user\n{trace['user']}<|im_end|>\n<|im_start|>assistant\n{completion}<|im_end|>"
+        })
+
+    # R4-1: General coding anchors — 1200+ examples (15-20% of merged dataset)
+    coding_anchors = generate_coding_anchors(target_count=1200)
+    for anchor in coding_anchors:
+        think = random.choice(REASONING_THINK[:5])  # Use generic "no tool needed" reasoning
+        completion = f"<|synalux_think|>\n{think}\n</|synalux_think|>\n<|synalux_answer|>{anchor['response']}</|synalux_answer|>"
+        data.append({
+            "text": f"<|im_start|>user\n{anchor['user']}<|im_end|>\n<|im_start|>assistant\n{completion}<|im_end|>"
+        })
+
+    return data
 
 
 def main():
     random.seed(42)
     data = []
-    
+
     # Generate tool examples
     tool_count = 0
     for tool_name, config in TOOL_PROMPTS.items():
@@ -553,7 +1134,7 @@ def main():
                 "text": f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n{completion}<|im_end|>"
             })
             tool_count += 1
-    
+
     # Generate reasoning examples
     reasoning_count = 0
     for prompt in REASONING_PROMPTS:
@@ -562,32 +1143,46 @@ def main():
             "text": f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n{completion}<|im_end|>"
         })
         reasoning_count += 1
-    
+
+    # Generate UX experiment traces (Experiments 1-4)
+    experiment_data = generate_experiment_traces()
+    data.extend(experiment_data)
+
     print(f"Generated {len(data)} unique examples:")
     print(f"  Tool examples: {tool_count} ({len(TOOL_PROMPTS)} tools)")
     for tool_name, config in TOOL_PROMPTS.items():
         print(f"    {tool_name}: {len(config['prompts'])} phrasings")
     print(f"  Reasoning examples: {reasoning_count}")
-    
-    # Repeat for stronger signal (80x for better coverage)
-    repeated = data * 80
-    random.shuffle(repeated)
-    
-    split = int(len(repeated) * 0.95)
-    train = repeated[:split]
-    valid = repeated[split:]
-    
-    out_dir = "/Users/admin/synalux-private/data/grpo"
+    print(f"  UX Experiment traces: {len(experiment_data)}")
+    print(f"    Exp 1 (Clarification): {len(CLARIFICATION_TRACES)}")
+    print(f"    Exp 2 (Self-Correction): {len(SELF_CORRECTION_TRACES)}")
+    print(f"    Exp 3 (State Resolution): {len(IMPLICIT_STATE_TRACES)}")
+    print(f"    Exp 4 (Parallel Calls): {len(PARALLEL_CALL_TRACES)}")
+
+    # IMPORTANT: Do NOT duplicate rows with `data * N`. That destroys batch
+    # variance and causes catastrophic memorization. Use mlx_lm.lora --iters
+    # for proper epoch-level repetition with internal shuffling.
+    random.shuffle(data)
+
+    split = int(len(data) * 0.9)
+    train = data[:split]
+    valid = data[split:]
+
+    import os
+    from config import AUX_DATA_DIR
+    out_dir = AUX_DATA_DIR
+    os.makedirs(out_dir, exist_ok=True)
     with open(f"{out_dir}/train.jsonl", "w") as f:
         for item in train:
             f.write(json.dumps(item) + "\n")
-    
+
     with open(f"{out_dir}/valid.jsonl", "w") as f:
         for item in valid:
             f.write(json.dumps(item) + "\n")
-    
-    print(f"\n  Repeated 50x → {len(repeated)} total")
+
+    print(f"\n  Unique examples: {len(data)}")
     print(f"  Train: {len(train)}, Valid: {len(valid)}")
+    print(f"  NOTE: Use --iters in mlx_lm.lora for epoch repetition (not array multiplication)")
     print(f"  Saved to {out_dir}/")
 
 
