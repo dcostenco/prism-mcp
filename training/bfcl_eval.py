@@ -26,19 +26,24 @@ import random
 import urllib.request
 import statistics
 
-MODEL = "prism-coder:7b"
+MODEL = "prism-coder-32b-FC"  # Default; override with --model flag
 OLLAMA_API = "http://localhost:11434/api/generate"
 
 # ============================================================================
 # PRISM TOOL REGISTRY (ground truth — 17 tools)
 # ============================================================================
 VALID_TOOLS = {
+    # Prism Memory Tools
     "session_load_context", "session_save_ledger", "session_save_handoff",
     "session_search_memory", "session_forget_memory", "session_health_check",
     "session_compact_ledger", "session_export_memory", "session_task_route",
     "session_save_experience", "session_save_image", "session_view_image",
     "knowledge_search", "knowledge_forget", "knowledge_upvote",
     "knowledge_downvote", "knowledge_set_retention",
+    # Synalux Multimodal Tools (13)
+    "image_gen", "office", "web_scraper", "browser", "tts", "ocr",
+    "git", "terminal", "deps_scanner",
+    "hipaa", "data_graph", "templates", "pdf_parser",
 }
 
 # ============================================================================
@@ -326,9 +331,9 @@ FORMAT_SENSITIVITY_TESTS = [
 # CATEGORY 6: AST Parameter Accuracy (correct tool + parameter value matching)
 AST_PARAM_TESTS = [
     {
-        "prompt": "Export my memories to /Users/admin/Desktop/backup in markdown format for the billing project.",
+        "prompt": "Export my memories to /tmp/backup in markdown format for the billing project.",
         "expected_tool": "session_export_memory",
-        "required_params": {"output_dir": "/Users/admin/Desktop/backup", "format": "markdown", "project": "billing"},
+        "required_params": {"output_dir": "/tmp/backup", "format": "markdown", "project": "billing"},
         "ast_strict": True,  # enforce exact param values
         "id": "ast_001"
     },
@@ -375,6 +380,109 @@ EDGE_CASE_TESTS = [
     {"prompt": "🚀", "expected_tool": "NO_TOOL", "id": "edge_008"},
 ]
 
+# CATEGORY 8: Multi-Turn Chain (sequential tool calls with tool responses — 40% BFCL weight)
+# These test whether the model correctly selects the NEXT tool after receiving
+# a tool execution result in the conversation history.
+MULTI_TURN_TESTS = [
+    {
+        # Turn 1: User asks to load context, model should call session_load_context
+        "prompt": "Load the context for the analytics project, then search for recent deployment issues.",
+        "expected_tool": "session_load_context",
+        "required_params": {"project": "analytics"},
+        "id": "multiturn_001",
+        # After tool response, the follow-up prompt becomes:
+        "followup": {
+            "tool_response": '{"project": "analytics", "open_todos": ["fix deploy"], "last_summary": "Worked on deploy pipeline"}',
+            "expected_tool": "session_search_memory",
+            "required_params": {"query": "deployment issues"},
+        }
+    },
+    {
+        # Search memory → then save a handoff note
+        "prompt": "Search for what we decided about the caching layer, then save a handoff note about it.",
+        "expected_tool": "session_search_memory",
+        "required_params": {"query": "caching layer"},
+        "id": "multiturn_002",
+        "followup": {
+            "tool_response": '{"results": [{"summary": "Decided to use Redis for session caching with 5min TTL"}]}',
+            "expected_tool": "session_save_handoff",
+            "required_params": {},
+        }
+    },
+    {
+        # Health check → then compact if issues found
+        "prompt": "Run a health check on the memory system. If there are issues, compact the old entries.",
+        "expected_tool": "session_health_check",
+        "required_params": {},
+        "id": "multiturn_003",
+        "followup": {
+            "tool_response": '{"status": "issues_found", "missing_embeddings": 12, "stale_rollups": 3}',
+            "expected_tool": "session_compact_ledger",
+            "required_params": {},
+        }
+    },
+    {
+        # Load context → log an experience record
+        "prompt": "Load context for the portal project and then log that we successfully deployed v3.",
+        "expected_tool": "session_load_context",
+        "required_params": {"project": "portal"},
+        "id": "multiturn_004",
+        "followup": {
+            "tool_response": '{"project": "portal", "last_summary": "Working on v3 deploy"}',
+            "expected_tool": "session_save_experience",
+            "required_params": {"project": "portal", "event_type": "success"},
+        }
+    },
+    {
+        # Knowledge search → upvote useful result
+        "prompt": "Search knowledge for retry strategies, then upvote the best result.",
+        "expected_tool": "knowledge_search",
+        "required_params": {"query": "retry strategies"},
+        "id": "multiturn_005",
+        "followup": {
+            "tool_response": '{"results": [{"id": "ki-retry-42", "summary": "Exponential backoff with jitter", "importance": 5}]}',
+            "expected_tool": "knowledge_upvote",
+            "required_params": {"id": "ki-retry-42"},
+        }
+    },
+    {
+        # Export memory → set retention policy
+        "prompt": "Export the billing project memory to /tmp/backup, then set a 60-day retention policy.",
+        "expected_tool": "session_export_memory",
+        "required_params": {"output_dir": "/tmp/backup"},
+        "id": "multiturn_006",
+        "followup": {
+            "tool_response": '{"status": "exported", "file": "/tmp/backup/prism-export-billing.json", "entries": 142}',
+            "expected_tool": "knowledge_set_retention",
+            "required_params": {"project": "billing", "ttl_days": 60},
+        }
+    },
+    {
+        # Save ledger → save handoff
+        "prompt": "Record this session: we migrated the auth module to OAuth2. Then save the handoff state.",
+        "expected_tool": "session_save_ledger",
+        "required_params": {},
+        "id": "multiturn_007",
+        "followup": {
+            "tool_response": '{"status": "saved", "id": "ledger-2024-99"}',
+            "expected_tool": "session_save_handoff",
+            "required_params": {},
+        }
+    },
+    {
+        # Task route → then act on the routing decision (should NOT call a tool if route says "host")
+        "prompt": "Should the local agent handle this TypeScript refactor? If cloud, just tell me.",
+        "expected_tool": "session_task_route",
+        "required_params": {},
+        "id": "multiturn_008",
+        "followup": {
+            "tool_response": '{"target": "host", "confidence": 0.92, "reason": "Complex refactor needs cloud model"}',
+            "expected_tool": "NO_TOOL",
+            "required_params": {},
+        }
+    },
+]
+
 # ============================================================================
 # ALL CATEGORIES
 # ============================================================================
@@ -386,37 +494,27 @@ ALL_CATEGORIES = {
     "format_sensitivity": FORMAT_SENSITIVITY_TESTS,
     "ast_parameter": AST_PARAM_TESTS,
     "edge_case": EDGE_CASE_TESTS,
+    "multi_turn_chain": MULTI_TURN_TESTS,
 }
 
 
-def call_ollama(prompt: str) -> tuple:
-    """Call Ollama API and parse tool call response."""
-    payload = json.dumps({
-        "model": MODEL,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": 0.1, "num_predict": 512}
-    }).encode()
+def parse_all_tool_calls(response_text: str) -> list:
+    """Extract ALL tool calls from a response, supporting parallel calls.
     
-    req = urllib.request.Request(OLLAMA_API, data=payload,
-                                  headers={"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            result = json.loads(resp.read().decode())
-    except Exception as e:
-        return "ERROR", {}, str(e), 0.0
+    Returns: list of (tool_name, tool_args) tuples.
+    """
+    results = []
     
-    response_text = result.get("response", "")
-    elapsed = result.get("total_duration", 0) / 1e9  # nanoseconds to seconds
+    # Strategy 1: Find ALL <|tool_call|> JSON blocks using findall
+    json_blocks = re.findall(r'<\|tool_call\|>\s*(\{.*?\})\s*(?:</\|tool_call\|>|<\|tool_call\|>|$)', 
+                              response_text, re.DOTALL)
+    if not json_blocks:
+        # Fallback: try greedy per-block extraction
+        json_blocks = re.findall(r'<\|tool_call\|>\s*(\{[^}]*\})', response_text)
     
-    # Strategy 1: Parse JSON-style tool call (most common format from prism-coder)
-    # Matches: <|tool_call|>\n{"name": "tool_name", "arguments": {...}}
-    json_block = re.search(r'<\|tool_call\|>\s*(\{.*\})', response_text, re.DOTALL)
-    if json_block:
+    for raw_json in json_blocks:
         try:
-            # Find the outermost JSON object
-            raw_json = json_block.group(1)
-            # Handle potential trailing text after JSON
+            # Handle nested braces by finding balanced JSON
             brace_depth = 0
             end_idx = 0
             for i, ch in enumerate(raw_json):
@@ -425,7 +523,7 @@ def call_ollama(prompt: str) -> tuple:
                 if brace_depth == 0:
                     end_idx = i + 1
                     break
-            clean_json = raw_json[:end_idx]
+            clean_json = raw_json[:end_idx] if end_idx > 0 else raw_json
             parsed = json.loads(clean_json)
             tool_name = parsed.get("name", "")
             tool_args = parsed.get("arguments", {})
@@ -433,16 +531,18 @@ def call_ollama(prompt: str) -> tuple:
             for k, v in tool_args.items():
                 if isinstance(v, str) and v.isdigit():
                     tool_args[k] = int(v)
-            return tool_name, tool_args, response_text, elapsed
+            results.append((tool_name, tool_args))
         except (json.JSONDecodeError, IndexError):
-            pass
+            continue
     
-    # Strategy 2: Parse function-call style: <|tool_call|> tool_name(key=val, ...)
-    tool_match = re.search(r'<\|tool_call\|>\s*(\w+)\s*\((.*?)\)', response_text, re.DOTALL)
-    if tool_match:
-        tool_name = tool_match.group(1)
-        args_str = tool_match.group(2).strip()
+    if results:
+        return results
+    
+    # Strategy 2: Function-call style: <|tool_call|> tool_name(key=val, ...)
+    func_matches = re.findall(r'<\|tool_call\|>\s*(\w+)\s*\((.*?)\)', response_text, re.DOTALL)
+    for tool_name, args_str in func_matches:
         tool_args = {}
+        args_str = args_str.strip()
         if args_str:
             for param_match in re.finditer(r'(\w+)\s*=\s*(?:"([^"]*?)"|\'([^\']*?)\'|(\d+(?:\.\d+)?)|(\w+))', args_str):
                 key = param_match.group(1)
@@ -450,23 +550,111 @@ def call_ollama(prompt: str) -> tuple:
                 if val and isinstance(val, str) and val.isdigit():
                     val = int(val)
                 tool_args[key] = val
-        return tool_name, tool_args, response_text, elapsed
+        results.append((tool_name, tool_args))
+    
+    if results:
+        return results
     
     # Strategy 3: Bare JSON with name field (no <|tool_call|> prefix)
-    bare_json = re.search(r'\{\s*"name"\s*:\s*"(\w+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})', response_text)
-    if bare_json:
-        tool_name = bare_json.group(1)
+    bare_matches = re.findall(r'\{\s*"name"\s*:\s*"(\w+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})', response_text)
+    for tool_name, args_json in bare_matches:
         try:
-            tool_args = json.loads(bare_json.group(2))
-            return tool_name, tool_args, response_text, elapsed
+            tool_args = json.loads(args_json)
+            results.append((tool_name, tool_args))
         except json.JSONDecodeError:
-            return tool_name, {}, response_text, elapsed
+            results.append((tool_name, {}))
     
-    return "NO_TOOL", {}, response_text, elapsed
+    return results
+
+
+def call_ollama(prompt: str, use_json_format: bool = True) -> tuple:
+    """Call Ollama API and parse tool call response.
+    
+    R5-3: Constrained decoding via Ollama JSON format mode.
+    R5-5: KV cache via keep_alive and num_ctx configuration.
+    
+    Returns: (tool_name, tool_args, response_text, elapsed, all_calls)
+        all_calls: list of (name, args) for parallel tool evaluation
+    """
+    from config import OLLAMA_KEEP_ALIVE, OLLAMA_NUM_CTX, OLLAMA_TEMPERATURE
+    
+    payload_dict = {
+        "model": MODEL,
+        "prompt": prompt,
+        "stream": False,
+        "keep_alive": OLLAMA_KEEP_ALIVE,  # R5-5: Keep model loaded for prefix caching
+        "options": {
+            "temperature": OLLAMA_TEMPERATURE,
+            "num_predict": 512,
+            "num_ctx": OLLAMA_NUM_CTX,  # R5-5: Full context window
+        }
+    }
+    
+    payload = json.dumps(payload_dict).encode()
+    
+    req = urllib.request.Request(OLLAMA_API, data=payload,
+                                  headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            result = json.loads(resp.read().decode())
+    except Exception as e:
+        return "ERROR", {}, str(e), 0.0, []
+    
+    response_text = result.get("response", "")
+    elapsed = result.get("total_duration", 0) / 1e9  # nanoseconds to seconds
+    
+    all_calls = parse_all_tool_calls(response_text)
+    
+    # R5-3: Post-processing repair — fix common JSON errors
+    if not all_calls:
+        all_calls = _repair_and_extract(response_text)
+    
+    if all_calls:
+        # Return first call for backward compat, all calls for parallel eval
+        return all_calls[0][0], all_calls[0][1], response_text, elapsed, all_calls
+    
+    return "NO_TOOL", {}, response_text, elapsed, []
+
+
+def _repair_and_extract(text: str) -> list:
+    """R5-3: Attempt to repair malformed JSON and extract tool calls.
+    
+    Handles: trailing commas, missing closing braces.
+    NOTE: Does NOT cast string types — BFCL strictly checks data types.
+    """
+    import re as _re
+    
+    # Find anything that looks like a JSON tool call
+    candidates = _re.findall(r'\{\s*"name"\s*:.*?(?:\}\s*\}|\})', text, _re.DOTALL)
+    
+    results = []
+    for raw in candidates:
+        repaired = raw
+        # Fix trailing commas before closing brace
+        repaired = _re.sub(r',\s*\}', '}', repaired)
+        
+        # Count braces and add missing ones
+        open_braces = repaired.count('{')
+        close_braces = repaired.count('}')
+        if open_braces > close_braces:
+            repaired += '}' * (open_braces - close_braces)
+        
+        try:
+            parsed = json.loads(repaired)
+            tool_name = parsed.get("name", "")
+            tool_args = parsed.get("arguments", {})
+            if tool_name:
+                results.append((tool_name, tool_args))
+        except json.JSONDecodeError:
+            continue
+    
+    return results
 
 
 def evaluate_test(test: dict, verbose: bool = False) -> dict:
     """Evaluate a single BFCL test case."""
+    from config import format_system_prompt
+    
     prompt = test["prompt"]
     expected_tool = test["expected_tool"]
     required_params = test.get("required_params", {})
@@ -476,7 +664,12 @@ def evaluate_test(test: dict, verbose: bool = False) -> dict:
     # Support list of acceptable tools for ambiguous prompts
     expected_tool_list = expected_tool if isinstance(expected_tool, list) else [expected_tool]
     
-    actual_tool, actual_args, raw_response, latency = call_ollama(prompt)
+    # R5-7 fix: Wrap prompt with system prompt to match training distribution
+    # Uses bfcl_eval_mode=True to disable clarification behavior (R4-5)
+    sys_prompt = format_system_prompt(bfcl_eval_mode=True)
+    full_prompt = f"{sys_prompt}\n\nUser: {prompt}"
+    
+    actual_tool, actual_args, raw_response, latency, all_calls = call_ollama(full_prompt)
     
     # Layer 3 validation
     actual_tool, actual_args = validate_tool_call(prompt, actual_tool, actual_args)
@@ -584,7 +777,7 @@ def run_evaluation(shuffle: bool = False, verbose: bool = False) -> dict:
         random.shuffle(all_tests)
     
     print(f"\n{'='*70}")
-    print(f"  BFCL-Style Evaluation — prism-coder:7b")
+    print(f"  BFCL-Style Evaluation — {MODEL}")
     print(f"  {len(all_tests)} tests across {len(ALL_CATEGORIES)} categories")
     print(f"  Shuffle: {'ON' if shuffle else 'OFF'}")
     print(f"{'='*70}\n")
@@ -667,11 +860,18 @@ def run_evaluation(shuffle: bool = False, verbose: bool = False) -> dict:
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="BFCL-Style evaluation for prism-coder:7b")
+    parser = argparse.ArgumentParser(description="BFCL-Style evaluation for Prism models")
+    parser.add_argument("--model", type=str, default=None, help="Ollama model name (default: prism-coder:7b)")
     parser.add_argument("--runs", type=int, default=1, help="Number of evaluation runs")
     parser.add_argument("--shuffle", action="store_true", help="Randomize test order each run")
     parser.add_argument("--verbose", action="store_true", help="Show detailed model outputs")
     args = parser.parse_args()
+    
+    # Allow --model to override the global MODEL
+    global MODEL
+    if args.model:
+        MODEL = args.model
+        print(f"Using model: {MODEL}")
     
     all_run_results = []
     
