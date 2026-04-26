@@ -99,6 +99,187 @@ def generate_embeddings():
     print(f"Saved {len(embeddings)} embeddings to {EMBEDDINGS_PATH}")
 
 
+# =============================================================================
+# R6-4: HyDE (Hypothetical Document Embeddings) for Tool RAG
+# =============================================================================
+
+# Precomputed hypothetical user queries per tool (no LLM needed at runtime)
+HYDE_QUERIES = {
+    # Session management
+    "session_load_context": [
+        "load my project", "show me where I left off", "resume previous work",
+        "what was I doing last time", "get my session context", "start from last save",
+    ],
+    "session_save_ledger": [
+        "save what I did today", "log this session", "record my work",
+        "write a session summary", "commit progress notes",
+    ],
+    "session_save_handoff": [
+        "create handoff for next session", "save state for later",
+        "write handoff notes", "prepare for next agent session",
+    ],
+    # Memory / Knowledge
+    "knowledge_search": [
+        "find past insights", "search curated knowledge", "look up graduated memories",
+        "what do I know about this topic", "search accumulated wisdom",
+    ],
+    "session_search_memory": [
+        "search my memories", "find similar sessions", "semantic memory search",
+        "look for related past work", "find sessions about this",
+    ],
+    "knowledge_forget": [
+        "delete old memories", "forget irrelevant entries", "clean up knowledge base",
+        "remove outdated information", "prune stale sessions",
+    ],
+    "session_compact_ledger": [
+        "my session history is too long", "clean up old logs",
+        "archive older entries", "compact the ledger", "summarize old sessions",
+    ],
+    # Search
+    "brave_web_search": [
+        "search the internet", "google this for me", "find information online",
+        "web search for", "look this up on the web",
+    ],
+    "brave_local_search": [
+        "find restaurants near me", "local businesses nearby",
+        "search for places around here", "find shops in my area",
+    ],
+    # Memory operations
+    "knowledge_upvote": [
+        "mark this as important", "upvote this memory", "promote this insight",
+        "this was really useful", "increase importance of this entry",
+    ],
+    "knowledge_downvote": [
+        "this isn't useful", "downvote this memory", "decrease importance",
+        "this entry is wrong", "demote this insight",
+    ],
+    "session_forget_memory": [
+        "delete this specific memory", "remove this entry", "erase this record",
+        "forget this particular session", "GDPR delete request",
+    ],
+    # Health & maintenance
+    "session_health_check": [
+        "check memory health", "run diagnostics", "is my database okay",
+        "check for problems", "scan for issues in memory",
+    ],
+    "session_export_memory": [
+        "export my data", "download my memories", "backup everything",
+        "data portability export", "save all data to file",
+    ],
+    # Task routing
+    "session_task_route": [
+        "should I use local or cloud model", "route this task",
+        "which model should handle this", "analyze task complexity",
+    ],
+}
+
+HYDE_EMBEDDINGS_PATH = os.environ.get(
+    "PRISM_HYDE_EMBEDDINGS_PATH",
+    os.path.join(os.path.dirname(__file__), "data", "hyde_embeddings.json")
+)
+
+
+def generate_hyde_embeddings():
+    """R6-4: Generate HyDE embeddings for all tools.
+    
+    For each tool, embeds the tool description AND all hypothetical user queries.
+    At retrieval time, matching against hypothetical queries dramatically
+    improves recall when users describe problems, not tool names.
+    """
+    print("Generating HyDE embeddings for MCP tools...")
+    
+    if not os.path.exists(TOOL_SCHEMA_PATH):
+        print(f"ERROR: Tool schema not found at {TOOL_SCHEMA_PATH}")
+        return
+    
+    with open(TOOL_SCHEMA_PATH, "r") as f:
+        schema = json.load(f)
+    
+    tools = schema.get("tools", [])
+    print(f"Found {len(tools)} tools, {len(HYDE_QUERIES)} have HyDE queries.")
+    
+    embeddings = {}
+    for t in tools:
+        name = t["name"]
+        desc = t.get("description", "")
+        params = t.get("parameters", {}).get("properties", {})
+        param_text = ", ".join(params.keys()) if params else ""
+        
+        # Standard tool description embedding
+        embed_text = f"{name}: {desc}. Parameters: {param_text}"
+        tool_emb = get_embedding(embed_text)
+        if not tool_emb:
+            continue
+        
+        # HyDE: Embed all hypothetical queries
+        hyde_embs = []
+        if name in HYDE_QUERIES:
+            for hq in HYDE_QUERIES[name]:
+                hq_emb = get_embedding(hq)
+                if hq_emb:
+                    hyde_embs.append(hq_emb)
+        
+        embeddings[name] = {
+            "schema": t,
+            "embedding": tool_emb,
+            "embed_text": embed_text,
+            "hyde_embeddings": hyde_embs,
+        }
+        
+        print(f"  {name}: description + {len(hyde_embs)} HyDE queries")
+    
+    os.makedirs(os.path.dirname(HYDE_EMBEDDINGS_PATH), exist_ok=True)
+    with open(HYDE_EMBEDDINGS_PATH, "w") as f:
+        json.dump(embeddings, f, indent=2)
+    
+    print(f"Saved {len(embeddings)} HyDE embeddings to {HYDE_EMBEDDINGS_PATH}")
+
+
+def retrieve_top_k_hyde(query: str, k: int = 5) -> list:
+    """R6-4: HyDE-enhanced retrieval — matches against hypothetical user queries.
+    
+    For each tool, computes similarity against BOTH the tool description
+    AND all hypothetical user queries, taking the MAX score.
+    This bridges the vocabulary gap between user problems and tool names.
+    """
+    # Try HyDE embeddings first, fall back to standard
+    hyde_path = HYDE_EMBEDDINGS_PATH
+    if os.path.exists(hyde_path):
+        with open(hyde_path, "r") as f:
+            embeddings = json.load(f)
+    else:
+        return retrieve_top_k(query, k)
+    
+    query_emb = get_embedding(query)
+    if not query_emb:
+        return []
+    
+    scores = []
+    for tool_name, data in embeddings.items():
+        # Score against tool description
+        desc_sim = cosine_similarity(query_emb, data["embedding"])
+        
+        # Score against all HyDE queries, take MAX
+        hyde_sims = [
+            cosine_similarity(query_emb, he)
+            for he in data.get("hyde_embeddings", [])
+        ]
+        max_hyde = max(hyde_sims) if hyde_sims else 0.0
+        
+        # Combined score: max of description and HyDE queries
+        best_sim = max(desc_sim, max_hyde)
+        scores.append((best_sim, tool_name, data["schema"]))
+    
+    scores.sort(key=lambda x: x[0], reverse=True)
+    
+    results = []
+    for sim, name, schema in scores[:k]:
+        results.append(schema)
+        print(f"  HyDE-RAG: {name} (sim={sim:.4f})")
+    
+    return results
+
+
 def load_embeddings() -> dict:
     """Load precomputed tool embeddings."""
     if not os.path.exists(EMBEDDINGS_PATH):
@@ -144,14 +325,18 @@ def retrieve_top_k(query: str, k: int = 5) -> list:
     return results
 
 
-def build_rag_system_prompt(query: str, k: int = 5) -> str:
-    """R5-4: Build a system prompt with only the top-k relevant tools.
+def build_rag_system_prompt(query: str, k: int = 5, use_hyde: bool = True) -> str:
+    """Build a system prompt with only the top-k relevant tools.
 
-    This reduces system prompt from ~2000 tokens to ~300 tokens.
+    R6-4: Prefers HyDE retrieval for better accuracy.
+    Falls back to standard retrieval if HyDE embeddings unavailable.
     """
     from config import format_system_prompt
 
-    tools = retrieve_top_k(query, k=k)
+    if use_hyde:
+        tools = retrieve_top_k_hyde(query, k=k)
+    else:
+        tools = retrieve_top_k(query, k=k)
     if not tools:
         print("WARNING: No tools retrieved. Using empty tool list.")
     return format_system_prompt(tools)
@@ -170,21 +355,28 @@ def test_retrieval(query: str):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python semantic_rag.py generate       # Generate embeddings")
+        print("  python semantic_rag.py generate       # Generate standard embeddings")
+        print("  python semantic_rag.py hyde            # Generate HyDE embeddings (R6-4)")
         print("  python semantic_rag.py retrieve 'query'  # Retrieve top-5 tools")
+        print("  python semantic_rag.py hyde-retrieve 'query'  # HyDE-enhanced retrieval")
         print("  python semantic_rag.py test 'query'      # Test retrieval")
         sys.exit(1)
 
     cmd = sys.argv[1]
     if cmd == "generate":
         generate_embeddings()
-    elif cmd in ("retrieve", "test"):
+    elif cmd == "hyde":
+        generate_hyde_embeddings()
+    elif cmd in ("retrieve", "test", "hyde-retrieve"):
         if len(sys.argv) < 3:
             print("ERROR: Provide a query string.")
             sys.exit(1)
         query = " ".join(sys.argv[2:])
         if cmd == "retrieve":
             tools = retrieve_top_k(query)
+            print(json.dumps([t["name"] for t in tools], indent=2))
+        elif cmd == "hyde-retrieve":
+            tools = retrieve_top_k_hyde(query)
             print(json.dumps([t["name"] for t in tools], indent=2))
         else:
             test_retrieval(query)
