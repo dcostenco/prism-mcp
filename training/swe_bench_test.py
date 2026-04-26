@@ -53,7 +53,7 @@ BLIND_TESTS = [
     ("Any institutional knowledge about how we handle rate limiting?",
      "knowledge_search", ["query"], "natural_phrasing"),
 
-    ("The ledger is getting huge. Summarize and archive the old stuff for synalux-portal.",
+    ("The ledger is getting huge. Summarize and archive the old stuff for billing-portal.",
      "session_compact_ledger", ["project"], "natural_phrasing"),
 
     ("Dump everything to a file so I can back it up. JSON format, save to /tmp/prism-backup.",

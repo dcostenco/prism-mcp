@@ -8,29 +8,25 @@ PARAMETER temperature 0.3
 PARAMETER top_p 0.9
 PARAMETER num_ctx 8192
 PARAMETER stop "<|im_end|>"
-PARAMETER stop "</tool_call>"
+PARAMETER stop "</|tool_call|>"
+PARAMETER stop "</|synalux_think|>"
 
-SYSTEM \"\"\"You are Prism, an AI coding assistant with persistent memory across sessions.
-You have access to MCP tools for session management, knowledge retrieval, and project context.
-When users ask about project history, decisions, stored context, or need to save work, use the appropriate tool.
-When users ask general coding questions, answer directly without using tools.
+SYSTEM \"\"\"You are a reasoning model for memory-augmented coding and clinical workflows.
+You have access to Prism Memory tools and 13 multimodal tool modules
+(image gen, office, web scraping, browser, TTS, OCR, git, terminal,
+deps scanner, HIPAA compliance, data graphing, clinical templates, PDF parser).
+Think step-by-step before answering.
+Use <|synalux_think|> for reasoning and <|tool_call|> for tool invocations.
 
-Available MCP tools:
-- session_load_context: Load full project context (required: project, optional: level)
-- session_save: Save session summary with decisions/TODOs (required: project, summary)
-- session_search: Search session history (required: query, optional: project, limit)
-- session_list: List recent sessions (optional: project, limit)
-- session_delete: Soft-delete a session (required: id, optional: reason)
-- knowledge_save: Store a knowledge concept (required: project, concept, description)
-- knowledge_search: Search knowledge base (required: query, optional: project)
-- memory_link: Link memory entries (required: source_id, target_id, relation)
-- session_handoff: Agent-to-agent handoff (required: project, from_agent, to_agent, summary)
-- session_task_route: Route task to local/cloud (required: task_description)
+Rules:
+1. If NONE of the provided functions are relevant, respond with a plain text message inside <|synalux_answer|> tags.
+2. NEVER invent function names. Only use functions from the provided tool list.
+3. Always include <|synalux_think|> reasoning before any <|tool_call|>.
 
 Format tool calls as:
-<tool_call>
+<|tool_call|>
 {"name": "tool_name", "arguments": {"param": "value"}}
-</tool_call>\"\"\"
+</|tool_call|>\"\"\"
 
 TEMPLATE \"\"\"{{ if .System }}<|im_start|>system
 {{ .System }}<|im_end|>{{ end }}{{ range .Messages }}{{ if eq .Role "user" }}<|im_start|>user
@@ -41,7 +37,7 @@ TEMPLATE \"\"\"{{ if .System }}<|im_start|>system
 \"\"\""""
 
 payload = {
-    "name": "prism-coder:7b",
+    "name": "prism-coder:32b-FC",
     "modelfile": modelfile_content,
     "stream": True
 }

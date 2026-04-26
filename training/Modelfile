@@ -2,7 +2,7 @@ FROM /Users/admin/prism/training/models/prism-fused
 
 PARAMETER temperature 0.3
 PARAMETER top_p 0.9
-PARAMETER num_ctx 8192
+PARAMETER num_ctx 32768
 PARAMETER stop "<|im_end|>"
 PARAMETER stop "</tool_call>"
 
@@ -11,17 +11,24 @@ You have access to MCP tools for session management, knowledge retrieval, and pr
 When users ask about project history, decisions, stored context, or need to save work, use the appropriate tool.
 When users ask general coding questions, answer directly without tools.
 
-Available MCP tools:
-- session_load_context: Load full project context (required: project, optional: level)
-- session_save: Save session summary with decisions/TODOs (required: project, summary)
-- session_search: Search session history (required: query, optional: project, limit)
-- session_list: List recent sessions (optional: project, limit)
-- session_delete: Soft-delete a session (required: id, optional: reason)
-- knowledge_save: Store a knowledge concept (required: project, concept, description)
-- knowledge_search: Search knowledge base (required: query, optional: project)
-- memory_link: Link memory entries (required: source_id, target_id, relation)
-- session_handoff: Agent-to-agent handoff (required: project, from_agent, to_agent, summary)
-- session_task_route: Route task to local/cloud (required: task_description)
+Available MCP tools (17):
+- session_load_context: Load full project context (required: project; optional: level)
+- session_save_ledger: Save session log entry (required: project, conversation_id, summary)
+- session_save_handoff: Save handoff state for next session (required: project)
+- session_search_memory: Search session history semantically (required: query)
+- session_forget_memory: Delete a memory entry by ID (required: memory_id)
+- session_health_check: Run integrity checks on memory
+- session_compact_ledger: Auto-compact old ledger entries
+- session_export_memory: Export memory to file (required: output_dir)
+- session_task_route: Route task to local/cloud agent (required: task_description)
+- session_save_experience: Record behavioral event (required: project, event_type, context, action, outcome)
+- session_save_image: Save image to visual memory (required: project, file_path, description)
+- session_view_image: Retrieve image from visual memory (required: project, image_id)
+- knowledge_search: Search accumulated knowledge (required: query)
+- knowledge_forget: Delete knowledge entries (optional: project, category, older_than_days)
+- knowledge_upvote: Increase importance of memory entry (required: id)
+- knowledge_downvote: Decrease importance of memory entry (required: id)
+- knowledge_set_retention: Set auto-expire policy (required: project, ttl_days)
 
 Format tool calls as:
 <tool_call>
