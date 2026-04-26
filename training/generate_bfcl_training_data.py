@@ -1400,6 +1400,274 @@ def generate_dry_run_examples(output_path: Path, num_examples: int = 200):
     print(f"Generated {len(examples)} dry-run safety examples -> {output_file}")
     return examples
 
+
+# ============================================================================
+# R6-2: Distractor Tool Injection (Contrastive Training)
+# ============================================================================
+def _generate_distractor_tool(base_tool: dict, suffix: str) -> dict:
+    """Generate a plausible distractor tool from a real one."""
+    name = base_tool.get("name", "unknown")
+    desc = base_tool.get("description", "")
+    
+    # Create variations that share keywords
+    prefixes = ["get_", "set_", "update_", "delete_", "list_", "check_", "find_", "create_"]
+    parts = name.split("_")
+    core = "_".join(parts[1:]) if len(parts) > 1 else name
+    
+    new_name = random.choice(prefixes) + core + suffix
+    new_desc = desc.replace(".", " (deprecated).") if desc else f"Similar to {name} but {suffix}."
+    
+    # Copy params but randomly add/remove one
+    params = base_tool.get("parameters", {}).copy()
+    props = dict(params.get("properties", {}))
+    
+    # Add a random extra param to make it different
+    extra_params = {
+        "verbose": {"type": "boolean", "description": "Enable verbose output"},
+        "timeout_ms": {"type": "integer", "description": "Timeout in milliseconds"},
+        "format": {"type": "string", "enum": ["json", "xml", "csv"], "description": "Output format"},
+        "version": {"type": "string", "description": "API version to use"},
+    }
+    extra_key, extra_val = random.choice(list(extra_params.items()))
+    props[extra_key] = extra_val
+    
+    return {
+        "name": new_name,
+        "description": new_desc,
+        "parameters": {
+            "type": "object",
+            "properties": props,
+            "required": params.get("required", []),
+        }
+    }
+
+
+def generate_distractor_examples(output_path: Path, collections: dict, num_examples: int = 400):
+    """R6-2: Generate training data with distractor tools to force contrastive reasoning.
+    
+    For each example, inject 3-4 semantically similar "distractor" tools alongside
+    the correct tool. The model must learn to discriminate via SM-CoT.
+    """
+    examples = []
+    
+    # Flatten all tools for distractor pool
+    all_tools_flat = []
+    for api_name, tools in collections.items():
+        for tool in tools:
+            all_tools_flat.append((api_name, tool))
+    
+    if len(all_tools_flat) < 5:
+        print("WARNING: Not enough tools for distractor injection. Skipping R6-2.")
+        return []
+    
+    # Use SM-CoT scenarios from R5-1 as base queries
+    distractor_scenarios = [
+        {"func": "mkdir", "api": "gorilla_file_system",
+         "query": "make a new folder called src", "args": {"dir_name": "src"},
+         "intent": "Create directory"},
+        {"func": "ls", "api": "gorilla_file_system",
+         "query": "what files are here", "args": {},
+         "intent": "List directory"},
+        {"func": "place_order", "api": "trading_bot",
+         "query": "buy 50 shares of MSFT", "args": {"order_type": "Buy", "symbol": "MSFT", "price": 420.0, "amount": 50},
+         "intent": "Place stock order"},
+        {"func": "get_stock_info", "api": "trading_bot",
+         "query": "what's the current price of TSLA", "args": {"symbol": "TSLA"},
+         "intent": "Get stock information"},
+        {"func": "startEngine", "api": "vehicle_control",
+         "query": "start the engine", "args": {"ignitionMode": "START"},
+         "intent": "Start car engine"},
+        {"func": "lockDoors", "api": "vehicle_control",
+         "query": "lock all the doors", "args": {"unlock": False, "door": ["driver", "passenger", "rear_left", "rear_right"]},
+         "intent": "Lock vehicle doors"},
+        {"func": "search", "api": "web_search",
+         "query": "find me info about MLX framework", "args": {"query": "MLX framework Apple Silicon"},
+         "intent": "Web search"},
+        {"func": "book_flight", "api": "travel_booking",
+         "query": "book a flight from NYC to LAX next Friday", 
+         "args": {"origin": "NYC", "destination": "LAX"},
+         "intent": "Book a flight"},
+    ]
+    
+    for _ in range(num_examples):
+        scenario = random.choice(distractor_scenarios)
+        api_name = scenario["api"]
+        
+        # Get the correct tool
+        target_tools = collections.get(api_name, [])
+        if not target_tools:
+            continue
+        
+        target_tool = None
+        for t in target_tools:
+            if t.get("name") == scenario["func"]:
+                target_tool = t
+                break
+        if not target_tool:
+            target_tool = target_tools[0]
+        
+        # Generate 3-4 distractors from the same API (keyword overlap)
+        num_distractors = random.randint(3, 4)
+        distractors = []
+        for i in range(num_distractors):
+            suffix = f"_v{i+2}" if random.random() < 0.5 else f"_{random.choice(['alt', 'legacy', 'beta', 'fast'])}"
+            distractor = _generate_distractor_tool(target_tool, suffix)
+            distractors.append(distractor)
+        
+        # Also add 1-2 real tools from the same API to increase confusion
+        other_real = [t for t in target_tools if t.get("name") != scenario["func"]]
+        if other_real:
+            distractors.extend(random.sample(other_real, min(2, len(other_real))))
+        
+        # Build tools list: target + distractors (shuffled)
+        tools = [target_tool] + distractors
+        random.shuffle(tools)
+        
+        # Build contrastive SM-CoT that explicitly eliminates distractors
+        tool_names_str = ", ".join(t.get("name", "?") for t in tools)
+        contrastive_think = (
+            f"Intent: {scenario['intent']}\n"
+            f"Available tools: {tool_names_str}\n"
+            f"Analysis: I see {len(tools)} tools with overlapping names.\n"
+        )
+        for t in tools:
+            if t.get("name") == scenario["func"]:
+                contrastive_think += f"- {t['name']}: ✅ MATCHES intent — correct tool\n"
+            else:
+                contrastive_think += f"- {t['name']}: ❌ NOT the target (distractor/different purpose)\n"
+        contrastive_think += f"Decision: Use {scenario['func']} because it directly matches the user's request."
+        
+        tc_json = json.dumps({"name": scenario["func"], "arguments": scenario["args"]})
+        think_text = f'{TOKEN_THINK_OPEN}\n{contrastive_think}\n{TOKEN_THINK_CLOSE}\n'
+        tc_text = f'{think_text}{TOKEN_TOOL_CALL_OPEN}\n{tc_json}\n{TOKEN_TOOL_CALL_CLOSE}'
+        
+        msgs = [
+            {"role": "system", "content": format_system_prompt(tools)},
+            {"role": "user", "content": scenario["query"]},
+            {"role": "assistant", "content": tc_text},
+        ]
+        
+        pairs = unroll_multi_turn(msgs, tools)
+        for pc in pairs:
+            pc["category"] = "distractor"
+            examples.append(pc)
+    
+    output_file = output_path / "distractor_train.jsonl"
+    with open(output_file, "w") as f:
+        for ex in examples:
+            f.write(json.dumps(ex) + "\n")
+    
+    print(f"Generated {len(examples)} distractor examples -> {output_file}")
+    return examples
+
+
+# ============================================================================
+# R6-5: Evol-Instruct Messy Prompts (Human Variation Training)
+# ============================================================================
+def _messify_prompt(clean_prompt: str) -> str:
+    """Rewrite a clean prompt into a messy human variation."""
+    styles = [
+        # Slang/casual
+        lambda p: f"yo {p.lower().replace('please ', '').replace('create ', 'make ')} plz",
+        # Typo injection
+        lambda p: p.replace("search", "serach").replace("create", "craete").replace("the", "teh").replace("load", "laod"),
+        # Abbreviated
+        lambda p: p.replace("project", "proj").replace("directory", "dir").replace("information", "info").replace("configuration", "config"),
+        # Multi-intent padding
+        lambda p: f"hey so {p.lower()}, also can you tell me how it went",
+        # Conversational
+        lambda p: f"remember when we talked about this? well {p.lower()}",
+        # Run-on
+        lambda p: f"ok so basically i need you to {p.lower()} and thats about it",
+        # Formal overcorrection
+        lambda p: f"I would kindly request that you {p.lower()}, if at all possible",
+        # Minimal
+        lambda p: " ".join(p.lower().split()[:4]),
+    ]
+    return random.choice(styles)(clean_prompt)
+
+
+def generate_evol_instruct_examples(output_path: Path, collections: dict, num_examples: int = 500):
+    """R6-5: Generate training data with messy, human-like prompt variations.
+    
+    Rewrites clean template prompts into slang, typos, abbreviations, and
+    conversational styles to make the model resilient to real developer inputs.
+    """
+    examples = []
+    
+    # Base clean prompts paired with their tool calls
+    clean_scenarios = [
+        {"api": "gorilla_file_system", "func": "mkdir",
+         "clean": "Create a new directory called projects",
+         "args": {"dir_name": "projects"}},
+        {"api": "gorilla_file_system", "func": "grep",
+         "clean": "Search for the word TODO in the file main.py",
+         "args": {"file_name": "main.py", "pattern": "TODO"}},
+        {"api": "gorilla_file_system", "func": "cat",
+         "clean": "Show the contents of config.json",
+         "args": {"file_name": "config.json"}},
+        {"api": "gorilla_file_system", "func": "rm",
+         "clean": "Delete the file old_backup.tar",
+         "args": {"file_name": "old_backup.tar"}},
+        {"api": "gorilla_file_system", "func": "mv",
+         "clean": "Move report.csv to the archive directory",
+         "args": {"source": "report.csv", "destination": "archive/report.csv"}},
+        {"api": "trading_bot", "func": "place_order",
+         "clean": "Buy 100 shares of AAPL at market price",
+         "args": {"order_type": "Buy", "symbol": "AAPL", "price": 185.0, "amount": 100}},
+        {"api": "trading_bot", "func": "get_stock_info",
+         "clean": "Get the current stock information for Tesla",
+         "args": {"symbol": "TSLA"}},
+        {"api": "vehicle_control", "func": "startEngine",
+         "clean": "Please start the car engine",
+         "args": {"ignitionMode": "START"}},
+        {"api": "vehicle_control", "func": "gallon_to_liter",
+         "clean": "Convert 15 gallons to liters",
+         "args": {"gallon": 15.0}},
+        {"api": "web_search", "func": "search",
+         "clean": "Search the web for Apple Silicon ML benchmarks",
+         "args": {"query": "Apple Silicon ML benchmarks"}},
+        {"api": "travel_booking", "func": "book_flight",
+         "clean": "Book a flight from San Francisco to New York",
+         "args": {"origin": "SFO", "destination": "JFK"}},
+        {"api": "message_api", "func": "send_message",
+         "clean": "Send a message to John saying hello",
+         "args": {"receiver_id": "john", "message": "hello"}},
+    ]
+    
+    for _ in range(num_examples):
+        scenario = random.choice(clean_scenarios)
+        api_name = scenario["api"]
+        
+        tools = collections.get(api_name, [])
+        if not tools:
+            continue
+        
+        # Create messy version of the prompt
+        messy_prompt = _messify_prompt(scenario["clean"])
+        
+        tc_json = json.dumps({"name": scenario["func"], "arguments": scenario["args"]})
+        tc_text = f'{TOKEN_TOOL_CALL_OPEN}\n{tc_json}\n{TOKEN_TOOL_CALL_CLOSE}'
+        
+        msgs = [
+            {"role": "system", "content": format_system_prompt(tools)},
+            {"role": "user", "content": messy_prompt},
+            {"role": "assistant", "content": tc_text},
+        ]
+        
+        pairs = unroll_multi_turn(msgs, tools)
+        for pc in pairs:
+            pc["category"] = "evol_instruct"
+            examples.append(pc)
+    
+    output_file = output_path / "evol_instruct_train.jsonl"
+    with open(output_file, "w") as f:
+        for ex in examples:
+            f.write(json.dumps(ex) + "\n")
+    
+    print(f"Generated {len(examples)} evol-instruct examples -> {output_file}")
+    return examples
+
 def merge_datasets(output_path: Path):
     """Merge all training data into a single shuffled file."""
     all_examples = []
@@ -1452,6 +1720,8 @@ def main():
     parser.add_argument("--smcot-count", type=int, default=300, help="R5-1: SM-CoT schema-mapping examples")
     parser.add_argument("--optional-restraint-count", type=int, default=500, help="R5-2: Optional param restraint")
     parser.add_argument("--dry-run-count", type=int, default=200, help="R5-6: Dry-run safety examples")
+    parser.add_argument("--distractor-count", type=int, default=400, help="R6-2: Distractor tool injection")
+    parser.add_argument("--evol-instruct-count", type=int, default=500, help="R6-5: Evol-Instruct messy prompts")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()
     
@@ -1491,6 +1761,10 @@ def main():
     generate_smcot_examples(output_path, collections, args.smcot_count)
     generate_optional_restraint_examples(output_path, collections, args.optional_restraint_count)
     generate_dry_run_examples(output_path, args.dry_run_count)
+    # R6 world-class optimizations
+    print(f"\n--- R6 World-Class Optimizations ---")
+    generate_distractor_examples(output_path, collections, args.distractor_count)
+    generate_evol_instruct_examples(output_path, collections, args.evol_instruct_count)
     merge_datasets(output_path)
     
     print(f"\n✅ Training data generation complete!")
