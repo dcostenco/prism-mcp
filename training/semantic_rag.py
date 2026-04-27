@@ -338,10 +338,16 @@ def build_rag_system_prompt(query: str, k: int = 5, use_hyde: bool = True) -> st
     else:
         tools = retrieve_top_k(query, k=k)
     if not tools:
-        # R6.2-fix: Fallback to full tool registry, never pass empty list
-        # Empty tool list = guaranteed 0% accuracy during evaluation
+        # R6.3-fix: Fallback to full tool registry loaded from schema file
+        # format_system_prompt() with no args returns ZERO tools (tools=None → if tools: fails)
+        # Must explicitly load and pass the full schema array
         print("WARNING: RAG retrieval returned no tools. Falling back to full tool registry.")
-        return format_system_prompt()  # No args = all tools (default behavior)
+        try:
+            _schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "tool_schema.json")
+            with open(_schema_path) as _sf:
+                tools = json.load(_sf).get("tools", [])
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass  # tools stays empty — format_system_prompt will return a toolless prompt
     return format_system_prompt(tools)
 
 

@@ -1591,17 +1591,21 @@ def _messify_prompt(clean_prompt: str, param_values: list = None) -> str:
         """Word-boundary-safe substitution (won't match substrings)."""
         return re.sub(r'\b' + re.escape(word) + r'\b', repl, text)
     
-    # R6.2-fix: Case-safe lowering — protect param values from .lower()
+    # R6.3-fix: Case-safe lowering — protect param values from .lower()
+    # Uses word-boundary regex (not str.replace) to prevent substring collisions
     def _safe_lower(text, protected_values):
         """Lowercase text while preserving exact casing of protected values."""
         if not protected_values:
             return text.lower()
-        # Replace protected values with placeholders, lowercase, then restore
+        # Replace protected values with placeholders using word boundaries, then restore
         placeholders = {}
         for i, val in enumerate(protected_values):
+            sval = str(val)
+            if len(sval) < 2:
+                continue  # Skip single-char values — too collision-prone even with \b
             ph = f"__PARAM_{i}__"
-            placeholders[ph] = str(val)
-            text = text.replace(str(val), ph)
+            placeholders[ph] = sval
+            text = re.sub(r'\b' + re.escape(sval) + r'\b', ph, text)
         text = text.lower()
         for ph, original in placeholders.items():
             text = text.replace(ph.lower(), original)

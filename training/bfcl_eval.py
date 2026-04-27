@@ -25,6 +25,7 @@ import sys
 import time
 import random
 import urllib.request
+import urllib.error
 import statistics
 
 MODEL = "prism-coder-32b-FC"  # Default; override with --model flag
@@ -837,8 +838,10 @@ def evaluate_test(test: dict, verbose: bool = False) -> dict:
     try:
         from semantic_rag import build_rag_system_prompt
         sys_prompt = build_rag_system_prompt(prompt)
-    except Exception:
-        sys_prompt = format_system_prompt(bfcl_eval_mode=True)
+    except (ImportError, urllib.error.URLError, ConnectionError, OSError) as e:
+        # R6.3-fix: Narrow exception + explicit fallback with _TOOL_SCHEMAS
+        print(f"\n\u26a0\ufe0f RAG OFFLINE: {e} - Falling back to full tool schemas", file=sys.stderr)
+        sys_prompt = format_system_prompt(_TOOL_SCHEMAS, bfcl_eval_mode=True)
     full_prompt = f"{sys_prompt}\n\nUser: {prompt}"
     
     # R6-1: Use Best-of-N when enabled (validates candidates against tool schemas)

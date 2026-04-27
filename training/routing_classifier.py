@@ -31,7 +31,7 @@ ROUTE_LOCAL = "local"   # Ollama on-device
 ROUTE_CLOUD = "cloud"   # Claude/GPT-4 for heavy lifting
 
 MODEL_PATH = Path(__file__).parent / "models" / "routing_classifier.pkl"
-DEFAULT_DB_PATH = os.path.expanduser("~/.prism/prism_sessions.db")
+DEFAULT_DB_PATH = os.environ.get("PRISM_DB_PATH", os.path.expanduser("~/.prism/prism_sessions.db"))
 
 # === Training data: task descriptions → routing decisions ===
 # These heuristics seed the classifier before real data accumulates.

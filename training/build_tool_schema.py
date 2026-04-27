@@ -146,7 +146,10 @@ PRISM_TOOLS = [
     }
 ]
 
-with open(OUTPUT, "w") as f:
+# R6.3-fix: Atomic write to prevent partial reads during concurrent CI
+_tmp_output = OUTPUT + ".tmp"
+with open(_tmp_output, "w") as f:
     json.dump({"tools": PRISM_TOOLS, "version": "1.0", "source": "prism-mcp"}, f, indent=2)
+os.replace(_tmp_output, OUTPUT)
 
 print(f"Wrote {len(PRISM_TOOLS)} tool schemas to {OUTPUT}")
