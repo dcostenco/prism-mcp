@@ -1,8 +1,8 @@
 {
   "name": "prism-mcp-server",
-  "version": "11.6.0",
+  "version": "12.0.0",
   "mcpName": "io.github.dcostenco/prism-mcp",
-  "description": "Prism v11.6.0: The world's first O(1) Cognitive Memory Architecture for AI Agents. Features production-grade Agent Infrastructure Resilience (serialized queuing, memory guardian, queue watchdog), 100% Tool-Call Accuracy (GRPO Aligned), Zero-Search Retrieval (HDC/HRR), and HIPAA-hardened local-first storage.",
+  "description": "Prism v12.0.0: The world's first O(1) Cognitive Memory Architecture for AI Agents. Features Unified Billing (Synalux + Prism), 54 Agent Skills, 14-Day Trial, 100% Tool-Call Accuracy (GRPO Aligned), Zero-Search Retrieval (HDC/HRR), and HIPAA-hardened local-first storage.",
   "module": "index.ts",
   "type": "module",
   "main": "dist/server.js",
@@ -91,7 +91,7 @@
     "url": "git+https://github.com/dcostenco/prism-mcp.git"
   },
   "author": "Dmitri Costenco",
-  "license": "MIT",
+  "license": "BSL-1.1",
   "devDependencies": {
     "@huggingface/transformers": "3.1.0",
     "@types/bun": "latest",

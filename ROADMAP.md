@@ -24,3 +24,11 @@
 - [ ] **v13.0.0** - Team Handoff
     - [ ] Encrypted peer-to-peer session syncing
     - [ ] Multi-agent task routing with verifiable memory
+- [ ] **v14.0.0** - VM & Device Integration
+    - [ ] Hypervisor abstraction (Apple Virtualization, VMware, Parallels, QEMU, Hyper-V)
+    - [ ] 9 built-in device templates (Linux, Windows, iOS, iPadOS, watchOS, Wear OS, Android)
+    - [ ] VMware/Parallels import (vmx, pvm, ova, qcow2, vhdx)
+    - [ ] Custom device parameters (user-defined specs, port forwarding, env vars)
+    - [ ] GitHub Actions deployment pipeline with test suite integration
+    - [ ] Thin-client proxy to Synalux Cloud
+    - [ ] Tier-gated VM quotas (apps inherit Synalux subscription tiers)
