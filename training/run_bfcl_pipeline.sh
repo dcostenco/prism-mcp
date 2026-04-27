@@ -182,7 +182,7 @@ if [ "$SKIP_CONVERT" = true ] || [ -d "$MLX_MODEL" ]; then
 else
     python bfcl_qlora_finetune.py \
         --model "$HF_MODEL" \
-        --data "$COMBINED_DIR" \
+        --data "$TRAINING_DIR/data/filtered" \
         --output-dir "$OUTPUT_DIR" \
         --skip-train --no-fuse
 fi
@@ -204,10 +204,10 @@ if [ -d "$SFT_FUSED" ]; then
 else
     python bfcl_qlora_finetune.py \
         --mlx-model "$MLX_MODEL" \
-        --data "$COMBINED_DIR" \
+        --data "$TRAINING_DIR/data/filtered" \
         --output-dir "$OUTPUT_DIR" \
         --iters 1500 \
-        --lora-rank 64 \
+        --lora-rank 32 \
         --lora-layers 24 \
         --lr 1e-5 \
         --batch-size 1 \
@@ -216,7 +216,7 @@ else
 
     # Start watchdog AFTER training so we have the PID
     if [ -f "$WATCHDOG" ]; then
-        python "$WATCHDOG" --pid $TRAIN_PID &
+        python "$WATCHDOG" --pid $TRAIN_PID --swap-kill 20.0 &
         WATCHDOG_PID=$!
         echo "Watchdog started (PID: $WATCHDOG_PID) monitoring training (PID: $TRAIN_PID)"
     fi
@@ -253,13 +253,13 @@ if [ -d "$SFT_FUSED" ]; then
     if [ -d "$GRPO_FUSED" ]; then
         echo "RS-SFT model already exists. Skipping."
     else
-        # R13-fix: Explicitly pass --lora-layers 24 to match SFT
+        # R13-fix: Explicitly pass --lora-layers 16 to match SFT
         python bfcl_grpo_align.py \
             --model "$SFT_FUSED" \
             --data "$DATA_DIR" \
             --output-dir "$GRPO_DIR" \
             --iters 800 \
-            --lora-rank 64 \
+            --lora-rank 32 \
             --lora-layers 24 \
             --lr 5e-6
     fi

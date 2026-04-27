@@ -149,11 +149,11 @@ def train_lora(mlx_model: str, data_dir: str, adapter_path: str,
         "--batch-size", str(batch_size),
         "--learning-rate", str(learning_rate),
         "--save-every", "100",
-        "--test-batches", "10",
-        "--val-batches", "10",
-        "--max-seq-length", "4096",  # 32B Q4: 16384 OOMs on 48GB — 4096 fits safely
-        "--grad-accumulation-steps", "16",  # Effective batch = 1 × 16 = 16
-        "--clear-cache-threshold", "0.5",  # Aggressively free Metal cache to prevent OOM
+        "--test-batches", "0",
+        "--val-batches", "0",
+        "--max-seq-length", "2048",  # Safe sequence length to prevent training OOM
+        "--grad-accumulation-steps", "16",  # High quality batching
+        "--clear-cache-threshold", "0.1",  # Extremely aggressive Metal cache clearing to prevent OOM
         "--mask-prompt",  # BalanceSFT: loss only on completion (tool_call JSON), not prompt
         "-c", config_path,
     ]

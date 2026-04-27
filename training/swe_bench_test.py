@@ -206,6 +206,7 @@ def call_ollama(prompt: str, timeout: int = 120) -> tuple:
             "model": MODEL,
             "prompt": prompt,
             "stream": False,
+            "raw": True,
             "options": {"temperature": 0.1, "num_predict": 512}
         }).encode("utf-8")
         
@@ -368,8 +369,19 @@ def main(shuffle=False):
     results = [None] * len(BLIND_TESTS)  # store by original index
     category_stats = {}
     
+    # R10-fix: Load tool schemas and format ChatML system prompt
+    try:
+        _schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "tool_schema.json")
+        with open(_schema_path) as _f:
+            _tools = json.load(_f).get("tools", [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        _tools = []
+    from config import format_system_prompt
+    _sys_prompt = format_system_prompt(_tools)
+
     for display_i, (orig_idx, (prompt, expected, required_params, category)) in enumerate(indexed_tests, 1):
-        raw, got_tool, got_args, latency = call_ollama(prompt)
+        full_prompt = f"<|im_start|>system\n{_sys_prompt}<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+        raw, got_tool, got_args, latency = call_ollama(full_prompt)
         # Layer 3: reject false positive tool calls on general programming prompts
         got_tool, got_args = validate_tool_call(prompt, got_tool, got_args)
         verdict = evaluate_result(expected, required_params, got_tool, got_args)

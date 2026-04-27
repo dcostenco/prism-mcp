@@ -22,7 +22,7 @@ PRISM_TOOLS = [
         }
     },
     {
-        "name": "session_save",
+        "name": "session_save_ledger",
         "description": "Save a session summary with decisions, TODOs, files changed, and keywords",
         "parameters": {
             "type": "object",
@@ -39,7 +39,7 @@ PRISM_TOOLS = [
         }
     },
     {
-        "name": "session_search",
+        "name": "session_search_memory",
         "description": "Search session history by semantic query, keywords, or project filter",
         "parameters": {
             "type": "object",
@@ -65,13 +65,13 @@ PRISM_TOOLS = [
         }
     },
     {
-        "name": "session_delete",
-        "description": "Soft-delete a session by ID with a reason",
+        "name": "session_forget_memory",
+        "description": "Soft-delete a memory entry by ID with a reason",
         "parameters": {
             "type": "object",
             "required": ["id"],
             "properties": {
-                "id": {"type": "string", "description": "Session ID to delete"},
+                "id": {"type": "string", "description": "Memory entry ID to delete"},
                 "reason": {"type": "string", "description": "Reason for deletion"}
             }
         }
@@ -118,8 +118,8 @@ PRISM_TOOLS = [
         }
     },
     {
-        "name": "session_handoff",
-        "description": "Create a structured handoff between agents with context and instructions",
+        "name": "session_save_handoff",
+        "description": "Save structured handoff state for the next session",
         "parameters": {
             "type": "object",
             "required": ["project", "from_agent", "to_agent", "summary"],
@@ -145,6 +145,14 @@ PRISM_TOOLS = [
         }
     }
 ]
+
+# R11-fix: Include V4 Agentic schemas (40% of BFCL scoring weight)
+try:
+    from config import V4_API_SCHEMAS
+    for api_tools in V4_API_SCHEMAS.values():
+        PRISM_TOOLS.extend(api_tools)
+except ImportError:
+    print("WARNING: Could not import V4_API_SCHEMAS from config.py")
 
 # R6.3-fix: Atomic write to prevent partial reads during concurrent CI
 _tmp_output = OUTPUT + ".tmp"

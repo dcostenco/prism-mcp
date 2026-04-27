@@ -1,102 +1,81 @@
-# Adversarial ML Code Review — Round 5 (R5 Optimizations)
+# BFCL V4 Pipeline — R6.4 Adversarial Code Review Prompt
 
-You are an adversarial ML code reviewer. Below is the **full codebase** (via repomix) for a function-calling fine-tuning pipeline targeting #1 on BFCL V4 (Berkeley Function Calling Leaderboard).
+> **Instructions**: Paste this prompt into a fresh LLM context, followed by the contents of `repomix-output.txt` (MD5: `f8bbb9ce212bd23ac3e632984bd357f6`, 6022 lines).
 
-## Context
+---
 
-**Hardware**: Apple Silicon M5 Max 48GB (MLX-native)  
-**Base Model**: xLAM-2-32b-fc-r (Salesforce)  
-**Framework**: mlx-lm QLoRA  
-**Pipeline**: SFT → RS-SFT → SLERP Souping → Ollama Deploy → BFCL Eval
+You are a senior ML engineer specializing in adversarial evaluation of function-calling model training pipelines. Your task is to perform a ruthless code review of the Round 6.4 (R6.4) BFCL V4 pipeline. This reviews 4 rounds of fixes (25 total findings remediated).
 
-## What Changed in Round 5
+## Cumulative Fixes to Verify (R6.0 → R6.3)
 
-Seven advanced optimizations were implemented:
+### R6.0 (5 fixes)
+1. Best-of-N wired into `evaluate_test()` ✓
+2. Truncation lambda removed from `_messify_prompt()` ✓
+3. `random.sample()` for unique distractor suffixes ✓
+4. Semantic SM-CoT reasoning (not parrot labels) ✓
+5. Private paths scrubbed (`os.path.join(__file__)`) ✓
 
-| ID | Optimization | File(s) Changed | Target |
-|----|-------------|-----------------|--------|
-| R5-1 | SM-CoT (Schema-Mapping Chain-of-Thought) | `config.py`, `generate_bfcl_training_data.py` | AST accuracy, miss_param |
-| R5-2 | Optional Parameter Restraint | `generate_bfcl_training_data.py` | Hallucination (10% weight) |
-| R5-3 | Constrained Decoding + JSON Repair | `bfcl_eval.py` | Exec/Live (10% weight) |
-| R5-4 | Tool RAG (Top-5 Injection) | `semantic_rag.py` | Latency + accuracy |
-| R5-5 | KV Cache / Prefix Caching | `config.py`, `bfcl_eval.py` | TTFT latency |
-| R5-6 | Dry-Run Safety Training | `config.py`, `generate_bfcl_training_data.py`, `reallife_test.py` | Production safety |
-| R5-7 | NEFTune Noise Embedding | `bfcl_qlora_finetune.py` | Zero-shot generalization |
+### R6.1 (7 fixes)
+6. `_TOOL_SCHEMAS` loaded globally from `tool_schema.json` ✓
+7. Word-boundary regex `_wb_sub()` prevents param substring corruption ✓
+8. HyDE keys match `V4_API_SCHEMAS` ✓
+9. `build_rag_system_prompt()` wired into eval ✓
+10. Null params: `if arg_val is None: continue` for optional fields ✓
+11. Config constants imported ✓
+12. Cosine similarity `< 1e-8` threshold ✓
 
-## Previous Fixes Already Verified (Rounds 1-4)
+### R6.2 (6 fixes)
+13. `_safe_lower()` preserves case-sensitive param values ✓
+14. RAG empty fallback (initial, later fixed in R6.3) ✓
+15. Null-bypass closed: `None` on required param → rejected ✓
+16. `JSONDecodeError` + `PermissionError` caught in schema loading ✓
+17. `BFCL_DIR` uses `${PRISM_BFCL_DIR:-fallback}` env var ✓
+18. `benchmark.py` schema load wrapped in try/except ✓
 
-- ✅ ChatML format compliance
-- ✅ re.findall parallel extraction
-- ✅ BalanceSFT removal (no unrolling)
-- ✅ Self-correction traces upsampled (540 examples, ~5% mass)
-- ✅ Coding anchors scaled to 1200 (15-20% ratio)
-- ✅ Router PCA(16) + 240 synthetic seeds
-- ✅ System prompt → single config.py import
-- ✅ bfcl_eval_mode flag for conditional clarification
-- ✅ State block injection for training-inference parity
-- ✅ V4 agentic schemas (web_search, memory_kv, memory_vector)
+### R6.3 (7 fixes)
+19. RAG fallback: loads `tool_schema.json` explicitly (not `format_system_prompt()` with no args) ✓
+20. `_safe_lower()` uses word-boundary `re.sub` (not `str.replace`) + skips single-char values ✓
+21. Eval fallback: passes `_TOOL_SCHEMAS` to `format_system_prompt()` ✓
+22. Narrow exception: `(ImportError, URLError, ConnectionError, OSError)` with stderr ✓
+23. Atomic write: `os.replace()` in `build_tool_schema.py` ✓
+24. `PRISM_DB_PATH` env var in `routing_classifier.py` ✓
+25. Train/eval RAG distribution alignment: 30% RAG pool injection ✓
 
-## Review Checklist
+**Verify**: Spot-check 5+ fixes from each round. If any are missing, flag as CRITICAL.
 
-Score each area PASS/FAIL with justification:
+## New R6.4 Audit Scope
 
-### 1. SM-CoT Correctness
-- Does `build_smcot_think()` correctly iterate all schema properties?
-- Does it handle tools with zero optional params?
-- Does the training data actually use SM-CoT format (not conversational)?
-- Is the SM-CoT format consistent between training and inference-time prompts?
+Focus on **net-new issues** or second-order effects:
 
-### 2. Optional Parameter Restraint
-- For tools with 3+ optional params, does the training JSON STRICTLY omit unmentioned optionals?
-- Does the SM-CoT explicitly mark each optional as "Not specified → OMIT"?
-- Are the expansive query templates truly expansive (not just restating required params)?
-- Is the 500-example count sufficient to influence model behavior (~5-7% of dataset)?
+### Architecture & Correctness
+1. The RAG fallback in `semantic_rag.py` re-loads `tool_schema.json` from disk on every empty-RAG call. Is this inefficient? Should it cache?
+2. The `_safe_lower` skips single-char values. What if a valid 2-char param like `"id"` appears as a common word in prompts? Does `\b` protect against this?
+3. The 30% RAG pool injection in training — does `retrieve_top_k_hyde` work at training data generation time (i.e., are embeddings pre-built)?
+4. The narrow exception types in `bfcl_eval.py` now include `OSError`. Does this catch `TimeoutError` (which is a subclass of `OSError` in Python 3.12)?
 
-### 3. Constrained Decoding
-- Does `_repair_and_extract()` correctly handle trailing commas, string booleans, missing braces?
-- Does the regex `r'"(\d+)"'` overzealously convert strings that should remain strings (e.g., zip codes "10001")?
-- Is the repair strategy safe or could it produce semantically wrong JSON?
+### Data Quality & Training
+5. The Evol-Instruct `_messify_prompt` applies noise styles randomly. Is the distribution of styles uniform? Should some styles (e.g., typos) be weighted higher for real-world robustness?
+6. The 30/70 RAG/API split — is the target tool guaranteed to appear in the RAG pool for the 30%? (Check the injection logic.)
 
-### 4. Tool RAG
-- Does `retrieve_top_k()` actually perform cosine similarity correctly?
-- Is the embedding text (`name: description. Parameters: param_list`) rich enough for discrimination?
-- What happens if the correct tool is not in the top-5? Is there a fallback to the full registry?
-- Is there a cold-start problem (no embeddings file on first run)?
+### Security & Edge Cases
+7. The atomic write uses `os.replace` — is this truly atomic on macOS APFS? (It is on ext4/NTFS.)
+8. Are there remaining `except Exception:` handlers in the codebase? If so, are they in critical paths or graceful degradation?
+9. Could a corrupted `tool_schema.json.tmp` file from a previous crashed run interfere with the next `build_tool_schema.py` execution?
 
-### 5. KV Cache
-- Are the Ollama config constants (`keep_alive`, `num_ctx`) actually consumed by the eval harness?
-- Does `num_ctx: 16384` exceed what the model was trained with?
+### Performance
+10. What is the total latency overhead of Best-of-N=5 with RAG for a single test case?
+11. Is there any parallelism opportunity in the evaluation loop?
+12. Does the `BEST_OF_N` env var correctly override the config default at runtime?
 
-### 6. Dry-Run Safety
-- For destructive tools, does the training data ALWAYS include `dry_run: true`?
-- Is the `DESTRUCTIVE_TOOLS` set complete? Are there other destructive Prism MCP tools missing?
-- Does the SM-CoT correctly flag the destructive action with the ⚠️ marker?
-- In `session_forget_memory`, `hard_delete: True` is trained WITHOUT `dry_run` — is this intentional? (It doesn't have a dry_run param in the real schema)
+## Output Format
+For each finding:
+```
+### [SEVERITY: CRITICAL/HIGH/MEDIUM/LOW] Title
+- **File**: filename:line
+- **Bug**: Description
+- **Fix**: Concrete fix
+```
 
-### 7. NEFTune
-- Is the `--neftune-noise-alpha` flag correctly passed to `mlx_lm.lora`?
-- Does the fallback (`CalledProcessError` catch) actually work? `subprocess.CalledProcessError` doesn't contain "neftune" in its message — the error would be "unrecognized arguments".
-- Is alpha=5.0 appropriate for a 32B model? Research suggests 5-10 for 7B, lower for larger models.
+End with a 12-point checklist scoring PASS/FAIL/MEDIUM and an overall pipeline confidence score (0-100%).
 
-### 8. Data Balance (Critical)
-- With 3 new generators (SM-CoT 300 + Optional Restraint 500 + Dry-Run 200 = 1000), what's the new total dataset size?
-- Does adding 1000 new examples break the existing 15-20% coding anchor ratio?
-- Is there risk of SM-CoT format overfitting (model outputs structured format even when not needed)?
-
-### 9. Import/Dependency Graph
-- Does `generate_bfcl_training_data.py` correctly import `build_smcot_think`, `build_dryrun_smcot_think`, and all token constants from `config.py`?
-- Does `bfcl_eval.py` correctly lazy-import config constants inside `call_ollama()`?
-- Does `semantic_rag.py` correctly handle missing dependencies (`config.py` import in `build_rag_system_prompt()`)?
-
-### 10. Synalux-Prism Boundary
-- Run: `grep -rn 'synalux-private\|synalux-portal\|bcba-private\|You are Synalux' *.py *.sh`
-- Expected: 0 results
-
-## Severity Guide
-
-- **CRITICAL**: Will cause wrong BFCL scores, training failure, or data corruption
-- **HIGH**: Will degrade model quality or leak private information
-- **MEDIUM**: Suboptimal but functional
-- **LOW**: Style/documentation issues
-
-Provide a summary table with fix IDs (R5-1a, R5-1b, etc.) for each finding.
+Begin your review.

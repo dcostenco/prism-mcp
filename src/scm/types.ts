@@ -124,6 +124,16 @@ export interface ScmTierLimits {
     search_modes: SearchMode[];
     hipaa_compliance: boolean;
     sso_saml: boolean;
+    /** Max concurrent VMs (see src/vm/types.ts VM_TIERS for full VM limits) */
+    vm_concurrent: number;
+    /** VMware/Parallels import support */
+    vm_import: boolean;
+    /** User-defined custom device parameters */
+    custom_devices: boolean;
+    /** Max deploys per day */
+    deploys_per_day: number;
+    /** Thin-client proxy to Synalux Cloud */
+    thin_client: boolean;
 }
 
 export const SCM_TIERS: Record<ScmTier, ScmTierLimits> = {
@@ -134,6 +144,7 @@ export const SCM_TIERS: Record<ScmTier, ScmTierLimits> = {
         webhooks_per_repo: 2, ide_hours_per_day: 1,
         stacked_prs: false, dora_metrics: 'none',
         search_modes: ['exact'], hipaa_compliance: false, sso_saml: false,
+        vm_concurrent: 1, vm_import: false, custom_devices: false, deploys_per_day: 3, thin_client: false,
     },
     standard: {
         public_repos: 20, private_repos: 10, collaborators_per_repo: 5,
@@ -142,6 +153,7 @@ export const SCM_TIERS: Record<ScmTier, ScmTierLimits> = {
         webhooks_per_repo: 10, ide_hours_per_day: 4,
         stacked_prs: true, dora_metrics: 'basic',
         search_modes: ['exact', 'regex', 'symbol'], hipaa_compliance: false, sso_saml: false,
+        vm_concurrent: 3, vm_import: true, custom_devices: true, deploys_per_day: 25, thin_client: true,
     },
     advanced: {
         public_repos: Infinity, private_repos: 50, collaborators_per_repo: 25,
@@ -150,6 +162,7 @@ export const SCM_TIERS: Record<ScmTier, ScmTierLimits> = {
         webhooks_per_repo: 50, ide_hours_per_day: 12,
         stacked_prs: true, dora_metrics: 'full',
         search_modes: ['exact', 'regex', 'symbol', 'semantic'], hipaa_compliance: true, sso_saml: false,
+        vm_concurrent: 8, vm_import: true, custom_devices: true, deploys_per_day: 100, thin_client: true,
     },
     enterprise: {
         public_repos: Infinity, private_repos: Infinity, collaborators_per_repo: Infinity,
@@ -158,5 +171,6 @@ export const SCM_TIERS: Record<ScmTier, ScmTierLimits> = {
         webhooks_per_repo: Infinity, ide_hours_per_day: Infinity,
         stacked_prs: true, dora_metrics: 'custom',
         search_modes: ['exact', 'regex', 'symbol', 'semantic'], hipaa_compliance: true, sso_saml: true,
+        vm_concurrent: Infinity, vm_import: true, custom_devices: true, deploys_per_day: Infinity, thin_client: true,
     },
 };

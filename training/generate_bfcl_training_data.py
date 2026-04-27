@@ -213,9 +213,9 @@ INTERRUPTION_QUESTIONS = [
 ]
 
 INTERRUPTION_RESPONSES = [
-    f"{TOKEN_THINK_OPEN}\nThe user interrupted with an off-topic question. I should inform them I cannot answer and refocus on the task.\n{TOKEN_THINK_CLOSE}\n{TOKEN_ANSWER_OPEN}I don't have a function available to answer that question. Based on what we've done so far: {{summary}}{TOKEN_ANSWER_CLOSE}",
-    f"{TOKEN_THINK_OPEN}\nThe user asked something outside my tools. I will steer the conversation back.\n{TOKEN_THINK_CLOSE}\n{TOKEN_ANSWER_OPEN}That question is outside the scope of the available tools. Let me know if you'd like to continue with the previous task.{TOKEN_ANSWER_CLOSE}",
-    f"{TOKEN_THINK_OPEN}\nThis request is not supported by my tools. I should abstain and ask to resume.\n{TOKEN_THINK_CLOSE}\n{TOKEN_ANSWER_OPEN}I can't help with that specific request using the available functions. Would you like to continue where we left off?{TOKEN_ANSWER_CLOSE}",
+    f"{TOKEN_THINK_OPEN}\nThe user interrupted with an off-topic question. I should inform them I cannot answer and refocus on the task.\n{TOKEN_THINK_CLOSE}\n{TOKEN_ANSWER_OPEN}I don't have a function available to answer that question.{TOKEN_ANSWER_CLOSE}",
+    f"{TOKEN_THINK_OPEN}\nThe user asked something outside my tools. I will steer the conversation back.\n{TOKEN_THINK_CLOSE}\n{TOKEN_ANSWER_OPEN}That question is outside the scope of the available tools.{TOKEN_ANSWER_CLOSE}",
+    f"{TOKEN_THINK_OPEN}\nThis request is not supported by my tools. I should abstain.\n{TOKEN_THINK_CLOSE}\n{TOKEN_ANSWER_OPEN}I can't help with that specific request using the available functions.{TOKEN_ANSWER_CLOSE}",
 ]
 
 # Tool-switching interruption templates (model must call a DIFFERENT tool, not just refuse)
@@ -644,12 +644,12 @@ ERROR_RECOVERY_SCENARIOS = [
     {
         "apis": ["gorilla_file_system"],
         "turns": [
-            {"query": "Move report.pdf to the archive folder", "func": "mv", 
+            {"query": "Move report.pdf to the archive folder", "func": "mv",
              "args": {"source": "report.pdf", "destination": "archive/report.pdf"},
              "result": '{"error": "FileNotFoundError: report.pdf does not exist in current directory"}',
              "is_error": True},
-            {"recovery": '<|synalux_think|>\nThe file was not found. I should inform the user and suggest listing available files.\n</|synalux_think|>\n<|synalux_answer|>The file report.pdf was not found in the current directory. Would you like me to list the available files so you can find the correct name?</|synalux_answer|>'},
-            {"query": "Yes, list the files", "func": "ls", "args": {},
+            {"recovery": '<|synalux_think|>\nThe file was not found. I should inform the user and suggest listing available files.\n</|synalux_think|>\n<|synalux_answer|>The file report.pdf was not found in the current directory.</|synalux_answer|>'},
+            {"query": "List the files", "func": "ls", "args": {},
              "result": '["budget_report.pdf", "readme.txt", "data.csv"]'},
         ]
     },
@@ -667,7 +667,7 @@ ERROR_RECOVERY_SCENARIOS = [
              "result": '{"symbol": "AAPL", "price": 185.50, "change": 2.3}'},
         ]
     },
-    # Missing required parameter  
+    # Missing required parameter
     {
         "apis": ["message_api"],
         "turns": [
@@ -675,7 +675,7 @@ ERROR_RECOVERY_SCENARIOS = [
              "args": {"receiver_id": "John", "message": ""},
              "result": '{"error": "ValidationError: receiver_id must be an integer, got string. message cannot be empty."}',
              "is_error": True},
-            {"recovery": '<|synalux_think|>\nThe API requires receiver_id as an integer and message cannot be empty. I need to ask the user for the receiver\'s numeric ID and the message content.\n</|synalux_think|>\n<|synalux_answer|>I need two things to send the message:\n1. John\'s numeric user ID (not his name)\n2. The message content\nCould you provide both?</|synalux_answer|>'},
+            {"recovery": '<|synalux_think|>\nThe API requires receiver_id as an integer and message cannot be empty. I need to ask the user for the receiver\'s numeric ID and the message content.\n</|synalux_think|>\n<|synalux_answer|>I need two things to send the message:\n1. John\'s numeric user ID (not his name)\n2. The message content</|synalux_answer|>'},
             {"query": "His ID is 456 and the message is 'Meeting at 3pm'", "func": "send_message",
              "args": {"receiver_id": 456, "message": "Meeting at 3pm"},
              "result": '{"status": "sent", "messageId": 789}'},
@@ -689,8 +689,8 @@ ERROR_RECOVERY_SCENARIOS = [
              "args": {"order_type": "Buy", "symbol": "TSLA", "price": 245.20, "amount": 50},
              "result": '{"error": "RateLimitExceeded: Too many requests. Retry after 5 seconds."}',
              "is_error": True},
-            {"recovery": '<|synalux_think|>\nThe API returned a rate limit error. I should inform the user that the request was rate-limited and offer to retry.\n</|synalux_think|>\n<|synalux_answer|>The order request was rate-limited by the exchange. This is temporary. Would you like me to retry?</|synalux_answer|>'},
-            {"query": "Yes, retry", "func": "place_order",
+            {"recovery": '<|synalux_think|>\nThe API returned a rate limit error. I should inform the user that the request was rate-limited and offer to retry.\n</|synalux_think|>\n<|synalux_answer|>The order request was rate-limited by the exchange. This is temporary.</|synalux_answer|>'},
+            {"query": "Retry", "func": "place_order",
              "args": {"order_type": "Buy", "symbol": "TSLA", "price": 245.20, "amount": 50},
              "result": '{"orderId": "ORD-54321", "status": "Pending", "amount": 50}'},
         ]
@@ -703,10 +703,9 @@ ERROR_RECOVERY_SCENARIOS = [
              "args": {"ticket_id": 9999},
              "result": '{"error": "404 Not Found: Ticket T-9999 does not exist."}',
              "is_error": True},
-            {"recovery": '<|synalux_think|>\nThe ticket was not found. I should let the user know and suggest alternatives.\n</|synalux_think|>\n<|synalux_answer|>Ticket T-9999 was not found. It may have been deleted or the ID may be incorrect. Would you like me to search for recent tickets instead?</|synalux_answer|>'},
+            {"recovery": '<|synalux_think|>\nThe ticket was not found. I should let the user know and suggest alternatives.\n</|synalux_think|>\n<|synalux_answer|>Ticket T-9999 was not found. It may have been deleted or the ID may be incorrect.</|synalux_answer|>'},
         ]
-    },
-]
+    },]
 
 
 def generate_error_recovery_examples(output_path: Path, collections: dict, num_examples: int = 400):

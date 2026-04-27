@@ -325,12 +325,17 @@ def retrieve_top_k(query: str, k: int = 5) -> list:
     return results
 
 
-def build_rag_system_prompt(query: str, k: int = 5, use_hyde: bool = True) -> str:
+# R6.4-fix: Module-level cache for fallback schema (avoids 80+ disk reads)
+_FALLBACK_SCHEMA_CACHE = None
+
+def build_rag_system_prompt(query: str, k: int = 5, use_hyde: bool = True, **kwargs) -> str:
     """Build a system prompt with only the top-k relevant tools.
 
     R6-4: Prefers HyDE retrieval for better accuracy.
     Falls back to standard retrieval if HyDE embeddings unavailable.
+    R6.4-fix: Forwards **kwargs (e.g. bfcl_eval_mode=True) to format_system_prompt.
     """
+    global _FALLBACK_SCHEMA_CACHE
     from config import format_system_prompt
 
     if use_hyde:
@@ -339,16 +344,17 @@ def build_rag_system_prompt(query: str, k: int = 5, use_hyde: bool = True) -> st
         tools = retrieve_top_k(query, k=k)
     if not tools:
         # R6.3-fix: Fallback to full tool registry loaded from schema file
-        # format_system_prompt() with no args returns ZERO tools (tools=None → if tools: fails)
-        # Must explicitly load and pass the full schema array
+        # R6.4-fix: Cached to avoid repeated disk I/O (80+ calls per eval run)
         print("WARNING: RAG retrieval returned no tools. Falling back to full tool registry.")
-        try:
-            _schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "tool_schema.json")
-            with open(_schema_path) as _sf:
-                tools = json.load(_sf).get("tools", [])
-        except (FileNotFoundError, json.JSONDecodeError):
-            pass  # tools stays empty — format_system_prompt will return a toolless prompt
-    return format_system_prompt(tools)
+        if _FALLBACK_SCHEMA_CACHE is None:
+            try:
+                _schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "tool_schema.json")
+                with open(_schema_path) as _sf:
+                    _FALLBACK_SCHEMA_CACHE = json.load(_sf).get("tools", [])
+            except (FileNotFoundError, json.JSONDecodeError):
+                _FALLBACK_SCHEMA_CACHE = []
+        tools = _FALLBACK_SCHEMA_CACHE
+    return format_system_prompt(tools, **kwargs)
 
 
 def test_retrieval(query: str):

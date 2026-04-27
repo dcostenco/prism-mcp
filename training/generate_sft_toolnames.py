@@ -6,6 +6,7 @@ Fixes abbreviated names from base SFT (e.g., session_save → session_save_ledge
 import json
 import os
 import random
+from pathlib import Path
 
 TOOL_CALL_OPEN = "<|tool_call|>"
 TOOL_CALL_CLOSE = "</|tool_call|>"
@@ -76,15 +77,33 @@ TOOL_NAME_EXAMPLES = [
 
 def generate_sft_data():
     """Generate SFT training data with correct tool names."""
+    # R12-fix: Load tool schemas and system prompt
+    try:
+        from config import format_system_prompt
+        _schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "tool_schema.json")
+        try:
+            with open(_schema_path) as _f:
+                _all_tools = json.load(_f).get("tools", [])
+        except (FileNotFoundError, json.JSONDecodeError):
+            _all_tools = []
+        _sys_prompt = format_system_prompt(_all_tools)
+    except ImportError:
+        _sys_prompt = None
+
     data = []
     for prompt, tool_name, args in TOOL_NAME_EXAMPLES:
         # Build the expected completion
         tool_call_json = json.dumps({"name": tool_name, "arguments": args})
         completion = f'<|synalux_think|>\nThe user wants me to use the {tool_name} tool.\n</|synalux_think|>\n\n{TOOL_CALL_OPEN}\n{tool_call_json}\n{TOOL_CALL_CLOSE}'
         
-        data.append({
-            "text": f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n{completion}<|im_end|>"
-        })
+        msgs = []
+        if _sys_prompt:
+            msgs.append({"role": "system", "content": _sys_prompt})
+        msgs.extend([
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": completion},
+        ])
+        data.append({"messages": msgs})
     
     # Add reasoning examples (should NOT call tools)
     reasoning_pairs = [
@@ -102,10 +121,16 @@ def generate_sft_data():
     ]
     
     for prompt, answer in reasoning_pairs:
-        completion = f'<|synalux_think|>\nThis is a general knowledge question. I should answer directly without using any tools.\n</|synalux_think|>\n\n{answer}'
-        data.append({
-            "text": f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n{completion}<|im_end|>"
-        })
+        # R13-fix: Wrap answer in <|synalux_answer|> tags to match System Prompt Rule 1
+        completion = f'<|synalux_think|>\nThis is a general knowledge question. I should answer directly without using any tools.\n</|synalux_think|>\n<|synalux_answer|>{answer}</|synalux_answer|>'
+        msgs = []
+        if _sys_prompt:
+            msgs.append({"role": "system", "content": _sys_prompt})
+        msgs.extend([
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": completion},
+        ])
+        data.append({"messages": msgs})
     
     return data
 
@@ -123,7 +148,9 @@ def main():
     valid = data[split:]
     
     from config import AUX_DATA_DIR
-    out_dir = AUX_DATA_DIR
+    # R12-fix: Write to toolname_sft/ not AUX_DATA_DIR to avoid overwriting diverse SFT data
+    out_dir = os.path.join(str(Path(AUX_DATA_DIR).parent), "toolname_sft")
+    os.makedirs(out_dir, exist_ok=True)
     with open(f"{out_dir}/train.jsonl", "w") as f:
         for item in train:
             f.write(json.dumps(item) + "\n")
