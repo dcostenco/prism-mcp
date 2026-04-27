@@ -109,7 +109,9 @@ else
         --grpo-count 800 \
         --smcot-count 300 \
         --optional-restraint-count 500 \
-        --dry-run-count 200
+        --dry-run-count 200 \
+        --distractor-count 400 \
+        --evol-instruct-count 500
 fi
 
 # Phase 0b: Diverse SFT data (experiments 1-4 included)
