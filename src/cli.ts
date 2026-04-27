@@ -419,4 +419,161 @@ syncCmd
     }
   });
 
+// ─── prism scm ────────────────────────────────────────────────
+// Synalux SCM integration — thin API client that calls Synalux
+// endpoints. All engines run server-side; Prism only renders.
+//
+// Subcommands:
+//   prism scm search <query>   — Multi-repo code search
+//   prism scm review <file>    — AI code review
+//   prism scm scan <file>      — Secret detection + license compliance
+//   prism scm dora             — DORA metrics for the current project
+
+const scmCmd = program
+  .command('scm')
+  .description('Synalux SCM — source control, AI review, security scanning, DORA metrics');
+
+scmCmd
+  .command('search <query>')
+  .description('Search code across repos (supports exact, regex, symbol, semantic modes)')
+  .option('-m, --mode <mode>', 'Search mode: exact, regex, symbol, semantic', 'exact')
+  .option('-r, --repo <owner/name>', 'Target repo (e.g. "synalux/portal")')
+  .option('-p, --pattern <glob>', 'File pattern filter (e.g. "*.ts")')
+  .option('-n, --max-results <n>', 'Maximum results', '20')
+  .option('--json', 'Emit machine-readable JSON output')
+  .action(async (query: string, options: {
+    mode: string; repo?: string; pattern?: string;
+    maxResults: string; json?: boolean;
+  }) => {
+    try {
+      const { ScmClient } = await import('./scm/client.js');
+      const client = new ScmClient();
+      const repo = options.repo || path.basename(process.cwd());
+
+      const results = await client.search(repo, {
+        query,
+        mode: options.mode as any,
+        file_patterns: options.pattern ? [options.pattern] : undefined,
+        max_results: parseInt(options.maxResults) || 20,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(results, null, 2));
+      } else {
+        console.log(`🔍 ${results.total_matches} match(es) in ${results.search_time_ms}ms\n`);
+        for (const r of results.results) {
+          console.log(`  ${r.file}:${r.line_number}  (score: ${r.score})`);
+          console.log(`    ${r.content.trim()}\n`);
+        }
+        if (results.truncated) console.log(`  ... truncated. Use --max-results to see more.`);
+      }
+    } catch (err) {
+      console.error(`Search failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+scmCmd
+  .command('review <files...>')
+  .description('AI code review — security, performance, and style analysis')
+  .option('-r, --repo <owner/name>', 'Target repo')
+  .option('--hipaa', 'Enable HIPAA compliance check')
+  .option('--json', 'Emit machine-readable JSON output')
+  .action(async (filePaths: string[], options: { repo?: string; hipaa?: boolean; json?: boolean }) => {
+    try {
+      const fs = await import('fs');
+      const { ScmClient } = await import('./scm/client.js');
+      const client = new ScmClient();
+      const repo = options.repo || path.basename(process.cwd());
+
+      const files = filePaths.map(fp => ({
+        name: path.basename(fp),
+        content: fs.readFileSync(path.resolve(fp), 'utf-8'),
+      }));
+
+      const result = await client.review(repo, files, { hipaa: options.hipaa });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        const icon = result.review.overall_score >= 80 ? '✅' : result.review.overall_score >= 60 ? '⚠️' : '❌';
+        console.log(`${icon} AI Review Score: ${result.review.overall_score}/100`);
+        console.log(`   Findings: ${result.review.total_findings} | Auto-approve: ${result.review.auto_approve ? 'yes' : 'no'}`);
+        if (result.hipaa) {
+          const h = result.hipaa;
+          console.log(`${h.compliant ? '✅' : '❌'} HIPAA: ${h.compliant ? 'Compliant' : 'VIOLATIONS'} (score: ${h.score})`);
+        }
+      }
+    } catch (err) {
+      console.error(`Review failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+scmCmd
+  .command('scan <files...>')
+  .description('Security scan — secret detection, license compliance, Dockerfile best practices')
+  .option('-r, --repo <owner/name>', 'Target repo')
+  .option('--json', 'Emit machine-readable JSON output')
+  .action(async (filePaths: string[], options: { repo?: string; json?: boolean }) => {
+    try {
+      const fs = await import('fs');
+      const { ScmClient } = await import('./scm/client.js');
+      const client = new ScmClient();
+      const repo = options.repo || path.basename(process.cwd());
+
+      const files = filePaths.map(fp => ({
+        name: path.basename(fp),
+        content: fs.readFileSync(path.resolve(fp), 'utf-8'),
+      }));
+
+      const result = await client.scan(repo, files);
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        const icon = result.summary.pass ? '✅' : '❌';
+        console.log(`${icon} Security Scan: ${result.summary.total_findings} finding(s)`);
+        if (result.summary.critical > 0) console.log(`   🔴 Critical: ${result.summary.critical}`);
+        if (result.summary.high > 0) console.log(`   🟠 High: ${result.summary.high}`);
+        if (result.summary.medium > 0) console.log(`   🟡 Medium: ${result.summary.medium}`);
+        console.log(`   Duration: ${result.summary.scan_duration_ms}ms`);
+      }
+    } catch (err) {
+      console.error(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+scmCmd
+  .command('dora')
+  .description('Show DORA metrics for the current project')
+  .option('-r, --repo <owner/name>', 'Target repo')
+  .option('-p, --period <period>', 'Period label (e.g. "2024-Q4")')
+  .option('--json', 'Emit machine-readable JSON output')
+  .action(async (options: { repo?: string; period?: string; json?: boolean }) => {
+    try {
+      const { ScmClient } = await import('./scm/client.js');
+      const client = new ScmClient();
+      const repo = options.repo || path.basename(process.cwd());
+
+      const dora = await client.dora(repo, options.period);
+
+      if (options.json) {
+        console.log(JSON.stringify(dora, null, 2));
+      } else {
+        console.log(`📊 DORA Metrics — ${dora.period}`);
+        console.log(`   Deploy Frequency: ${dora.deployment_frequency.value.toFixed(2)}/day (${dora.deployment_frequency.level})`);
+        console.log(`   Lead Time:        ${dora.lead_time.value.toFixed(1)}h (${dora.lead_time.level})`);
+        console.log(`   Change Failure:   ${dora.change_failure_rate.value.toFixed(1)}% (${dora.change_failure_rate.level})`);
+        console.log(`   MTTR:             ${dora.mttr.value.toFixed(1)}h (${dora.mttr.level})`);
+        console.log(`   Overall:          ${dora.overall_level.toUpperCase()}`);
+      }
+    } catch (err) {
+      console.error(`DORA failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
 program.parse(process.argv);
+
