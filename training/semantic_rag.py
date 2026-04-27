@@ -54,7 +54,7 @@ def cosine_similarity(a: list, b: list) -> float:
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(x * x for x in b))
-    if norm_a == 0 or norm_b == 0:
+    if norm_a < 1e-8 or norm_b < 1e-8:
         return 0.0
     return dot / (norm_a * norm_b)
 
@@ -135,14 +135,14 @@ HYDE_QUERIES = {
         "my session history is too long", "clean up old logs",
         "archive older entries", "compact the ledger", "summarize old sessions",
     ],
-    # Search
-    "brave_web_search": [
+    # Search (R6.1-fix: keys must match V4_API_SCHEMAS in config.py)
+    "web_search": [
         "search the internet", "google this for me", "find information online",
         "web search for", "look this up on the web",
     ],
-    "brave_local_search": [
-        "find restaurants near me", "local businesses nearby",
-        "search for places around here", "find shops in my area",
+    "web_scrape": [
+        "scrape this page", "extract content from URL",
+        "get the text from this website", "read this web page",
     ],
     # Memory operations
     "knowledge_upvote": [

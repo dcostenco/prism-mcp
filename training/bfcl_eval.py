@@ -620,7 +620,20 @@ def call_ollama(prompt: str, use_json_format: bool = True) -> tuple:
 # =============================================================================
 # Enhancement 1: Best-of-N Schema Validator (Test-Time Compute Scaling)
 # =============================================================================
-BEST_OF_N = int(os.environ.get("BFCL_BEST_OF_N", "5"))  # Default 5 candidates
+# R6.1-fix: Load tool schemas globally for Best-of-N validation
+_TRAINING_DIR = os.path.dirname(os.path.abspath(__file__))
+_TOOL_SCHEMA_PATH = os.path.join(_TRAINING_DIR, "data", "tool_schema.json")
+try:
+    with open(_TOOL_SCHEMA_PATH) as _f:
+        _TOOL_SCHEMAS = json.load(_f).get("tools", [])
+    print(f"Loaded {len(_TOOL_SCHEMAS)} tool schemas for Best-of-N validation")
+except FileNotFoundError:
+    _TOOL_SCHEMAS = []
+    print(f"WARNING: {_TOOL_SCHEMA_PATH} not found — Best-of-N validation disabled")
+
+# R6.1-fix: Import from config instead of hardcoding
+from config import BEST_OF_N_DEFAULT, BEST_OF_N_TEMPERATURE
+BEST_OF_N = int(os.environ.get("BFCL_BEST_OF_N", str(BEST_OF_N_DEFAULT)))
 
 
 def validate_tool_call_against_schema(tool_name: str, tool_args: dict, 
@@ -655,6 +668,9 @@ def validate_tool_call_against_schema(tool_name: str, tool_args: dict,
     
     # Check data types
     for arg_name, arg_val in tool_args.items():
+        # R6.1-fix: Allow None for optional params (JSON null)
+        if arg_val is None:
+            continue
         if arg_name not in props:
             continue
         expected_type = props[arg_name].get("type", "string")
@@ -712,7 +728,7 @@ def call_ollama_best_of_n(prompt: str, available_tools: list = None,
             "stream": False,
             "keep_alive": OLLAMA_KEEP_ALIVE,
             "options": {
-                "temperature": 0.6,  # Higher temp for diversity
+                "temperature": BEST_OF_N_TEMPERATURE,  # From config.py
                 "num_predict": 512,
                 "num_ctx": OLLAMA_NUM_CTX,
                 "seed": random.randint(0, 2**31),  # Different seed each time
@@ -815,16 +831,19 @@ def evaluate_test(test: dict, verbose: bool = False) -> dict:
     
     # R5-7 fix: Wrap prompt with system prompt to match training distribution
     # Uses bfcl_eval_mode=True to disable clarification behavior (R4-5)
-    sys_prompt = format_system_prompt(bfcl_eval_mode=True)
+    # R6.1-fix: Use RAG system prompt for context-limited tool injection
+    try:
+        from semantic_rag import build_rag_system_prompt
+        sys_prompt = build_rag_system_prompt(prompt)
+    except Exception:
+        sys_prompt = format_system_prompt(bfcl_eval_mode=True)
     full_prompt = f"{sys_prompt}\n\nUser: {prompt}"
     
     # R6-1: Use Best-of-N when enabled (validates candidates against tool schemas)
-    best_of_n = int(os.environ.get("BFCL_BEST_OF_N", "5"))
-    if best_of_n > 1:
-        # Get available tool schemas for validation
-        available_tools = test.get("available_tools", [])
+    if BEST_OF_N > 1:
+        # R6.1-fix: Use globally loaded tool schemas, not per-test dicts
         actual_tool, actual_args, raw_response, latency, all_calls = call_ollama_best_of_n(
-            full_prompt, available_tools=available_tools
+            full_prompt, available_tools=_TOOL_SCHEMAS
         )
     else:
         actual_tool, actual_args, raw_response, latency, all_calls = call_ollama(full_prompt)

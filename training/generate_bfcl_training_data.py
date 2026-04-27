@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import random
+import re
 import sys
 from pathlib import Path
 from typing import Optional
@@ -1576,13 +1577,19 @@ def _messify_prompt(clean_prompt: str) -> str:
     # NOTE: All styles MUST preserve enough semantic content for the model to
     # extract the correct parameters. NEVER truncate to fewer words than needed.
     # The removed 'Minimal' style (split[:4]) was training hallucination.
+    # R6.1-fix: Use word-boundary regex to prevent corrupting embedded param values
+    # str.replace("project","proj") would turn "projects" in args to "projs"
+    def _wb_sub(word, repl, text):
+        """Word-boundary-safe substitution (won't match substrings)."""
+        return re.sub(r'\b' + re.escape(word) + r'\b', repl, text)
+    
     styles = [
         # Slang/casual
         lambda p: f"yo {p.lower().replace('please ', '').replace('create ', 'make ')} plz",
-        # Typo injection
-        lambda p: p.replace("search", "serach").replace("create", "craete").replace("the", "teh").replace("load", "laod"),
-        # Abbreviated
-        lambda p: p.replace("project", "proj").replace("directory", "dir").replace("information", "info").replace("configuration", "config"),
+        # Typo injection (only standalone words via word boundaries)
+        lambda p: _wb_sub("search", "serach", _wb_sub("create", "craete", _wb_sub("the", "teh", _wb_sub("load", "laod", p)))),
+        # Abbreviated (word boundaries prevent "projects" → "projs")
+        lambda p: _wb_sub("project", "proj", _wb_sub("directory", "dir", _wb_sub("information", "info", _wb_sub("configuration", "config", p)))),
         # Multi-intent padding
         lambda p: f"hey so {p.lower()}, also can you tell me how it went",
         # Conversational
