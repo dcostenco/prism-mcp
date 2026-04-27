@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## <a name="1200"></a>[12.0.0] - 2026-04-23 — 💳 Unified Billing & Agent Skill Ecosystem
+
+> **The Platform Unification Release.** Prism v12.0.0 aligns Prism and Synalux into a single, unified billing architecture with identical tier pricing, adds 54 production-ready agent skills, and introduces a 14-day free trial across all paid tiers.
+
+### 💳 Unified Billing Architecture
+
+- **Synalux-Priced Tiers** — Both Prism and Synalux now share identical pricing: Standard ($19/mo), Advanced ($49/mo), Enterprise ($99/mo). Prism retains an additional Free tier for community access.
+- **14-Day Free Trial** — All paid tiers (Standard, Advanced, Enterprise) include a 14-day trial period. Configured via `DEFAULT_TRIAL_DAYS` constant with automatic Stripe `subscription_data.trial_period_days` injection.
+- **Stripe Test-Mode** — Test-mode price IDs documented inline (`price_test_standard_19`, `price_test_advanced_49`, `price_test_enterprise_99`). Production IDs loaded from environment variables.
+- **Removed Legacy Tiers** — Deleted `prism_pro` ($12) and `prism_elite` ($29) plan definitions. Synalux Free tier removed from `PlanId` type and `BASE_PRICE_TABLE`.
+- **Prism Checkout Route** — Updated `/api/v1/prism/checkout` to use `DEFAULT_TRIAL_DAYS` (was hardcoded to 0). New users default to `prism_free` plan.
+
+### 🧠 Agent Skill Ecosystem (54 Skills)
+
+- **10 Super-Skills Compacted** — Reduced from 22,937 to 6,191 lines (73% reduction) by stripping verbose comparison matrices and code templates, retaining essential decision tables and checklists.
+- **4 Medical Skills** — `hipaa-compliance`, `clinical-documentation`, `medical-billing-coding`, `patient-data-privacy` — healthcare-specific compliance and workflow automation.
+- **10 Vendor Skills** — Vercel, Supabase, Stripe, Sentry, OpenAI, Addy Osmani, Garry Tan/gstack — tailored for the Synalux tech stack.
+- **Skills Centralized** — Single source of truth at `/skills/`, symlinked to IDE extensions directory.
+
+### 🎨 Pricing Page UI
+
+- **Synalux Section** — 3-tier card layout (Standard, Advanced, Enterprise) with feature lists, hover animations, and CTA buttons wired to Stripe checkout.
+- **Prism IDE Section** — New dedicated section for Prism MCP IDE Extension with 4-tier layout (Free, Standard, Advanced, Enterprise).
+- **Multi-Currency Table** — USD, CAD, GBP, EUR, AUD, NZD pricing with volume discount tiers.
+- **14-Day Trial Badge** — Prominent green banner across all paid tier cards.
+
+### Engineering
+- Files changed: `stripe.ts`, `pricing-engine.ts`, `pricing/page.tsx`, `prism/checkout/route.ts`, `package.json`, `CHANGELOG.md`
+- Licenses verified: Prism (MIT), Synalux (BSL-1.1)
+- TypeScript: clean, zero errors expected
+
+---
+
+
+
 ## <a name="1160"></a>[11.6.0] - 2026-04-22 — 🏗️ Agent Infrastructure Resilience
 
 > **The Multi-Agent Stability Release.** Prism v11.6.0 introduces production-grade infrastructure for running multiple AI agents concurrently without resource exhaustion, deadlocks, or zombie processes. Every component is cross-platform (macOS/Linux) with zero GNU dependencies.
