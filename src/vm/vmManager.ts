@@ -17,8 +17,8 @@ import type {
     CustomDeviceSpec, DeployConfig, DeployResult,
     DeviceTemplate, VmTierLimits, HypervisorType,
     DEVICE_TEMPLATES, VM_TIERS,
-} from './types';
-import type { ScmTier } from '../scm/types';
+} from './types.js';
+import type { ScmTier } from '../scm/types.js';
 
 // ── VM Lifecycle States ─────────────────────────────────────
 
