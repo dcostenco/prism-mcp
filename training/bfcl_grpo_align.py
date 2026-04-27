@@ -262,7 +262,7 @@ def train_dpo(model_path: str, data_dir: str, adapter_path: str,
     with open(config_path, "w") as f:
         f.write(f"lora_parameters:\n")
         f.write(f"  rank: {lora_rank}\n")
-        f.write(f"  scale: {2.0 * lora_rank}\n")
+        f.write(f"  scale: 20.0\n")  # Conservative alpha for 32B: 128 caused NaN
         f.write(f"  dropout: 0.05\n")
 
     cmd = [
