@@ -51,7 +51,7 @@ def convert_model(hf_model: str, mlx_path: str, q_bits: int = 4):
     print(f"For 32B Q4: ~17GB download, ~17GB on disk after quantization.\n")
 
     cmd = [
-        sys.executable, "-m", "mlx_lm.convert",
+        sys.executable, "-m", "mlx_lm", "convert",
         "--hf-path", hf_model,
         "--mlx-path", mlx_path,
         "-q",
@@ -129,23 +129,32 @@ def train_lora(mlx_model: str, data_dir: str, adapter_path: str,
         print(f"NEFTune alpha: {neftune_alpha}")
     print()
 
+    # mlx_lm v0.31+ requires LoRA rank/scale via YAML config file
+    config_path = os.path.join(os.path.dirname(adapter_path), "lora_config.yaml")
+    os.makedirs(os.path.dirname(adapter_path), exist_ok=True)
+    with open(config_path, "w") as f:
+        f.write(f"lora_parameters:\n")
+        f.write(f"  rank: {lora_rank}\n")
+        f.write(f"  scale: {2.0 * lora_rank}\n")  # Standard alpha = 2*rank
+        f.write(f"  dropout: 0.05\n")
+
     cmd = [
-        sys.executable, "-m", "mlx_lm.lora",
+        sys.executable, "-m", "mlx_lm", "lora",
         "--model", mlx_model,
         "--train",
         "--data", data_dir,
         "--adapter-path", adapter_path,
         "--iters", str(iters),
-        "--lora-rank", str(lora_rank),
+        "--num-layers", str(lora_layers),
         "--batch-size", str(batch_size),
         "--learning-rate", str(learning_rate),
-        "--lora-layers", str(lora_layers),
         "--save-every", "100",
         "--test-batches", "10",
         "--val-batches", "10",
         "--max-seq-length", "16384",  # 32B Q4: ~17GB weights + KV cache at batch=1 fits 48GB
-        "--grad-accum", "16",  # Effective batch = 1 × 16 = 16 (OOM-safe on 48GB)
+        "--grad-accumulation-steps", "16",  # Effective batch = 1 × 16 = 16 (OOM-safe on 48GB)
         "--mask-prompt",  # BalanceSFT: loss only on completion (tool_call JSON), not prompt
+        "-c", config_path,
     ]
     
     if grad_checkpoint:
@@ -157,20 +166,15 @@ def train_lora(mlx_model: str, data_dir: str, adapter_path: str,
     
     print(f"Running: {' '.join(cmd)}\n")
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
         # R5-7: Graceful fallback if MLX-LM doesn't support NEFTune flag
-        stderr_text = (e.stderr or "").lower()
+        stderr_text = (e.stderr or "").lower() if isinstance(e.stderr, str) else ""
         if neftune_alpha > 0 and ("unrecognized" in stderr_text or "neftune" in stderr_text):
             print(f"WARNING: MLX-LM does not support --neftune-noise-alpha. Retrying without it.")
             cmd = [c for c in cmd if c != "--neftune-noise-alpha" and c != str(neftune_alpha)]
             subprocess.run(cmd, check=True)
         else:
-            # Print captured output before re-raising
-            if e.stdout:
-                print(e.stdout)
-            if e.stderr:
-                print(e.stderr, file=sys.stderr)
             raise
     print(f"\n✅ LoRA adapter saved to: {adapter_path}")
 
@@ -186,7 +190,7 @@ def fuse_adapter(mlx_model: str, adapter_path: str, output_path: str,
     print(f"Output: {output_path}")
 
     cmd = [
-        sys.executable, "-m", "mlx_lm.fuse",
+        sys.executable, "-m", "mlx_lm", "fuse",
         "--model", mlx_model,
         "--adapter-path", adapter_path,
         "--save-path", output_path,
