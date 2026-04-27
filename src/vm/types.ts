@@ -60,6 +60,155 @@ export type DeviceFormFactor =
     | 'embedded'
     | 'custom';
 
+// ── Network Profiles ────────────────────────────────────────
+
+export type NetworkType =
+    | 'ethernet_1g'
+    | 'ethernet_10g'
+    | 'wifi_6'
+    | 'wifi_6e'
+    | 'wifi_7'
+    | '5g_cellular'
+    | '4g_lte'
+    | '3g'
+    | 'satellite'
+    | 'custom';
+
+export interface NetworkProfile {
+    type: NetworkType;
+    /** Bandwidth limit in Mbps (0 = unlimited) */
+    bandwidth_mbps: number;
+    /** Simulated latency in ms */
+    latency_ms: number;
+    /** Packet loss percentage (0-100) */
+    packet_loss_pct: number;
+    /** Jitter in ms (variation in latency) */
+    jitter_ms: number;
+    /** DNS resolution delay in ms */
+    dns_delay_ms?: number;
+    /** Simulate connection drops every N seconds (0 = never) */
+    drop_interval_sec?: number;
+}
+
+/** Preset network conditions for load testing */
+export const NETWORK_PRESETS: Record<string, NetworkProfile> = {
+    perfect: { type: 'ethernet_10g', bandwidth_mbps: 10_000, latency_ms: 0, packet_loss_pct: 0, jitter_ms: 0 },
+    broadband: { type: 'ethernet_1g', bandwidth_mbps: 100, latency_ms: 5, packet_loss_pct: 0, jitter_ms: 1 },
+    wifi_good: { type: 'wifi_6', bandwidth_mbps: 200, latency_ms: 10, packet_loss_pct: 0.1, jitter_ms: 3 },
+    wifi_poor: { type: 'wifi_6', bandwidth_mbps: 15, latency_ms: 80, packet_loss_pct: 2, jitter_ms: 20 },
+    '4g_normal': { type: '4g_lte', bandwidth_mbps: 30, latency_ms: 50, packet_loss_pct: 0.5, jitter_ms: 15 },
+    '3g_slow': { type: '3g', bandwidth_mbps: 1.5, latency_ms: 300, packet_loss_pct: 3, jitter_ms: 100 },
+    satellite: { type: 'satellite', bandwidth_mbps: 25, latency_ms: 600, packet_loss_pct: 1, jitter_ms: 50 },
+    offline: { type: 'custom', bandwidth_mbps: 0, latency_ms: 0, packet_loss_pct: 100, jitter_ms: 0 },
+    stress_test: { type: 'ethernet_1g', bandwidth_mbps: 1000, latency_ms: 0, packet_loss_pct: 5, jitter_ms: 50, drop_interval_sec: 30 },
+    chaos: { type: 'custom', bandwidth_mbps: 10, latency_ms: 500, packet_loss_pct: 15, jitter_ms: 200, drop_interval_sec: 10 },
+};
+
+// ── Network Load Testing ────────────────────────────────────
+
+export interface NetworkLoadTest {
+    /** Name of the test scenario */
+    name: string;
+    /** Concurrent connections to simulate */
+    concurrent_connections: number;
+    /** Requests per second */
+    rps: number;
+    /** Test duration in seconds */
+    duration_sec: number;
+    /** Network profile to apply during the test */
+    network_profile: NetworkProfile;
+    /** Target URL or service to test against */
+    target_url?: string;
+    /** Ramp-up period in seconds (gradually increase load) */
+    ramp_up_sec?: number;
+    /** Payload size per request in bytes */
+    payload_bytes?: number;
+    /** Protocol */
+    protocol: 'http' | 'https' | 'websocket' | 'grpc' | 'tcp' | 'udp';
+}
+
+export interface NetworkLoadTestResult {
+    test_name: string;
+    avg_latency_ms: number;
+    p50_latency_ms: number;
+    p95_latency_ms: number;
+    p99_latency_ms: number;
+    max_latency_ms: number;
+    total_requests: number;
+    successful_requests: number;
+    failed_requests: number;
+    throughput_rps: number;
+    bandwidth_used_mbps: number;
+    errors: Record<string, number>;
+    duration_sec: number;
+}
+
+// ── Host Resource Sharing ───────────────────────────────────
+
+export interface HostResourceSharing {
+    /** Inherit host network (DNS, proxy, VPN) — default true for standard+ */
+    inherit_network: boolean;
+    /** Shared folders from host → VM */
+    shared_drives: Array<{
+        host_path: string;
+        guest_mount: string;
+        read_only: boolean;
+    }>;
+    /** USB/peripheral passthrough */
+    peripheral_passthrough: boolean;
+    /** Share host clipboard */
+    clipboard_sync: boolean;
+    /** Share host audio devices */
+    audio_passthrough: boolean;
+    /** Share host camera */
+    camera_passthrough: boolean;
+    /** Host printer access */
+    printer_sharing: boolean;
+    /** Inherit host timezone */
+    inherit_timezone: boolean;
+}
+
+export const DEFAULT_HOST_SHARING: HostResourceSharing = {
+    inherit_network: true,
+    shared_drives: [],
+    peripheral_passthrough: false,
+    clipboard_sync: true,
+    audio_passthrough: false,
+    camera_passthrough: false,
+    printer_sharing: false,
+    inherit_timezone: true,
+};
+
+// ── Custom Hardware Configuration ───────────────────────────
+
+export type StorageType = 'nvme_ssd' | 'sata_ssd' | 'hdd_7200' | 'hdd_5400' | 'ram_disk' | 'custom';
+export type NicType = 'virtio' | 'e1000' | 'e1000e' | 'vmxnet3' | 'rtl8139' | 'custom';
+
+export interface CustomHardwareConfig {
+    /** CPU model override (e.g. "Apple M4 Max", "Intel i9-14900K", "AMD EPYC 9654") */
+    cpu_model?: string;
+    /** Storage type simulation */
+    storage_type: StorageType;
+    /** Storage IOPS limit (0 = unlimited) */
+    storage_iops?: number;
+    /** Storage bandwidth in MB/s (0 = unlimited) */
+    storage_bandwidth_mbps?: number;
+    /** Network interface card type */
+    nic_type: NicType;
+    /** Number of NICs */
+    nic_count: number;
+    /** TPM 2.0 module */
+    tpm_enabled: boolean;
+    /** Secure Boot */
+    secure_boot: boolean;
+    /** UEFI vs Legacy BIOS */
+    firmware: 'uefi' | 'legacy_bios';
+    /** Custom NUMA topology */
+    numa_nodes?: number;
+    /** Hardware RNG */
+    hw_rng: boolean;
+}
+
 // ── VM Hardware Spec ────────────────────────────────────────
 
 export interface VmHardwareSpec {
@@ -70,6 +219,12 @@ export interface VmHardwareSpec {
     gpu_enabled: boolean;
     gpu_vram_gb?: number;
     network_mode: 'nat' | 'bridged' | 'host_only' | 'none';
+    /** Network simulation profile */
+    network_profile?: NetworkProfile;
+    /** Host resource sharing — standard VMs inherit host network/drives by default */
+    host_sharing?: HostResourceSharing;
+    /** Extended hardware config (storage type, NIC, TPM, etc.) */
+    custom_hardware?: CustomHardwareConfig;
 }
 
 // ── VM Image ────────────────────────────────────────────────
@@ -159,6 +314,56 @@ export const DEVICE_TEMPLATES: DeviceTemplate[] = [
         preview_image: '/vm/linux-fedora.png',
         device_variants: ['Workstation', 'Server', 'CoreOS'],
         min_tier: 'free',
+    },
+    {
+        id: 'linux-debian',
+        name: 'Debian Stable',
+        description: 'Debian 12 Bookworm — rock-solid server/container base. Ideal for production-mirroring.',
+        platform: 'linux',
+        form_factor: 'server',
+        arch: ['x86_64', 'arm64'],
+        default_hardware: {
+            cpu_arch: 'arm64', cpu_cores: 2, ram_gb: 4,
+            storage_gb: 32, gpu_enabled: false, network_mode: 'bridged',
+        },
+        os_versions: ['12 Bookworm', '11 Bullseye'],
+        preview_image: '/vm/linux-debian.png',
+        device_variants: ['Desktop', 'Server', 'Minimal'],
+        min_tier: 'free',
+    },
+    {
+        id: 'linux-arch',
+        name: 'Arch Linux',
+        description: 'Arch Linux rolling release — bleeding-edge packages, fully customizable.',
+        platform: 'linux',
+        form_factor: 'desktop',
+        arch: ['x86_64', 'arm64'],
+        default_hardware: {
+            cpu_arch: 'arm64', cpu_cores: 4, ram_gb: 8,
+            storage_gb: 64, gpu_enabled: false, network_mode: 'bridged',
+        },
+        os_versions: ['rolling'],
+        preview_image: '/vm/linux-arch.png',
+        device_variants: ['Desktop', 'Server', 'Minimal'],
+        min_tier: 'free',
+    },
+
+    // ── macOS ───────────────────────────────────────────
+    {
+        id: 'macos-sequoia',
+        name: 'macOS Sequoia',
+        description: 'macOS 15 Sequoia with Xcode, Homebrew, and full Apple dev toolchain. Apple Silicon native.',
+        platform: 'macos',
+        form_factor: 'desktop',
+        arch: ['arm64'],
+        default_hardware: {
+            cpu_arch: 'arm64', cpu_cores: 8, ram_gb: 16,
+            storage_gb: 128, gpu_enabled: true, gpu_vram_gb: 4, network_mode: 'bridged',
+        },
+        os_versions: ['15 Sequoia', '14 Sonoma', '13 Ventura'],
+        preview_image: '/vm/macos-sequoia.png',
+        device_variants: ['Mac mini', 'MacBook Pro 14"', 'MacBook Pro 16"', 'Mac Studio', 'Mac Pro'],
+        min_tier: 'advanced',
     },
 
     // ── Windows ─────────────────────────────────────────
@@ -355,6 +560,18 @@ export interface CustomDeviceSpec {
 
     /** Screen resolution for device simulators */
     screen_resolution?: { width: number; height: number; dpi: number };
+
+    /** Network simulation profile (user-defined bandwidth, latency, loss) */
+    network_profile?: NetworkProfile;
+
+    /** Network load test scenarios to run against this device */
+    load_tests?: NetworkLoadTest[];
+
+    /** Host resource sharing (drives, peripherals, clipboard) */
+    host_sharing?: HostResourceSharing;
+
+    /** Extended hardware (storage type, NIC, TPM, secure boot) */
+    custom_hardware?: CustomHardwareConfig;
 
     /** User-defined parameters — fully open-ended */
     custom_params: Record<string, string | number | boolean>;
