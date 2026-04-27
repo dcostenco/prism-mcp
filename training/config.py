@@ -115,6 +115,23 @@ OLLAMA_NUM_CTX = 16384          # Context window for inference
 OLLAMA_TEMPERATURE = 0.1        # Deterministic for eval, 0.7 for production
 
 # =============================================================================
+# R6-1: Best-of-N Test-Time Compute Scaling
+# =============================================================================
+BEST_OF_N_DEFAULT = 5           # Number of candidates for schema validation
+BEST_OF_N_TEMPERATURE = 0.6    # Higher temp for candidate diversity
+
+# =============================================================================
+# R6-6: Streaming CoT Configuration (Perceived Latency Reduction)
+# =============================================================================
+# When streaming is enabled, <|synalux_think|> tokens should be rendered
+# in the UI as a collapsible "Thought Process" or "Agent Terminal" panel.
+# This reduces perceived latency to zero — users see the AI reasoning
+# in real-time while the JSON tool call payload is being generated.
+STREAM_THINK_TO_UI = True       # Enable streaming of think tokens to frontend
+THINK_UI_LABEL = "🧠 Reasoning"  # UI label for the think block panel
+THINK_UI_COLLAPSED = False      # Whether think panel starts collapsed
+
+# =============================================================================
 # Destructive Tool Registry (R5-6: Dry-Run Safety Training)
 # =============================================================================
 DESTRUCTIVE_TOOLS = {

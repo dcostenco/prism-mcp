@@ -6,6 +6,22 @@ Preference signal comes from data curation: train on chosen completions,
 discard rejected. mlx_lm.lora provides the SFT training loop.
 Optimized for Apple Silicon M5 Max 48GB.
 
+R6-3 UPGRADE PATH (DPO/ORPO):
+    Current: RS-SFT (chosen-only) — simple but discards negative signal.
+    Target:  True DPO/ORPO contrastive learning that uses BOTH chosen and
+             rejected pairs to build a steep gradient penalty against:
+             - Parameter hallucination (hallucinated_param → severe penalty)
+             - Missing required params (miss_param → penalty)
+             - Wrong data types (string instead of int → penalty)
+    
+    Implementation options:
+    1. mlx_lm native DPO (when available) — preferred, stays on Apple Silicon
+    2. Export to HuggingFace → unsloth ORPO (1-hour cloud GPU pass)
+    3. SimPO (reference-free) — no need for base model during alignment
+    
+    When switching to DPO, keep train_dpo's lora_rank=64 and use
+    generate_dpo_pairs() output which already has chosen/rejected pairs.
+
 Reward Structure (R2IF composite):
     R_format:  +1.0  Strict format compliance (JSON/XML/Python at output)
     R_correct: +1.0  Correct function name + parameter match (AST)
