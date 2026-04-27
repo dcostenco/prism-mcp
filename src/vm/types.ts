@@ -11,7 +11,7 @@
  * @see synalux-private/portal/src/lib/device-registry.ts
  */
 
-import type { ScmTier } from '../scm/types';
+import type { ScmTier } from '../scm/types.js';
 
 // ── CPU Architecture ────────────────────────────────────────
 
@@ -25,8 +25,9 @@ export type HypervisorType =
     | 'parallels'              // Parallels Desktop
     | 'qemu'                   // QEMU/KVM (Linux)
     | 'hyper_v'                // Windows Hyper-V
-    | 'xcode_simulator'        // iOS/watchOS/tvOS simulators
+    | 'xcode_simulator'        // iOS/watchOS/tvOS/visionOS simulators
     | 'android_emulator'       // Android AVD
+    | 'reality_simulator'      // visionOS / Meta Horizon OS
     | 'custom';                // User-provided
 
 // ── OS Platform ─────────────────────────────────────────────
@@ -39,6 +40,8 @@ export type OsPlatform =
     | 'ipados'
     | 'watchos'
     | 'tvos'
+    | 'visionos'        // Apple Vision Pro
+    | 'meta_horizon'    // Meta Quest
     | 'android'
     | 'wear_os'
     | 'custom';
@@ -52,6 +55,7 @@ export type DeviceFormFactor =
     | 'phone'
     | 'tablet'
     | 'watch'
+    | 'headset'         // VR/AR/MR headsets
     | 'tv'
     | 'embedded'
     | 'custom';
@@ -276,6 +280,40 @@ export const DEVICE_TEMPLATES: DeviceTemplate[] = [
         device_variants: ['Galaxy Tab S10 Ultra', 'Pixel Tablet'],
         min_tier: 'advanced',
     },
+
+    // ── VR / AR Headsets ─────────────────────────────────
+    {
+        id: 'visionos-simulator',
+        name: 'Apple Vision Pro Simulator',
+        description: 'visionOS simulator for spatial computing. ARKit, RealityKit, and SwiftUI Volumes.',
+        platform: 'visionos',
+        form_factor: 'headset',
+        arch: ['arm64'],
+        default_hardware: {
+            cpu_arch: 'arm64', cpu_cores: 8, ram_gb: 16,
+            storage_gb: 64, gpu_enabled: true, gpu_vram_gb: 8, network_mode: 'nat',
+        },
+        os_versions: ['2.0', '1.2', '1.0'],
+        preview_image: '/vm/visionos-simulator.png',
+        device_variants: ['Apple Vision Pro'],
+        min_tier: 'advanced',
+    },
+    {
+        id: 'meta-quest-emulator',
+        name: 'Meta Quest Emulator',
+        description: 'Meta Horizon OS emulator for Quest 3/Pro. Supports passthrough MR and full VR.',
+        platform: 'meta_horizon',
+        form_factor: 'headset',
+        arch: ['arm64', 'x86_64'],
+        default_hardware: {
+            cpu_arch: 'arm64', cpu_cores: 8, ram_gb: 12,
+            storage_gb: 128, gpu_enabled: true, gpu_vram_gb: 6, network_mode: 'nat',
+        },
+        os_versions: ['Horizon OS v69', 'Horizon OS v67'],
+        preview_image: '/vm/meta-quest-emulator.png',
+        device_variants: ['Meta Quest 3', 'Meta Quest 3S', 'Meta Quest Pro'],
+        min_tier: 'advanced',
+    },
 ];
 
 // ── VM Import ───────────────────────────────────────────────
@@ -420,7 +458,7 @@ export const VM_TIERS: Record<ScmTier, VmTierLimits> = {
         max_concurrent_vms: 8,
         max_total_ram_gb: 64,
         max_total_storage_gb: 1024,
-        platforms: ['linux', 'windows', 'macos', 'ios', 'ipados', 'android', 'watchos', 'wear_os'],
+        platforms: ['linux', 'windows', 'macos', 'ios', 'ipados', 'android', 'watchos', 'wear_os', 'visionos', 'meta_horizon'],
         vm_import: true,
         custom_devices: true,
         gpu_passthrough: true,
@@ -431,7 +469,7 @@ export const VM_TIERS: Record<ScmTier, VmTierLimits> = {
         max_concurrent_vms: Infinity,
         max_total_ram_gb: Infinity,
         max_total_storage_gb: Infinity,
-        platforms: ['linux', 'windows', 'macos', 'ios', 'ipados', 'android', 'watchos', 'wear_os', 'tvos', 'custom'],
+        platforms: ['linux', 'windows', 'macos', 'ios', 'ipados', 'android', 'watchos', 'wear_os', 'visionos', 'meta_horizon', 'tvos', 'custom'],
         vm_import: true,
         custom_devices: true,
         gpu_passthrough: true,
