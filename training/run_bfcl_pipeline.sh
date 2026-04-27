@@ -31,7 +31,7 @@ TRAINING_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATA_DIR="$TRAINING_DIR/data/bfcl"
 AUX_DATA_DIR="$TRAINING_DIR/data/aux_sft"
 OUTPUT_DIR="$TRAINING_DIR/output/bfcl-32b"
-BFCL_DIR="$HOME/gorilla-bfcl/berkeley-function-call-leaderboard"
+BFCL_DIR="${PRISM_BFCL_DIR:-$HOME/gorilla-bfcl/berkeley-function-call-leaderboard}"
 
 # Model configuration — xLAM-2-32b-fc-r
 HF_MODEL="Salesforce/xLAM-2-32b-fc-r"

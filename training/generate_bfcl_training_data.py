@@ -1572,8 +1572,16 @@ def generate_distractor_examples(output_path: Path, collections: dict, num_examp
 # ============================================================================
 # R6-5: Evol-Instruct Messy Prompts (Human Variation Training)
 # ============================================================================
-def _messify_prompt(clean_prompt: str) -> str:
-    """Rewrite a clean prompt into a messy human variation."""
+def _messify_prompt(clean_prompt: str, param_values: list = None) -> str:
+    """Rewrite a clean prompt into a messy human variation.
+    
+    R6.2-fix: Preserves case-sensitive parameter values. Noise is applied only
+    to the template text, never to embedded param values like TSLA, SFO, JSON.
+    
+    Args:
+        clean_prompt: The clean template prompt.
+        param_values: List of exact param value strings to preserve casing for.
+    """
     # NOTE: All styles MUST preserve enough semantic content for the model to
     # extract the correct parameters. NEVER truncate to fewer words than needed.
     # The removed 'Minimal' style (split[:4]) was training hallucination.
@@ -1583,21 +1591,39 @@ def _messify_prompt(clean_prompt: str) -> str:
         """Word-boundary-safe substitution (won't match substrings)."""
         return re.sub(r'\b' + re.escape(word) + r'\b', repl, text)
     
+    # R6.2-fix: Case-safe lowering — protect param values from .lower()
+    def _safe_lower(text, protected_values):
+        """Lowercase text while preserving exact casing of protected values."""
+        if not protected_values:
+            return text.lower()
+        # Replace protected values with placeholders, lowercase, then restore
+        placeholders = {}
+        for i, val in enumerate(protected_values):
+            ph = f"__PARAM_{i}__"
+            placeholders[ph] = str(val)
+            text = text.replace(str(val), ph)
+        text = text.lower()
+        for ph, original in placeholders.items():
+            text = text.replace(ph.lower(), original)
+        return text
+    
+    pv = param_values or []
+    
     styles = [
-        # Slang/casual
-        lambda p: f"yo {p.lower().replace('please ', '').replace('create ', 'make ')} plz",
+        # Slang/casual (case-safe lower)
+        lambda p: f"yo {_safe_lower(p, pv).replace('please ', '').replace('create ', 'make ')} plz",
         # Typo injection (only standalone words via word boundaries)
         lambda p: _wb_sub("search", "serach", _wb_sub("create", "craete", _wb_sub("the", "teh", _wb_sub("load", "laod", p)))),
         # Abbreviated (word boundaries prevent "projects" → "projs")
         lambda p: _wb_sub("project", "proj", _wb_sub("directory", "dir", _wb_sub("information", "info", _wb_sub("configuration", "config", p)))),
-        # Multi-intent padding
-        lambda p: f"hey so {p.lower()}, also can you tell me how it went",
-        # Conversational
-        lambda p: f"remember when we talked about this? well {p.lower()}",
-        # Run-on
-        lambda p: f"ok so basically i need you to {p.lower()} and thats about it",
-        # Formal overcorrection
-        lambda p: f"I would kindly request that you {p.lower()}, if at all possible",
+        # Multi-intent padding (case-safe lower)
+        lambda p: f"hey so {_safe_lower(p, pv)}, also can you tell me how it went",
+        # Conversational (case-safe lower)
+        lambda p: f"remember when we talked about this? well {_safe_lower(p, pv)}",
+        # Run-on (case-safe lower)
+        lambda p: f"ok so basically i need you to {_safe_lower(p, pv)} and thats about it",
+        # Formal overcorrection (case-safe lower)
+        lambda p: f"I would kindly request that you {_safe_lower(p, pv)}, if at all possible",
     ]
     return random.choice(styles)(clean_prompt)
 
@@ -1658,8 +1684,9 @@ def generate_evol_instruct_examples(output_path: Path, collections: dict, num_ex
         if not tools:
             continue
         
-        # Create messy version of the prompt
-        messy_prompt = _messify_prompt(scenario["clean"])
+        # R6.2-fix: Extract case-sensitive param values so _messify_prompt can protect them
+        param_vals = [str(v) for v in scenario["args"].values() if isinstance(v, str) and v != v.lower()]
+        messy_prompt = _messify_prompt(scenario["clean"], param_values=param_vals)
         
         tc_json = json.dumps({"name": scenario["func"], "arguments": scenario["args"]})
         tc_text = f'{TOKEN_TOOL_CALL_OPEN}\n{tc_json}\n{TOKEN_TOOL_CALL_CLOSE}'

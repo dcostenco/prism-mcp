@@ -338,7 +338,10 @@ def build_rag_system_prompt(query: str, k: int = 5, use_hyde: bool = True) -> st
     else:
         tools = retrieve_top_k(query, k=k)
     if not tools:
-        print("WARNING: No tools retrieved. Using empty tool list.")
+        # R6.2-fix: Fallback to full tool registry, never pass empty list
+        # Empty tool list = guaranteed 0% accuracy during evaluation
+        print("WARNING: RAG retrieval returned no tools. Falling back to full tool registry.")
+        return format_system_prompt()  # No args = all tools (default behavior)
     return format_system_prompt(tools)
 
 

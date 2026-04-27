@@ -627,9 +627,9 @@ try:
     with open(_TOOL_SCHEMA_PATH) as _f:
         _TOOL_SCHEMAS = json.load(_f).get("tools", [])
     print(f"Loaded {len(_TOOL_SCHEMAS)} tool schemas for Best-of-N validation")
-except FileNotFoundError:
+except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
     _TOOL_SCHEMAS = []
-    print(f"WARNING: {_TOOL_SCHEMA_PATH} not found — Best-of-N validation disabled")
+    print(f"WARNING: Failed to load {_TOOL_SCHEMA_PATH}: {e} — Best-of-N validation disabled")
 
 # R6.1-fix: Import from config instead of hardcoding
 from config import BEST_OF_N_DEFAULT, BEST_OF_N_TEMPERATURE
@@ -668,8 +668,10 @@ def validate_tool_call_against_schema(tool_name: str, tool_args: dict,
     
     # Check data types
     for arg_name, arg_val in tool_args.items():
-        # R6.1-fix: Allow None for optional params (JSON null)
+        # R6.2-fix: Only allow None for optional (non-required) params
         if arg_val is None:
+            if arg_name in required:
+                return False, f"{arg_name} is required and cannot be null"
             continue
         if arg_name not in props:
             continue

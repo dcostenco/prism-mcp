@@ -18,8 +18,9 @@ TOOL_SCHEMA = os.path.join(_TRAINING_DIR, "data", "tool_schema.json")
 REPORT_PATH = os.path.join(_TRAINING_DIR, "results", "benchmark_report.md")
 
 # Load valid tools
-with open(TOOL_SCHEMA) as f:
-    schema = json.load(f)
+try:
+    with open(TOOL_SCHEMA) as f:
+        schema = json.load(f)
     VALID_TOOLS = {t["name"] for t in schema["tools"]}
     TOOL_PARAMS = {}
     for t in schema["tools"]:
@@ -27,6 +28,11 @@ with open(TOOL_SCHEMA) as f:
             "required": set(t["parameters"].get("required", [])),
             "all": set(t["parameters"]["properties"].keys())
         }
+except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
+    print(f"ERROR: Failed to load tool schema: {e}")
+    print(f"Run: python3 build_tool_schema.py to regenerate {TOOL_SCHEMA}")
+    VALID_TOOLS = set()
+    TOOL_PARAMS = {}
 
 # Held-out test prompts — NONE overlap with GRPO training prompts.
 # Training used: "Load...prism-mcp", "Save...RBAC", "Explain React Server Components",
