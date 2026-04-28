@@ -84,7 +84,10 @@
     "anti-sycophancy",
     "local-embeddings",
     "transformers-js",
-    "nomic-embed"
+    "nomic-embed",
+    "business",
+    "enterprise",
+    "hipaa"
   ],
   "homepage": "https://github.com/dcostenco/prism-coder",
   "repository": {
@@ -92,7 +95,7 @@
     "url": "git+https://github.com/dcostenco/prism-coder.git"
   },
   "author": "Dmitri Costenco",
-  "license": "BSL-1.1",
+  "license": "BUSL-1.1",
   "devDependencies": {
     "@huggingface/transformers": "3.1.0",
     "@types/bun": "latest",
@@ -104,8 +107,8 @@
     "vitest": "^4.1.1"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0",
-    "@huggingface/transformers": "~3.1.0"
+    "@huggingface/transformers": "~3.1.0",
+    "typescript": "^5.0.0"
   },
   "peerDependenciesMeta": {
     "@huggingface/transformers": {
@@ -132,6 +135,7 @@
     "jsdom": "^29.0.1",
     "openai": "^6.32.0",
     "p-limit": "^7.3.0",
+    "postcss": "8.5.12",
     "quickjs-emscripten": "^0.32.0",
     "stream-json": "^2.0.0",
     "turndown": "^7.2.2",
