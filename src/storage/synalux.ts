@@ -22,10 +22,13 @@
  *     - saveHandoff       → POST /api/v1/prism/memory  action=save_handoff
  *     - loadContext       → POST /api/v1/prism/memory  action=load_context
  *     - searchKnowledge   → POST /api/v1/prism/memory  action=search
+ *     - softDeleteLedger  → POST /api/v1/prism/memory  action=forget_memory (Phase 3 Tier A)
+ *     - hardDeleteLedger  → POST /api/v1/prism/memory  action=forget_memory (Phase 3 Tier A)
  *
- *   Methods still falling through to SupabaseStorage (need portal
- *   endpoints rolled out — see synalux-private project ledger entry
- *   2026-04-30-thin-client-architecture-directive for the full list).
+ *   Methods still falling through to SupabaseStorage (Phase 3 Tier B+):
+ *   semantic searchMemory, save_experience direct entrypoint,
+ *   compactLedger, image ops, history, hivemind, etc.
+ *   See portal/docs/PHASE_3_PORTAL_ENDPOINTS.md for the full catalog.
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -244,6 +247,29 @@ export class SynaluxStorage extends SupabaseStorage {
       role,
     });
     return (result.context ?? result) as ContextResult;
+  }
+
+  // ─── Forget memory (GDPR surgical deletion) ──────────────────
+  // Phase 3 Tier A: route both soft and hard delete through the
+  // portal's forget_memory action. The portal scopes deletes to the
+  // caller's user_id server-side (defense-in-depth: even if the
+  // client is compromised, it can only delete its own entries).
+
+  async softDeleteLedger(id: string, _userId: string, reason?: string): Promise<void> {
+    await this.portalPost("/api/v1/prism/memory", {
+      action: "forget_memory",
+      memory_id: id,
+      hard_delete: false,
+      reason: reason ?? null,
+    });
+  }
+
+  async hardDeleteLedger(id: string, _userId: string): Promise<void> {
+    await this.portalPost("/api/v1/prism/memory", {
+      action: "forget_memory",
+      memory_id: id,
+      hard_delete: true,
+    });
   }
 
   // ─── Knowledge search (keyword) ──────────────────────────────
