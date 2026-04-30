@@ -30,6 +30,7 @@ import { getLLMProvider } from "../utils/llm/factory.js";
 import { getCurrentGitState, getGitDrift } from "../utils/git.js";
 import { getSetting, getAllSettings } from "../storage/configStorage.js";
 import { mergeHandoff, dbToHandoffSchema, sanitizeForMerge } from "../utils/crdtMerge.js";
+import { resolveProject } from "../utils/projectResolver.js";
 
 // ─── Phase 1: Explainability & Memory Lineage ────────────────
 // These utilities provide structured tracing metadata for search operations.
@@ -136,7 +137,7 @@ export async function sessionSaveLedgerHandler(args: unknown) {
   }
 
   // SECURITY: Sanitize all text fields to prevent stored prompt injection
-  const project = args.project;
+  let project = args.project;
   const conversation_id = args.conversation_id;
   const summary = sanitizeMemoryInput(args.summary);
   const todos = args.todos ? sanitizeArray(args.todos) : undefined;
@@ -145,21 +146,26 @@ export async function sessionSaveLedgerHandler(args: unknown) {
   const role = args.role;
   const storage = await getStorage();
 
-  // ─── Repo path mismatch validation (v4.2) ───
-  let repoPathWarning = "";
-  if (files_changed && files_changed.length > 0) {
-    try {
-      const configuredPath = await getSetting(`repo_path:${project}`, "");
-      if (configuredPath && configuredPath.trim()) {
-        const normalizedPath = configuredPath.trim().replace(/\\/g, "/").replace(/\/+$/, "");  // normalize + strip trailing slash
-        const mismatched = files_changed.filter((f: string) => !f.replace(/\\/g, "/").startsWith(normalizedPath));
-        if (mismatched.length === files_changed.length) {
-          repoPathWarning = `\n\n⚠️ Project mismatch: none of the files_changed paths match repo_path "${normalizedPath}" ` +
-            `configured for project "${project}". Consider saving under the correct project.`;
-          debugLog(`[session_save_ledger] Repo path mismatch for "${project}": expected prefix "${normalizedPath}"`);
-        }
-      }
-    } catch { /* getSetting non-fatal */ }
+  // ─── Project mismatch validation (v13 — hard-rejects on mismatch) ───
+  // Replaces the old soft-warning behavior that allowed cross-project
+  // writes. See projectResolver.ts for the lookup logic.
+  let resolverNote = "";
+  const resolved = await resolveProject(project, files_changed);
+  if (!resolved.ok) {
+    return {
+      content: [{
+        type: "text",
+        text:
+          `❌ ${resolved.error}\n` +
+          (resolved.hint ? `Hint: ${resolved.hint}\n` : "") +
+          `\nNo ledger entry was written. Re-issue the call with the correct project.`,
+      }],
+      isError: true,
+    };
+  }
+  project = resolved.project;
+  if (resolved.autoCreated) {
+    resolverNote = `\n📝 Auto-registered project "${project}" with repo_path derived from files_changed.`;
   }
 
   debugLog(`[session_save_ledger] Saving ledger entry for project="${project}"`);
@@ -294,8 +300,8 @@ export async function sessionSaveLedgerHandler(args: unknown) {
         (todos?.length ? `TODOs: ${todos.length} items\n` : "") +
         (files_changed?.length ? `Files changed: ${files_changed.length}\n` : "") +
         (decisions?.length ? `Decisions: ${decisions.length}\n` : "") +
-        `📊 Embedding generation queued for semantic search.\n` +
-        repoPathWarning +
+        `📊 Embedding generation queued for semantic search.` +
+        resolverNote +
         `\nRaw response: ${JSON.stringify(result)}`,
     }],
     isError: false,

@@ -1,4 +1,9 @@
-import { PRISM_STORAGE as ENV_PRISM_STORAGE, SUPABASE_CONFIGURED } from "../config.js";
+import {
+  PRISM_STORAGE as ENV_PRISM_STORAGE,
+  SUPABASE_CONFIGURED,
+  SYNALUX_CONFIGURED,
+  PRISM_FORCE_LOCAL,
+} from "../config.js";
 import { debugLog } from "../utils/logger.js";
 import { SupabaseStorage } from "./supabase.js";
 import type { StorageBackend } from "./interface.js";
@@ -27,29 +32,42 @@ export async function getStorage(): Promise<StorageBackend> {
   if (storageInstance) return storageInstance;
 
   // Use environment variable if explicitly set, otherwise fall back to db config
-  const envStorage = process.env.PRISM_STORAGE as "supabase" | "local" | "auto" | undefined;
-  let requestedBackend = (envStorage || await getSetting("PRISM_STORAGE", ENV_PRISM_STORAGE)) as "supabase" | "local" | "auto";
+  const envStorage = process.env.PRISM_STORAGE as "supabase" | "synalux" | "local" | "auto" | undefined;
+  let requestedBackend = (envStorage || await getSetting("PRISM_STORAGE", ENV_PRISM_STORAGE)) as "supabase" | "synalux" | "local" | "auto";
 
-  // ─── v12.1: Auto-resolve "auto" → prefer Supabase when credentials exist ───
-  // This eliminates the split-brain where MCP clients (Claude Desktop,
-  // Antigravity) didn't pass PRISM_STORAGE=supabase and data silently
-  // went to local SQLite instead of Synalux Cloud.
+  // ─── v13: PRISM_FORCE_LOCAL hard override ─────────────────────
+  // Used by free tier and HIPAA deployments that must never reach the
+  // network for memory operations. Wins over every other resolution.
+  if (PRISM_FORCE_LOCAL) {
+    requestedBackend = "local";
+    debugLog("[Prism Storage] PRISM_FORCE_LOCAL=true — forcing local SQLite");
+  }
+
+  // ─── v13: Auto-resolve "auto" → synalux > supabase > local ────
+  // Synalux portal is the paid-tier default — it mediates project
+  // validation, tier gating, and audit. Direct Supabase remains as a
+  // legacy fallback for installs that have not yet migrated to a portal
+  // API key. Local SQLite is the floor.
   if (requestedBackend === "auto") {
-    const envUrl = process.env.SUPABASE_URL?.trim();
-    const envKey = process.env.SUPABASE_KEY?.trim();
-    if (envUrl && envKey && isValidSupabaseUrl(envUrl)) {
-      requestedBackend = "supabase";
-      debugLog("[Prism Storage] Auto-resolved: supabase (env vars)");
+    if (SYNALUX_CONFIGURED) {
+      requestedBackend = "synalux";
+      debugLog("[Prism Storage] Auto-resolved: synalux (portal credentials)");
     } else {
-      // Probe dashboard config as fallback
-      const dashUrl = (await getSetting("SUPABASE_URL"))?.trim();
-      const dashKey = (await getSetting("SUPABASE_KEY"))?.trim();
-      if (dashUrl && dashKey && isValidSupabaseUrl(dashUrl)) {
+      const envUrl = process.env.SUPABASE_URL?.trim();
+      const envKey = process.env.SUPABASE_KEY?.trim();
+      if (envUrl && envKey && isValidSupabaseUrl(envUrl)) {
         requestedBackend = "supabase";
-        debugLog("[Prism Storage] Auto-resolved: supabase (dashboard config)");
+        debugLog("[Prism Storage] Auto-resolved: supabase (env vars, legacy direct-write path)");
       } else {
-        requestedBackend = "local";
-        debugLog("[Prism Storage] Auto-resolved: local (no Supabase credentials found)");
+        const dashUrl = (await getSetting("SUPABASE_URL"))?.trim();
+        const dashKey = (await getSetting("SUPABASE_KEY"))?.trim();
+        if (dashUrl && dashKey && isValidSupabaseUrl(dashUrl)) {
+          requestedBackend = "supabase";
+          debugLog("[Prism Storage] Auto-resolved: supabase (dashboard config, legacy)");
+        } else {
+          requestedBackend = "local";
+          debugLog("[Prism Storage] Auto-resolved: local (no portal or Supabase credentials)");
+        }
       }
     }
   }
@@ -83,6 +101,11 @@ export async function getStorage(): Promise<StorageBackend> {
     console.error(
       "[Prism Storage] Supabase backend requested but SUPABASE_URL/SUPABASE_KEY are invalid or unresolved. Falling back to local storage."
     );
+  } else if (requestedBackend === "synalux" && !SYNALUX_CONFIGURED) {
+    activeStorageBackend = "local";
+    console.error(
+      "[Prism Storage] Synalux backend requested but PRISM_SYNALUX_BASE_URL/PRISM_SYNALUX_API_KEY are missing or invalid. Falling back to local storage."
+    );
   } else {
     activeStorageBackend = requestedBackend;
   }
@@ -94,10 +117,13 @@ export async function getStorage(): Promise<StorageBackend> {
     storageInstance = new SqliteStorage();
   } else if (activeStorageBackend === "supabase") {
     storageInstance = new SupabaseStorage();
+  } else if (activeStorageBackend === "synalux") {
+    const { SynaluxStorage } = await import("./synalux.js");
+    storageInstance = new SynaluxStorage();
   } else {
     throw new Error(
       `Unknown PRISM_STORAGE value: "${activeStorageBackend}". ` +
-      `Must be "local" or "supabase".`
+      `Must be "local", "supabase", or "synalux".`
     );
   }
 
