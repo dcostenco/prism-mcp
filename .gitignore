@@ -80,3 +80,16 @@ training/data/
 training/output/
 training/models/
 bfcl-submission/
+
+# ─── Training runtime artifacts (do not commit) ───
+# Background-run process IDs from grpo / sft / generation jobs
+training/*.pid
+# Log files captured during training runs
+training/*.log
+# Manual backups of broken / experimental files
+training/*.broken
+# MLX model weights — 4 GB of binary tensors, never belongs in git
+training/mlx_model/
+
+# Expo config from sibling prism-aac repo that leaked here
+/app.json
