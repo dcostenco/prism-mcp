@@ -116,7 +116,7 @@
     }
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.81.0",
+    "@anthropic-ai/sdk": "^0.91.1",
     "@google/generative-ai": "^0.24.1",
     "@libsql/client": "^0.17.2",
     "@modelcontextprotocol/sdk": "^1.27.1",
