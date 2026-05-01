@@ -146,7 +146,7 @@ Prism v11.6.0 introduces **production-grade agent infrastructure** for running m
 
 ## 🔬 <a name="deep-research-intelligence"></a>v11.5.1 Deep Research Intelligence (Auto-Scholar)
 
-Prism v11.5.1 transforms your AI agent from a "Coder" into a "Clinical Scientist." It features a **Tavily-Enhanced Multi-Provider Discovery Pipeline** that grounds Gemini 2.5 Flash's thinking in real-world empirical data.
+Prism v11.5.1 transforms your AI agent from a "Coder" into a "Clinical Scientist." It features a **Multi-Provider Discovery Pipeline** (Brave + Firecrawl + Google Scholar) that grounds Gemini 2.5 Flash's thinking in real-world empirical data.
 
 ### 🥊 The Global Benchmarks: Prism v11 vs. Standard RAG
 
@@ -176,7 +176,7 @@ Prism features a cutting-edge **Zero-Search Retrieval** system for its cognitive
 
 ### 🔍 Supported Discovery Engines & Databases
 
-1.  **Tavily AI** (Elite): Primary discovery engine for AI-native deep crawling and PDF/Abstract extraction.
+1.  **Brave Search + Firecrawl** (Primary): Web search + deep scraping for full-text article extraction.
 2.  **PubMed (NCBI)** (Clinical): The world's largest biomedical database for clinical citations.
 3.  **ERIC (Education Research)** (Behavioral): The definitive database for ABA and pediatric interventions.
 4.  **Semantic Scholar** (Academic): AI-powered research tool providing "TLDR" summaries of 200M+ papers.
@@ -297,7 +297,7 @@ Then open `http://localhost:3001` instead.
 | **Ledger compaction** | ✅ `prism-coder:7b` via Ollama | ✅ Text provider key |
 | **Task routing (LLM tiebreaker)** | ✅ `prism-coder:7b` via Ollama | N/A (heuristic-only) |
 | Morning Briefings | ❌ | ✅ Text provider key |
-| Web Scholar research | ❌ | ✅ [`BRAVE_API_KEY`](#environment-variables) + [`FIRECRAWL_API_KEY`](#environment-variables) (or `TAVILY_API_KEY`) |
+| Web Scholar research | ❌ | ✅ [`BRAVE_API_KEY`](#environment-variables) + [`FIRECRAWL_API_KEY`](#environment-variables) |
 | VLM image captioning | ❌ | ✅ Provider key |
 | Autonomous Pipelines (Dark Factory) | ❌ | ✅ Text provider key |
 
@@ -1544,7 +1544,7 @@ Requires `PRISM_DARK_FACTORY_ENABLED=true`.
 > # Option B: Cloud-powered (best quality)
 > GOOGLE_API_KEY=...      # Unlocks: Gemini embeddings, Morning Briefings, auto-compaction
 > BRAVE_API_KEY=...       # Unlocks: Web Scholar research + Brave Answers
-> FIRECRAWL_API_KEY=...   # Unlocks: Web Scholar deep scraping (or use TAVILY_API_KEY instead)
+> FIRECRAWL_API_KEY=...   # Unlocks: Web Scholar deep scraping
 > ```
 > **Zero keys = zero problem.** Core session memory, keyword search, semantic search (local embeddings), time travel, and the full dashboard work 100% offline. Cloud keys are optional power-ups.
 
@@ -1554,8 +1554,7 @@ Requires `PRISM_DARK_FACTORY_ENABLED=true`.
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `BRAVE_API_KEY` | No | Brave Search Pro API key |
-| `FIRECRAWL_API_KEY` | No | Firecrawl API key — required for Web Scholar (unless using Tavily) |
-| `TAVILY_API_KEY` | No | Tavily Search API key — alternative to Brave+Firecrawl for Web Scholar |
+| `FIRECRAWL_API_KEY` | No | Firecrawl API key — required for Web Scholar deep scraping |
 | `PRISM_STORAGE` | No | `"local"` (default) or `"supabase"` — restart required |
 | `PRISM_ENABLE_HIVEMIND` | No | `"true"` to enable multi-agent tools — restart required |
 | `PRISM_INSTANCE` | No | Instance name for multi-server PID isolation |

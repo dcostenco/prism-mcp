@@ -287,7 +287,7 @@ export const SCHOLAR_RESEARCH_TOOL: Tool = {
   name: "scholar_research",
   description:
     "Triggers an autonomous research pipeline on a specific topic. " +
-    "Uses Tavily/Brave to discover scientific papers and journals, " +
+    "Uses Brave/Firecrawl to discover scientific papers and journals, " +
     "extracts their content, synthesizes a comprehensive markdown report, " +
     "and saves the result to the Mind Palace ledger. " +
     "Best for deep clinical research, literature reviews, and evidence-based practice updates.",

@@ -662,7 +662,7 @@ return false;}
               "PRISM_STORAGE", "SUPABASE_URL", "SUPABASE_KEY",
               "BRAVE_API_KEY", "BRAVE_ANSWERS_API_KEY",
               "GOOGLE_API_KEY", "VOYAGE_API_KEY",
-              "FIRECRAWL_API_KEY", "TAVILY_API_KEY",
+              "FIRECRAWL_API_KEY",
               "embedding_provider", "embedding_model",
               "PRISM_ENABLE_HIVEMIND", "PRISM_DARK_FACTORY_ENABLED",
               "PRISM_TASK_ROUTER_ENABLED", "PRISM_SCHOLAR_ENABLED",
