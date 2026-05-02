@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [13.0.1] - 2026-05-02 — 🔧 Executable bin permissions
+
+Bug fix: when installed globally via `npm i -g prism-mcp-server`, the
+binaries (`prism`, `prism-coder`, `prism-mcp-server`, `prism-import`)
+ended up without the execute bit, so MCP clients (Claude Code, Claude
+Desktop, Cursor, etc.) couldn't launch the server — they'd get a
+"permission denied" when trying to spawn it.
+
+Root cause: `tsc` doesn't preserve or set the +x bit on its compiled
+output, and the published tarball inherited the missing perm.
+
+Fix:
+- Added `npm run chmod-bins` to set 0755 on `dist/cli.js`,
+  `dist/server.js`, `dist/utils/universalImporter.js`.
+- `build` now runs `tsc && npm run chmod-bins`.
+- `prepublishOnly` runs the full build to guarantee published tarballs
+  have the right perms regardless of how the maintainer publishes.
+
+If you hit "permission denied" on 13.0.0, either upgrade to 13.0.1 or
+manually `chmod +x` the files in `~/.npm-global/lib/node_modules/prism-mcp-server/dist/`.
+
 ## <a name="1300"></a>[13.0.0] - 2026-05-02 — 🧬 The Adaptive Release
 
 > **prism-coder now feels.** Every response the model returns is shaped in real time by the user's emotional register, motor rhythm, and ambient environment — without anyone writing a "be empathetic" instruction. PrismAAC, Synalux, and prism-mcp now share a single behavioral profile that travels with the user across surfaces, and skill routing is canonical at synalux instead of duplicated across three repos.
