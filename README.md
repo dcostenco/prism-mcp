@@ -1785,7 +1785,7 @@ Prism MCP is open-source and free for individual developers. For teams and enter
 
 | Release | Headline |
 |---------|----------|
-| **v13.0** | 🧬 **The Adaptive Release** — Auto tone switch, cursor that learns motor rhythm, identity-locked tracking, BCBA-aligned behavioral safety, 319 security findings fixed across 3 repos. [Details →](CHANGELOG.md#1300) |
+| **v13.0** | 🧬 **The Adaptive Release** — BCBA behavioral brain (universal skill), project-aware skill auto-loading (23 skills), adaptive context injection, 83 security findings fixed, encrypted sync IV fix, timing-safe checksums. [Details →](CHANGELOG.md#1300) |
 | **v12.5** | 💳 **Unified Billing & Agent Skill Ecosystem** — Synalux-priced tiers ($19/$49/$99), 14-day trial, 54 skills, BSL-1.1 license. |
 | **v11.6.0** | 🏗️ **Agent Infrastructure Resilience** — Production-grade serialized queue, memory guardian, queue watchdog, status dashboard. 115/115 tests. |
 | **v11.5.1** | 🧠 **Structural GRPO Alignment** — Perfect 100% accuracy cross-validated on Synalux Elite platform. |
