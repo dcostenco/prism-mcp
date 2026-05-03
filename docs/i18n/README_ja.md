@@ -20,14 +20,14 @@
 
 ### Downloads
 
-Latest IDE release: **v2.1.0** ([release notes](https://github.com/dcostenco/synalux-private/releases/tag/v2.1.0)) — VS Code parity: real terminal (xterm+node-pty), inline AI completions (Ollama FIM), functional Media Studio, military-grade security audit (44 findings fixed), 217 tests.
+Latest IDE release: **v2.1.1** ([release notes](https://github.com/dcostenco/prism-coder/releases/tag/v2.1.1-ide)) — Merge conflict editor (Accept Current/Incoming/Both + auto-stage), enhanced Builder/Deploy/Workflow panels, all v2.1.0 features intact.
 
 | Platform | Package | Version | Size |
 |----------|---------|:-------:|:----:|
-| **macOS (Apple Silicon)** | [Prism Coder-2.1.0-arm64.dmg](https://github.com/dcostenco/prism-coder/releases/download/v2.1.0/Prism.Coder-2.1.0-arm64.dmg) | **v2.1.0** | 116 MB |
-| **macOS (Apple Silicon, zip)** | [Prism Coder-2.1.0-arm64.zip](https://github.com/dcostenco/prism-coder/releases/download/v2.1.0/Prism.Coder-2.1.0-arm64.zip) | **v2.1.0** | 112 MB |
-| **Windows (signed)** | [Prism Coder-2.1.0-Setup.exe](https://github.com/dcostenco/prism-coder/releases/download/v2.1.0/Prism.Coder-2.1.0-Setup.exe) | **v2.1.0** | 102 MB |
-| **Linux (arm64)** | [Prism Coder-2.1.0.AppImage](https://github.com/dcostenco/prism-coder/releases/download/v2.1.0/Prism.Coder-2.1.0.AppImage) | **v2.1.0** | 122 MB |
+| **macOS (Apple Silicon)** | [Prism Coder-2.1.1-arm64.dmg](https://github.com/dcostenco/prism-coder/releases/download/v2.1.1-ide/Prism.Coder-2.1.1-arm64.dmg) | **v2.1.1** | 115 MB |
+| **macOS (Apple Silicon, zip)** | [Prism Coder-2.1.1-arm64.zip](https://github.com/dcostenco/prism-coder/releases/download/v2.1.1-ide/Prism.Coder-2.1.1-arm64.zip) | **v2.1.1** | 110 MB |
+| **Windows (signed)** | [Prism Coder-2.1.1-Setup.exe](https://github.com/dcostenco/prism-coder/releases/download/v2.1.1-ide/Prism.Coder-2.1.1-Setup.exe) | **v2.1.1** | 103 MB |
+| **Linux (arm64)** | [Prism Coder-2.1.1.AppImage](https://github.com/dcostenco/prism-coder/releases/download/v2.1.1-ide/Prism.Coder-2.1.1.AppImage) | **v2.1.1** | 121 MB |
 | **npm (MCP Server)** | `npx -y prism-mcp-server` | latest | — |
 
 > **macOS:** Signed with Developer ID. First launch: right-click → **Open** if Gatekeeper warns.
@@ -59,7 +59,7 @@ Latest IDE release: **v2.1.0** ([release notes](https://github.com/dcostenco/syn
 | 📜 **Version History** — git-backed snapshots per builder project | ✅ |
 | 👥 **Collaboration** — v2.2 (CRDT editing, presence, team chat) | 🟡 roadmap |
 
-👉 **[Full v2.1.0 release notes →](https://github.com/dcostenco/synalux-private/releases/tag/v2.1.0)**
+👉 **[Full v2.1.1 release notes →](https://github.com/dcostenco/prism-coder/releases/tag/v2.1.1-ide)**
 
 ---
 
@@ -136,7 +136,7 @@ Prism v12.5 unifies Prism and Synalux into a **single billing architecture** wit
 - **10 Vendor Skills** — Vercel, Supabase, Stripe, Sentry, OpenAI, Addy Osmani, Garry Tan/gstack
 - **30+ Community Skills** — Installed and optimized from the Gemini ecosystem
 
-> 📦 **Packages:** [`prism-mcp-server`](https://www.npmjs.com/package/prism-mcp-server) (npm) · [Prism Coder IDE](https://github.com/dcostenco/prism-coder/releases/tag/v2.0.1) (VS Code) · `prism` CLI
+> 📦 **Packages:** [`prism-mcp-server`](https://www.npmjs.com/package/prism-mcp-server) (npm) · [Prism Coder IDE](https://github.com/dcostenco/prism-coder/releases/tag/v2.1.1-ide) (VS Code) · `prism` CLI
 
 ---
 
