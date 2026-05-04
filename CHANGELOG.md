@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [13.1.0] - 2026-05-04 — 🤖 Prism Coder 14B sibling + tier-aware local routing
+
+Coordinated cross-product release with **synalux-private v0.14.4** and **prism-aac v0.2.1**. No prism-mcp-server code changes (the model fleet lives in Ollama; npm package is unchanged) — this entry documents what ships through the Synalux portal that prism-mcp clients reach.
+
+### Model fleet
+- **`prism-coder:7b` re-trained from clean Qwen2.5-Coder-7B base.** Replaces v18aac-MAX (BFCL 47.2%) with v18clean-epoch0 (BFCL **88.1%** 3-run StdDev 0%, AAC realigned **47/48 (97.9%)**, caregiver targeted **20/20**, emergency_qa 13/13, text_correct 15/15, translate 8/8). +40.9pp BFCL recovery, no AAC regression.
+- **`prism-coder:14b` sibling shipped.** Qwen2.5-Coder-14B base + AAC SYSTEM directive, **32K context**, BFCL 85.9%, AAC 46/48 (95.8%), caregiver targeted 18/20.
+- **Rollback path:** `ollama cp prism-coder:7b-prev-20260504-1325 prism-coder:7b` (≤ 1 min restore).
+
+### Tier-aware local routing (Synalux portal)
+- New pure-function routing module with **39 TDD tests** pinning behaviour. Security-hardened: privilege boundary on tier sanitization, ReDoS-proof regexes, audit-safe reason strings (fixed enumeration), failsafe defaults, p99 < 1ms.
+- Routing matrix:
+  - `free` simple → `prism-coder:7b` local · medium → Gemini Flash · complex → Gemini Flash
+  - `standard` simple → 7B · medium → `prism-coder:14b` local · complex → Claude Haiku
+  - `advanced` / `enterprise` simple → 7B · medium → 14B local · complex → Claude Opus
+- Saves ~$0.01–0.05 per paid-tier medium AAC query (Claude → local 14B). Estimated annual saving ≈ $190K–210K at 10K-user scale.
+
+### Azure Neural TTS unblocked for all tiers
+- Removed free-tier 403 gate on `/api/v1/tts`. Azure Neural voice + auto-tone-switch now work for every authenticated tier. Cost ≈ $480/mo at 10K users — acceptable AAC dignity baseline.
+
+### Phase 0 of the 32B/72B campaign — Synalux/Prism-Memory training data
+- Built `synalux_sft_pipeline.py` (~570 lines): extracts from local `~/.prism-mcp/data.db` SQLite + Prism Supabase, anonymises (PII / customer names / paths / secrets / clinical), chunks long content, renders Qwen `<|im_start|>` ChatML.
+- 5,721 training rows generated, **zero PII leaks** across 5-pattern audit (customer names, emails, phones, paths, API keys).
+- Phase 1 (32B SFT, ~$340) launched on Modal H100×4 today; Phase 2 (72B) queued.
+
 ## [13.0.1] - 2026-05-02 — 🔧 Executable bin permissions
 
 Bug fix: when installed globally via `npm i -g prism-mcp-server`, the
