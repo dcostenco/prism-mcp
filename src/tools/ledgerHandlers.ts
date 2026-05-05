@@ -65,6 +65,7 @@ import {
   // v5.5: SDM Intuitive Recall type guard
   isSessionIntuitiveRecallArgs,
   isSessionExportMemoryArgs,
+  normalizeExportFormat,
   isSessionSaveImageArgs,
   isSessionViewImageArgs
 } from "./sessionMemoryDefinitions.js";
@@ -1552,8 +1553,13 @@ export async function sessionExportMemoryHandler(args: unknown) {
     };
   }
 
-  const { output_dir, format = "json" } = args;
+  const { output_dir, format: rawFormat = "json" } = args;
   const requestedProject = (args as { project?: string }).project;
+  // obsidian + logseq are user-facing aliases for vault. Track the
+  // requested name so we can put it in the success message + use it
+  // to select the correct .obsidian/.logseq sidecar config.
+  const requestedFormat = rawFormat;
+  const format = normalizeExportFormat(rawFormat);
 
   // Validate output directory
   if (!existsSync(output_dir)) {
@@ -1642,7 +1648,13 @@ export async function sessionExportMemoryHandler(args: unknown) {
 
       let content: string | Buffer;
       if (format === "vault") {
-        const vaultFiles = buildVaultDirectory(exportPayload);
+        // Pass through the user-facing flavor (obsidian/logseq/plain)
+        // so the zip ships the right sidecar config files.
+        const flavor: 'plain' | 'obsidian' | 'logseq' =
+          requestedFormat === 'obsidian' ? 'obsidian'
+            : requestedFormat === 'logseq' ? 'logseq'
+              : 'plain';
+        const vaultFiles = buildVaultDirectory(exportPayload, flavor);
         content = Buffer.from(fflate.zipSync(vaultFiles));
       } else if (format === "markdown") {
         content = toMarkdown(exportPayload);

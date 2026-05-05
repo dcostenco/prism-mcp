@@ -916,8 +916,11 @@ export const SESSION_EXPORT_MEMORY_TOOL: Tool = {
       },
       format: {
         type: "string",
-        enum: ["json", "markdown", "vault"],
-        description: "Export format: 'json', 'markdown', or 'vault' (Obsidian .zip). Default: json.",
+        enum: ["json", "markdown", "vault", "obsidian", "logseq"],
+        description:
+          "Export format: 'json' (single file), 'markdown' (single human doc), " +
+          "'vault' / 'obsidian' / 'logseq' (zip with wikilinked .md files + " +
+          "YAML frontmatter — drop into your PKM vault). Default: json.",
         default: "json",
       },
       output_dir: {
@@ -936,9 +939,14 @@ export const SESSION_EXPORT_MEMORY_TOOL: Tool = {
  * output_dir is required (must be an absolute path).
  * project and format are optional.
  */
+/** Formats accepted by session_export_memory. obsidian + logseq are
+ * aliases for vault — the wikilinked-zip output is already compatible
+ * with both PKMs verbatim. */
+export type ExportFormat = "json" | "markdown" | "vault" | "obsidian" | "logseq";
+
 export function isSessionExportMemoryArgs(
   args: unknown
-): args is { project?: string; format?: "json" | "markdown" | "vault"; output_dir: string } {
+): args is { project?: string; format?: ExportFormat; output_dir: string } {
   if (typeof args !== "object" || args === null) return false;
   const a = args as Record<string, unknown>;
   // Required
@@ -949,9 +957,17 @@ export function isSessionExportMemoryArgs(
     a.format !== undefined &&
     a.format !== "json" &&
     a.format !== "markdown" &&
-    a.format !== "vault"
+    a.format !== "vault" &&
+    a.format !== "obsidian" &&
+    a.format !== "logseq"
   ) return false;
   return true;
+}
+
+/** obsidian + logseq are user-facing aliases for vault. */
+export function normalizeExportFormat(f: ExportFormat): "json" | "markdown" | "vault" {
+  if (f === "obsidian" || f === "logseq") return "vault";
+  return f;
 }
 
 // ─── v3.1: Knowledge Set Retention (TTL) ─────────────────────

@@ -29,10 +29,67 @@ function escapeYaml(text: string): string {
 }
 
 /**
+ * Pre-configured `.obsidian/app.json` — turns on graph view, sets a
+ * sensible folder hide list, and configures wikilink resolution. Gives
+ * users a working Obsidian vault on first open instead of the default
+ * blank state.
+ */
+const OBSIDIAN_APP_JSON = JSON.stringify({
+  attachmentFolderPath: 'attachments',
+  newLinkFormat: 'shortest',
+  useMarkdownLinks: false,
+  alwaysUpdateLinks: true,
+  defaultViewMode: 'preview',
+  livePreview: true,
+}, null, 2);
+
+const OBSIDIAN_GRAPH_JSON = JSON.stringify({
+  collapse: true,
+  search: '',
+  showTags: true,
+  showAttachments: false,
+  hideUnresolved: true,
+  showOrphans: true,
+  collapseFilter: false,
+  centerStrength: 0.5,
+  repelStrength: 12,
+  linkStrength: 1,
+  lineSizeMultiplier: 1,
+  fadeArrow: 0,
+  textFadeMultiplier: 0,
+  nodeSizeMultiplier: 1,
+}, null, 2);
+
+/**
+ * Logseq config — minimal but sufficient. Logseq reads `logseq/config.edn`;
+ * we ship a no-frills one so the vault renders without warnings.
+ */
+const LOGSEQ_CONFIG_EDN = `{:meta/version 1
+ :preferred-format :markdown
+ :feature/enable-block-timestamps? false
+ :feature/enable-search-remove-accents? true
+ :journal/page-title-format "yyyy-MM-dd"}
+`;
+
+export type VaultPkmFlavor = 'plain' | 'obsidian' | 'logseq';
+
+/**
  * Translates a Prism JSON export payload into a flat Map of filepaths to Uint8Array/Buffer.
  * This structure is ready to be consumed by fflate or native fs writers.
+ *
+ * `pkmFlavor` decides what (if any) PKM sidecar config files to ship
+ * alongside the markdown:
+ *   'plain'    — markdown only (default; smallest output)
+ *   'obsidian' — adds .obsidian/app.json + .obsidian/graph.json
+ *   'logseq'   — adds logseq/config.edn
+ *
+ * The markdown content is identical across flavors — wikilinks +
+ * frontmatter work in both. Sidecars just pre-configure the UX.
  */
-export function buildVaultDirectory(exportData: any): Record<string, Buffer> {
+export function buildVaultDirectory(
+  exportData: any,
+  pkmFlavor: VaultPkmFlavor = 'plain',
+): Record<string, Buffer> {
   const d = exportData?.prism_export;
   if (!d) {
     throw new Error("Invalid or missing Prism memory export data.");
@@ -190,6 +247,15 @@ export function buildVaultDirectory(exportData: any): Record<string, Buffer> {
     });
 
     addFile(`Keywords/${kwSlug}.md`, kwContent);
+  }
+
+  // PKM-specific sidecar configs. Identical markdown content across
+  // flavors — only the config files differ.
+  if (pkmFlavor === 'obsidian') {
+    addFile('.obsidian/app.json', OBSIDIAN_APP_JSON);
+    addFile('.obsidian/graph.json', OBSIDIAN_GRAPH_JSON);
+  } else if (pkmFlavor === 'logseq') {
+    addFile('logseq/config.edn', LOGSEQ_CONFIG_EDN);
   }
 
   return vaultFiles;

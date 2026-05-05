@@ -82,16 +82,74 @@ describe("vaultExporter", () => {
           ]
         }
       };
-      
+
       const vault = buildVaultDirectory(data);
       const ledgerFile = Object.keys(vault).find(f => f.startsWith("Ledger/"));
       expect(ledgerFile).toBeDefined();
-      
+
       const content = vault[ledgerFile!].toString("utf-8");
       expect(content).toContain(`project: "Unknown_Project"`);
       expect(content).toContain(`summary: "No summary"`);
       // null keywords is converted to empty array before escaping in the implementation
       expect(content).toContain(`tags: []`);
+    });
+  });
+
+  describe("PKM flavor sidecars", () => {
+    const sample = () => ({
+      prism_export: {
+        project: 'demo',
+        ledger: [{ summary: 'one', keywords: ['alpha'] }],
+      },
+    });
+
+    it("plain flavor (default) emits no PKM sidecar files", () => {
+      const vault = buildVaultDirectory(sample(), 'plain');
+      const files = Object.keys(vault);
+      expect(files.some(f => f.startsWith('.obsidian/'))).toBe(false);
+      expect(files.some(f => f.startsWith('logseq/'))).toBe(false);
+    });
+
+    it("default param is 'plain' — no sidecars without explicit flavor", () => {
+      const vault = buildVaultDirectory(sample());
+      const files = Object.keys(vault);
+      expect(files.some(f => f.startsWith('.obsidian/'))).toBe(false);
+      expect(files.some(f => f.startsWith('logseq/'))).toBe(false);
+    });
+
+    it("obsidian flavor includes .obsidian/app.json + graph.json", () => {
+      const vault = buildVaultDirectory(sample(), 'obsidian');
+      expect(vault['.obsidian/app.json']).toBeDefined();
+      expect(vault['.obsidian/graph.json']).toBeDefined();
+      // Validate the JSON parses + has the documented preview-mode key
+      const app = JSON.parse(vault['.obsidian/app.json'].toString('utf-8'));
+      expect(app.defaultViewMode).toBe('preview');
+      expect(app.useMarkdownLinks).toBe(false); // wikilinks
+    });
+
+    it("obsidian flavor still ships the markdown content unchanged", () => {
+      const plain = buildVaultDirectory(sample(), 'plain');
+      const obs = buildVaultDirectory(sample(), 'obsidian');
+      // Every plain-flavor markdown file should be byte-identical in obsidian flavor.
+      // Only difference: obsidian adds .obsidian/* sidecars.
+      const plainMd = Object.keys(plain).filter(f => !f.startsWith('.obsidian/'));
+      for (const path of plainMd) {
+        expect(obs[path]?.toString('utf-8')).toBe(plain[path]?.toString('utf-8'));
+      }
+    });
+
+    it("logseq flavor includes logseq/config.edn", () => {
+      const vault = buildVaultDirectory(sample(), 'logseq');
+      expect(vault['logseq/config.edn']).toBeDefined();
+      const edn = vault['logseq/config.edn'].toString('utf-8');
+      expect(edn).toContain(':preferred-format :markdown');
+    });
+
+    it("logseq flavor does NOT include obsidian sidecars (and vice versa)", () => {
+      const obs = buildVaultDirectory(sample(), 'obsidian');
+      expect(obs['logseq/config.edn']).toBeUndefined();
+      const ls = buildVaultDirectory(sample(), 'logseq');
+      expect(ls['.obsidian/app.json']).toBeUndefined();
     });
   });
 });
