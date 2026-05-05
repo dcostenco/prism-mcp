@@ -486,12 +486,16 @@ describe("SESSION_EXPORT_MEMORY_TOOL schema shape", () => {
     expect(required).toHaveLength(1);
   });
 
-  it("format property has enum ['json', 'markdown'] and default 'json'", () => {
+  it("format property has enum ['json', 'markdown', 'vault', 'obsidian', 'logseq'] and default 'json'", () => {
     /**
      * WHY: The enum is used by MCP clients to generate dropdown selectors.
      * If "markdown" is misspelled (e.g., "md") or removed, the client
      * cannot generate the right argument, and the handler falls through to
      * its default (json) silently. This test catches that regression.
+     *
+     * 'obsidian' and 'logseq' are PKM-flavored aliases of 'vault' that ship
+     * an additional sidecar config so the exported folder opens cleanly in
+     * the matching app. They share the markdown payload with 'vault'.
      *
      * The `default: "json"` is advisory for clients — they can pre-select
      * it in UI. The handler also defaults to json at runtime.
@@ -501,7 +505,7 @@ describe("SESSION_EXPORT_MEMORY_TOOL schema shape", () => {
       enum: string[];
       default: string;
     };
-    expect(formatProp.enum).toEqual(["json", "markdown", "vault"]);
+    expect(formatProp.enum).toEqual(["json", "markdown", "vault", "obsidian", "logseq"]);
     expect(formatProp.default).toBe("json");
   });
 
