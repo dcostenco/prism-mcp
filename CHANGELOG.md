@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [13.1.1] - 2026-05-05 — Tool-call format normalizer + Modal training resilience
+
+### Local LLM client
+- **`normalizeToolCallFormat`** new helper at `src/utils/normalizeToolCallFormat.ts` — coerces three stochastic v18-clean tool-call format variants into the canonical singular wrapper:
+  1. Plural wrapper + XML-attr params: `<tool_calls><tool_call name="X"><param name="Y" value="Z"/></tool_call></tool_calls>`
+  2. CJK angle brackets: `〈tool_call〉{...}〈/tool_call〉`
+  3. `<functioncall>` envelope with stringified or object arguments
+  
+  All three normalize to: `<tool_call>{"name":"X","arguments":{"Y":"Z"}}</tool_call>`
+- **`callLocalLlm`** pipes raw model output through the normalizer before the existing think-tag / multi-format extractor, so downstream parsers see only canonical input.
+- **12-test suite** at `tests/normalizeToolCallFormat.test.ts` — covers each variant + multi-call + surrounding text + canonical pass-through + malformed JSON fallback.
+
+### Training infra hardening
+- **`modal-training-resilience` skill applied to 32B resume + polish scripts** (`training/modal_v18coder_32b_resume.py`, `training/modal_v18coder_32b_polish_phase1_5.py`):
+  - `GracefulExitCallback` at `0.92 × MODAL_TIMEOUT_S` — saves + clean-stops before Modal's hard kill (Phase 1 lost 481 steps to a hard kill we want to never repeat)
+  - `save_steps` tightened: resume 500→200, polish 200→100
+  - `local_entrypoint()` now raises with explicit `--detach` instructions — the silent `.spawn()` failure mode is documented in the error message
+- **103-file training infra catchup** committed — Python builders, deploy scripts, eval tools, DoRA YAML config, and research notes that had accumulated untracked over the v17/v18 campaign. `.gitignore` extended to drop iterative `Modelfile.v[0-9]*` experiments and BFCL output dumps.
+
+### Production Modelfiles
+- `training/Modelfile.published` and `training/Modelfile.restore` now committed — these were untracked but are the canonical production / rollback Modelfiles for `prism-coder:7b`.
+
+### Test counts
+- `tests/normalizeToolCallFormat.test.ts`: 12/12 passing in 82ms.
+
+---
+
 ## [13.1.0] - 2026-05-04 — 🤖 Prism Coder 14B sibling + tier-aware local routing
 
 Coordinated cross-product release with **synalux-private v0.14.4** and **prism-aac v0.2.1**. No prism-mcp-server code changes (the model fleet lives in Ollama; npm package is unchanged) — this entry documents what ships through the Synalux portal that prism-mcp clients reach.
