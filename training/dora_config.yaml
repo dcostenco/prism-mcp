@@ -1,0 +1,16 @@
+# High-capacity DoRA config for Phase 1 — overrides priors via:
+#  - DoRA (decomposed) instead of vanilla LoRA → magnitude+direction updates
+#  - rank 128 instead of default 8 → 16x more trainable capacity
+#  - all 28 layers instead of 16 → full network coverage
+#  - all 7 projections (attn + MLP) instead of just q,v → wider gradient surface
+fine_tune_type: dora
+num_layers: -1
+lora_parameters:
+  rank: 64
+  scale: 2.0
+  dropout: 0.0
+  keys:
+    - self_attn.q_proj
+    - self_attn.k_proj
+    - self_attn.v_proj
+    - self_attn.o_proj

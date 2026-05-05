@@ -101,3 +101,6 @@ training/mlx_model/
 training/Modelfile.v[0-9]*
 training/Modelfile.*.bare
 training/Modelfile.bfcl
+
+# BFCL run output dumps (ephemeral, regenerated on every eval)
+training/bfcl_*.txt
