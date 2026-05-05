@@ -23,6 +23,7 @@
  */
 
 import { debugLog } from "./logger.js";
+import { normalizeToolCallFormat } from "./normalizeToolCallFormat.js";
 import {
   PRISM_LOCAL_LLM_ENABLED,
   PRISM_LOCAL_LLM_MODEL,
@@ -210,7 +211,9 @@ export async function callLocalLlm(
     //   2. <|im_start|>...<|im_end|>          (Qwen native ChatML)
     //   3. <think>...<tool_call>              (standard format)
     // We normalize all to return just the clean content/JSON.
-    let content = rawContent;
+    // v18-clean coerces stochastic plural-wrapper / XML-attr / CJK-bracket
+    // emissions into canonical <tool_call>{json}</tool_call> first.
+    let content = normalizeToolCallFormat(rawContent);
 
     // Strip thinking blocks (all known formats)
     const thinkPatterns = [
