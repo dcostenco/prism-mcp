@@ -191,4 +191,46 @@ export class GeminiAdapter implements LLMProvider {
     ]);
     return result.response.text();
   }
+
+  // ─── Image OCR ───────────────────────────────────────────────────────────
+  //
+  // The captioner runs this AFTER generateImageDescription so users can
+  // semantically search by the literal text of a whiteboard / handwritten
+  // note / document screenshot. It's a separate VLM call (not bundled into
+  // the description prompt) because:
+  //   1. The two prompts pull the model in different directions — caption
+  //      wants prose, OCR wants verbatim with NO embellishment.
+  //   2. Bundling would require parsing structured output, which makes
+  //      every adapter responsible for a fragile JSON parse.
+  // Extra cost: one VLM round trip per image. The captioner already
+  // respects the 5MB / 20MB size caps so this doesn't change the
+  // request shape.
+  async extractImageText(
+    imageBase64: string,
+    mimeType: string,
+  ): Promise<string> {
+    const model = this.ai.getGenerativeModel({ model: TEXT_MODEL });
+
+    const prompt =
+      "Extract every readable line of text from this image, verbatim, " +
+      "line by line, in reading order. Preserve original spelling and " +
+      "punctuation. Do NOT add commentary, headers, or markdown. " +
+      'If the image contains no readable text at all, return exactly "".';
+
+    const result = await model.generateContent([
+      { inlineData: { data: imageBase64, mimeType } },
+      prompt,
+    ]);
+    const raw = result.response.text().trim();
+
+    // Some VLMs love to wrap with quotes or add "Here is the text:"
+    // prefixes despite the no-commentary instruction. Strip those so
+    // the caller can store clean text.
+    const cleaned = raw
+      .replace(/^["'`]+|["'`]+$/g, '')
+      .replace(/^(here(?:'s| is)?(?: the(?: extracted)?(?: visible)? text)?:\s*)/i, '')
+      .trim();
+
+    return cleaned;
+  }
 }

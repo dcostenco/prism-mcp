@@ -89,4 +89,34 @@ export interface LLMProvider {
     mimeType: string,
     context?: string,
   ): Promise<string>;
+
+  /**
+   * OPTIONAL — Extract readable text (OCR) from an image.
+   * Complements `generateImageDescription`: caption answers "what is this
+   * image about?", OCR answers "what characters appear in it?"
+   *
+   * Lets a user search visual memory by the literal contents of a
+   * whiteboard / handwritten note / screenshot of a document — not just
+   * by the high-level caption.
+   *
+   * USED BY:
+   *   - src/utils/imageCaptioner.ts → second VLM pass after the caption.
+   *     If the active provider doesn't implement this method, OCR is
+   *     skipped silently — the caption pipeline still runs as before.
+   *
+   * RETURN CONTRACT:
+   *   - Plain text. Newlines preserved between distinct visible lines.
+   *   - Empty string if no text is detected (NOT a thrown error).
+   *   - Implementations should NOT add commentary, markdown, or headers.
+   *
+   * USE THE SAME SIZE CAPS as generateImageDescription.
+   *
+   * @param imageBase64 Raw base64 image bytes — NO data-URI prefix
+   * @param mimeType    e.g. "image/png", "image/jpeg", "image/webp"
+   * @returns Concatenated visible text, line-separated; "" if none
+   */
+  extractImageText?(
+    imageBase64: string,
+    mimeType: string,
+  ): Promise<string>;
 }

@@ -226,3 +226,130 @@ describe("LLMProvider interface — generateImageDescription is optional", () =>
     expect(textOnly.generateEmbedding).toBeDefined();
   });
 });
+
+// ─── OCR pass (CUSTOMER_FEEDBACK § #7) ─────────────────────────────────
+//
+// extractImageText runs as a SECOND VLM call after the caption succeeds.
+// These tests pin the pipeline contract so a future refactor can't
+// silently drop the OCR feature. Caption pipeline must still succeed
+// even if OCR throws / returns empty / isn't implemented.
+
+function makeVLMProviderWithOCR(opts: {
+  caption?: string;
+  ocr?: string | (() => Promise<string>);
+} = {}) {
+  const provider: any = {
+    generateText:             vi.fn().mockResolvedValue("text"),
+    generateEmbedding:        vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
+    generateImageDescription: vi.fn().mockResolvedValue(
+      opts.caption ?? "A web login form with email and password fields.",
+    ),
+    extractImageText: vi.fn().mockImplementation(async () => {
+      if (typeof opts.ocr === "function") return opts.ocr();
+      return opts.ocr ?? "Email\nPassword\nSign in";
+    }),
+  };
+  return provider;
+}
+
+describe("ImageCaptioner — OCR pass (CUSTOMER_FEEDBACK § #7)", () => {
+  it("runs extractImageText after the caption and persists OCR in ledger + handoff", async () => {
+    const storage = makeStorageMock();
+    const provider = makeVLMProviderWithOCR();
+    mockGetLLMProvider.mockReturnValue(provider as any);
+    mockGetStorage.mockResolvedValue(storage as any);
+
+    fireCaptionAsync("prism", "abc12345", tmpFile, "Login page");
+    await new Promise(r => setTimeout(r, 100));
+
+    // Both VLM calls fired
+    expect(provider.generateImageDescription).toHaveBeenCalledTimes(1);
+    expect(provider.extractImageText).toHaveBeenCalledTimes(1);
+    expect(provider.extractImageText).toHaveBeenCalledWith(
+      expect.any(String),  // base64
+      "image/png",
+    );
+
+    // Ledger entry includes the OCR section + image_ocr keyword
+    const ledgerArg = storage.saveLedger.mock.calls[0][0];
+    expect(ledgerArg.summary).toContain("OCR Text:");
+    expect(ledgerArg.summary).toContain("Sign in");
+    expect(ledgerArg.keywords).toContain("image_ocr");
+    expect(ledgerArg.keywords).toContain("image_caption");
+
+    // Handoff visual_memory entry gets ocr_text + ocr_at
+    const handoffArg = storage.saveHandoff.mock.calls[0][0];
+    const vm = handoffArg.metadata.visual_memory[0];
+    expect(vm.ocr_text).toBe("Email\nPassword\nSign in");
+    expect(vm.ocr_at).toBeDefined();
+
+    // Embedding text now includes OCR (so semantic search hits on either)
+    const embedArg = provider.generateEmbedding.mock.calls[0][0] as string;
+    expect(embedArg).toContain("OCR:");
+    expect(embedArg).toContain("Sign in");
+  });
+
+  it("skips OCR cleanly when extractImageText is absent (older adapter)", async () => {
+    const storage = makeStorageMock();
+    const provider = makeVLMProvider(); // no extractImageText
+    mockGetLLMProvider.mockReturnValue(provider as any);
+    mockGetStorage.mockResolvedValue(storage as any);
+
+    fireCaptionAsync("prism", "abc12345", tmpFile, "Login page");
+    await new Promise(r => setTimeout(r, 100));
+
+    // Caption pipeline runs as normal
+    expect(provider.generateImageDescription).toHaveBeenCalledTimes(1);
+    // Ledger entry should NOT contain OCR section or keyword
+    const ledgerArg = storage.saveLedger.mock.calls[0][0];
+    expect(ledgerArg.summary).not.toContain("OCR Text:");
+    expect(ledgerArg.keywords).not.toContain("image_ocr");
+    // Handoff entry should NOT have ocr_text
+    const handoffArg = storage.saveHandoff.mock.calls[0][0];
+    expect(handoffArg.metadata.visual_memory[0].ocr_text).toBeUndefined();
+  });
+
+  it("survives extractImageText failure — caption + ledger still persist", async () => {
+    const storage = makeStorageMock();
+    const provider = makeVLMProviderWithOCR({
+      ocr: async () => { throw new Error("model timeout"); },
+    });
+    mockGetLLMProvider.mockReturnValue(provider as any);
+    mockGetStorage.mockResolvedValue(storage as any);
+
+    // Suppress the warn output so it doesn't pollute test logs
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    fireCaptionAsync("prism", "abc12345", tmpFile, "Login page");
+    await new Promise(r => setTimeout(r, 100));
+
+    // Caption still recorded
+    expect(storage.saveLedger).toHaveBeenCalledTimes(1);
+    expect(storage.saveHandoff).toHaveBeenCalledTimes(1);
+    // OCR keyword absent (as expected on failure)
+    const ledgerArg = storage.saveLedger.mock.calls[0][0];
+    expect(ledgerArg.keywords).not.toContain("image_ocr");
+    // Warning surfaced
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("OCR failed for [abc12345]"));
+
+    warnSpy.mockRestore();
+  });
+
+  it("treats empty OCR result as 'no text' rather than appending an empty section", async () => {
+    const storage = makeStorageMock();
+    const provider = makeVLMProviderWithOCR({ ocr: "" });
+    mockGetLLMProvider.mockReturnValue(provider as any);
+    mockGetStorage.mockResolvedValue(storage as any);
+
+    fireCaptionAsync("prism", "abc12345", tmpFile, "Login page");
+    await new Promise(r => setTimeout(r, 100));
+
+    // Empty OCR shouldn't pollute the ledger summary or add the image_ocr tag
+    const ledgerArg = storage.saveLedger.mock.calls[0][0];
+    expect(ledgerArg.summary).not.toContain("OCR Text:");
+    expect(ledgerArg.keywords).not.toContain("image_ocr");
+    // Handoff also unaffected
+    const handoffArg = storage.saveHandoff.mock.calls[0][0];
+    expect(handoffArg.metadata.visual_memory[0].ocr_text).toBeUndefined();
+  });
+});

@@ -181,24 +181,64 @@ async function captionImageAsync(
 
   debugLog(`[ImageCaptioner] Caption generated for [${imageId}]: "${caption.slice(0, 80)}…"`);
 
+  // ── Step 3b: OCR (optional, second VLM call) ────────────────────────────
+  // Caption answers "what's the image about"; OCR answers "what does it
+  // literally say". Persisted separately so users can search whiteboards /
+  // handwritten notes / document screenshots by their actual contents,
+  // not just the high-level caption. Best-effort — OCR failure NEVER
+  // sinks the caption pipeline.
+  let ocrText = "";
+  if (typeof llm.extractImageText === "function") {
+    try {
+      ocrText = await llm.extractImageText(imageBase64, mimeType);
+      if (ocrText) {
+        debugLog(
+          `[ImageCaptioner] OCR extracted ${ocrText.length} chars for [${imageId}]: ` +
+          `"${ocrText.slice(0, 60).replace(/\n/g, ' ')}…"`,
+        );
+      } else {
+        debugLog(`[ImageCaptioner] OCR returned no text for [${imageId}].`);
+      }
+    } catch (ocrErr) {
+      // Don't poison the caption pipeline. The caption already succeeded;
+      // OCR is additive value. Surface as warn (not error) so it's grep-able
+      // but doesn't trip alerting on transient VLM blips.
+      console.warn(
+        `[ImageCaptioner] OCR failed for [${imageId}] (non-fatal): ` +
+        `${ocrErr instanceof Error ? ocrErr.message : String(ocrErr)}`,
+      );
+    }
+  }
+
   // ── Step 4: Patch handoff visual_memory entry ─────────────────────────
-  await updateHandoffCaption(project, imageId, caption, vaultPath);
+  await updateHandoffCaption(project, imageId, caption, vaultPath, ocrText);
 
   // ── Step 5: Persist as ledger entry (makes caption semantically searchable)
   // NOTE: The ledger schema has no generic metadata column, so we embed the
   // image context directly in the summary string for LLM-readable references.
+  // OCR text (when present) is appended so semantic search hits on either
+  // the caption ("diagram of the auth flow") or the literal text in the
+  // image ("OAuth2 PKCE handler"). Keyword tag `image_ocr` lets callers
+  // filter for entries that have OCR content specifically.
   const storage = await getStorage();
+  const summaryParts: string[] = [
+    `[Visual Memory: ${imageId}]`,
+    `Path: ${vaultPath}`,
+    `User description: ${userContext}`,
+    `VLM Caption: ${caption}`,
+  ];
+  const keywords = [`image:${imageId}`, "visual_memory", "image_caption"];
+  if (ocrText) {
+    summaryParts.push(`OCR Text:\n${ocrText}`);
+    keywords.push("image_ocr");
+  }
   await storage.saveLedger({
     project,
     conversation_id: "vlm-captioner",
     user_id: PRISM_USER_ID,
     event_type: "learning",
-    summary:
-      `[Visual Memory: ${imageId}]\n` +
-      `Path: ${vaultPath}\n` +
-      `User description: ${userContext}\n` +
-      `VLM Caption: ${caption}`,
-    keywords: [`image:${imageId}`, "visual_memory", "image_caption"],
+    summary: summaryParts.join("\n"),
+    keywords,
   });
 
   // ── Step 6: Backfill embeddings (makes caption findable via vector search)
@@ -207,8 +247,9 @@ async function captionImageAsync(
   // to avoid a circular import (imageCaptioner ↔ sessionMemoryHandlers).
   // We already have getLLMProvider() in scope, so the embed cost is near-zero.
   try {
-    const embedText =
-      `[Visual Memory: ${imageId}] Description: ${userContext}. Caption: ${caption}`;
+    const embedText = ocrText
+      ? `[Visual Memory: ${imageId}] Description: ${userContext}. Caption: ${caption}. OCR: ${ocrText}`
+      : `[Visual Memory: ${imageId}] Description: ${userContext}. Caption: ${caption}`;
     const embedding = await llm.generateEmbedding(embedText);
 
     // Find the ledger entry we just saved and patch its embedding
@@ -250,6 +291,7 @@ async function updateHandoffCaption(
   imageId: string,
   caption: string,
   vaultPath: string,
+  ocrText: string = "",
 ): Promise<void> {
   const storage = await getStorage();
 
@@ -270,10 +312,17 @@ async function updateHandoffCaption(
       return;
     }
 
-    // Mutate the entry in-memory, then save back
+    // Mutate the entry in-memory, then save back. Only set ocr_text when
+    // it's non-empty — otherwise the empty string would shadow a previous
+    // OCR pass (e.g. if a user re-captioned the same image after a model
+    // change).
     entry.caption = caption;
     entry.caption_path = vaultPath;
     entry.caption_at = new Date().toISOString();
+    if (ocrText) {
+      entry.ocr_text = ocrText;
+      entry.ocr_at = new Date().toISOString();
+    }
 
     const handoffUpdate = {
       project,
