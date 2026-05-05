@@ -120,12 +120,15 @@ async function linkTemporal(
   storage: StorageBackend,
   createdAt: string
 ): Promise<boolean> {
-  // Find the immediate predecessor
+  // Find the immediate predecessor. GDPR: skip tombstoned entries —
+  // a soft-deleted entry must not appear as the temporal predecessor
+  // of a new one (would link the new entry to data the user erased).
   const previousEntries = await storage.getLedgerEntries({
     user_id: `eq.${userId}`,
     project: `eq.${project}`,
     conversation_id: `eq.${conversationId}`,
     created_at: `lt.${createdAt}`,
+    deleted_at: "is.null",
     select: "id,created_at",
     order: "created_at.desc",
     limit: "1",

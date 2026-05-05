@@ -1879,7 +1879,7 @@ export class SqliteStorage implements StorageBackend {
     const result = await this.db.execute({
       sql: `SELECT project, COUNT(*) as total_entries
             FROM session_ledger
-            WHERE user_id = ? AND archived_at IS NULL AND is_rollup = 0
+            WHERE user_id = ? AND archived_at IS NULL AND deleted_at IS NULL AND is_rollup = 0
             GROUP BY project
             HAVING COUNT(*) > ?`,
       args: [userId, threshold],
@@ -2024,6 +2024,7 @@ export class SqliteStorage implements StorageBackend {
         FROM session_ledger
         WHERE user_id = ?
           AND archived_at IS NULL
+          AND deleted_at IS NULL
       `,
       args: [userId],  // bind user_id to the ? placeholder
     });
@@ -2046,6 +2047,7 @@ export class SqliteStorage implements StorageBackend {
           ON h.project = l.project
           AND h.user_id = l.user_id
           AND l.archived_at IS NULL
+          AND l.deleted_at IS NULL
         WHERE h.user_id = ?
         GROUP BY h.project
         HAVING COUNT(l.id) = 0
