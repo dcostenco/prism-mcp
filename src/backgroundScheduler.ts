@@ -30,6 +30,7 @@ import {
   PRISM_ACTR_ENABLED,
   PRISM_ACTR_ACCESS_LOG_RETENTION_DAYS,
 } from "./config.js";
+import { randomBytes } from "node:crypto";
 import { debugLog } from "./utils/logger.js";
 import { runWebScholar } from "./scholar/webScholar.js";
 import { getAllActiveSdmProjects, getSdmEngine } from "./sdm/sdmEngine.js";
@@ -58,7 +59,9 @@ const HEARTBEAT_INTERVAL_MS   = 30_000;  // 30 seconds
 // Fix: process.pid is often 1 in Docker/K8s. Generate a cryptographically
 // unique instance ID on startup to prevent lock collisions and accidental
 // steal/release across containerized replicas.
-const INSTANCE_ID = `prism_${process.pid}_${Math.random().toString(36).substring(2, 9)}`;
+// crypto.randomBytes (CSPRNG) — Math.random would be guessable enough that
+// two replicas spinning up in the same second could collide.
+const INSTANCE_ID = `prism_${process.pid}_${randomBytes(4).toString('hex')}`;
 
 /** Try to acquire the distributed scheduler lock for Supabase backend.
  *  Returns true if acquired, false if another active node holds it. */

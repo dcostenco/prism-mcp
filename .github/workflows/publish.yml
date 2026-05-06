@@ -5,9 +5,17 @@ on:
     tags:
       - 'v*'
 
+# Default-deny token; the publish job opts in to id-token below for
+# npm provenance attestation. contents:read is needed for checkout.
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # npm provenance via OIDC
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

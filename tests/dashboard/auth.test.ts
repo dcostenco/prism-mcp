@@ -482,10 +482,22 @@ function createAuthTestServer(opts: {
   }
 
   const server = http.createServer(async (req, res) => {
-    // CORS
+    // CORS — mirror the production allowlist in src/dashboard/server.ts.
+    // CodeQL js/cors-misconfiguration-for-credentials previously fired
+    // here because the test echoed the caller's origin verbatim with
+    // credentials enabled. Production has always used an allowlist;
+    // the test had drifted from prod.
     if (AUTH_ENABLED) {
       const origin = req.headers.origin || "";
-      if (origin) {
+      const allowedOrigins = new Set<string>([
+        "http://localhost:0",  // ephemeral test port
+        "http://127.0.0.1:0",
+        process.env.PRISM_DASHBOARD_ORIGIN || "",
+      ].filter(Boolean));
+      // Tests use a randomly assigned port — match host:<digits> against
+      // the same loopback hosts.
+      const isLoopback = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+      if (origin && (allowedOrigins.has(origin) || isLoopback)) {
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Access-Control-Allow-Credentials", "true");
       }

@@ -5,6 +5,11 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Default-deny token: this workflow only checks out code + runs tests,
+# so it doesn't need write to anything in the repo.
+permissions:
+  contents: read
+
 jobs:
   cli-integration:
     runs-on: ${{ matrix.os }}

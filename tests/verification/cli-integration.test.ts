@@ -81,7 +81,9 @@ describe('CLI Integration — Operator Contract & JSON Modes', { timeout: 30_000
     
     if (parsed.file_missing) {
       console.error('CLI reported file missing. Path:', harnessPath);
-      console.error('Env PRISM_HARNESS_PATH:', baseEnv.PRISM_HARNESS_PATH);
+      // (Don't log baseEnv values — CodeQL js/clear-text-logging flags env
+      // vars as potentially sensitive; harnessPath above is sufficient for
+      // diagnosing this failure.)
     }
     
     expect(parsed.success).toBe(true);

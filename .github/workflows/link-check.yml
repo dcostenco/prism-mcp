@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+# Read-only — link checker only fetches HTTP, never writes.
+permissions:
+  contents: read
+
 jobs:
   check-links:
     runs-on: ubuntu-latest

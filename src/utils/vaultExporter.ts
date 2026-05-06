@@ -123,8 +123,15 @@ export function buildVaultDirectory(
   // 2. Settings/Config.md
   let settingsMd = `# Prism Settings\n\n| Key | Value |\n|-----|-------|\n`;
   for (const [k, v] of Object.entries(redactSettings(d.settings || {}))) {
-    // Escape pipe chars so they don't break the Markdown table
-    const safeVal = String(v).replace(/\|/g, '\\|');
+    // Escape Markdown-table-breaking chars: backslash must come first
+    // (otherwise the escape sequence we're about to write gets re-escaped),
+    // then pipe and newlines. CodeQL js/incomplete-sanitization flagged
+    // the prior single-pass replace as not handling backslash-prefixed
+    // input.
+    const safeVal = String(v)
+      .replace(/\\/g, '\\\\')
+      .replace(/\|/g, '\\|')
+      .replace(/\r?\n/g, ' ');
     settingsMd += `| \`${k}\` | ${safeVal} |\n`;
   }
   addFile("Settings.md", settingsMd);
