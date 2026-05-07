@@ -1,6 +1,6 @@
-# Contributing to Prism MCP
+# Contributing to Prism Coder
 
-Thanks for your interest in contributing to Prism MCP! 🧠
+Thanks for your interest in contributing to Prism Coder! 🧠
 
 ## Getting Started
 

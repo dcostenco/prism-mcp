@@ -1,6 +1,6 @@
-# Prism MCP + LangGraph Integration Plan
+# Prism Coder + LangGraph Integration Plan
 
-> How to connect this LangGraph research agent directly to Prism MCP's tools for production-grade agentic workflows.
+> How to connect this LangGraph research agent directly to Prism Coder's tools for production-grade agentic workflows.
 
 ## Current Architecture (Standalone)
 
@@ -18,7 +18,7 @@
 
 ```
 ┌────────────────────┐      ┌──────────────────┐      ┌──────────────────┐
-│  LangGraph Agent   │      │  MCP Client      │      │  Prism MCP       │
+│  LangGraph Agent   │      │  MCP Client      │      │  Prism Coder       │
 │  (Python)          │ ───→ │  (mcp SDK)       │ ───→ │  Server          │
 │                    │      │                  │      │                  │
 │  plan → search →   │      │  • call_tool()   │      │  • knowledge_    │
@@ -49,7 +49,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 async def connect_to_prism():
-    """Connect to Prism MCP server via stdio."""
+    """Connect to Prism Coder server via stdio."""
     server_params = StdioServerParameters(
         command="npx",
         args=["-y", "prism-mcp-server"],
@@ -72,7 +72,7 @@ async def connect_to_prism():
 
 ### Phase 2: Replace Built-in Tools with MCP Calls
 
-Update `tools.py` to call Prism MCP instead of the built-in knowledge base:
+Update `tools.py` to call Prism Coder instead of the built-in knowledge base:
 
 ```python
 async def search_prism_knowledge_mcp(session, query: str) -> list[dict]:
@@ -125,7 +125,7 @@ async def save_research_session(session, query: str, answer: str, iterations: in
 # In agent.py, add a "save_session" node after "answer"
 
 def save_session_node(state: AgentState) -> dict:
-    """Save research results to Prism MCP memory."""
+    """Save research results to Prism Coder memory."""
     # This creates a persistent research trail
     save_research_session(
         mcp_session,

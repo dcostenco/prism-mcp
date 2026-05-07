@@ -1,6 +1,6 @@
-# Prism MCP × Vercel AI SDK
+# Prism Coder × Vercel AI SDK
 
-A minimal Next.js + Vercel AI SDK chat app that uses **Prism MCP** as its memory backend.
+A minimal Next.js + Vercel AI SDK chat app that uses **Prism Coder** as its memory backend.
 Each turn loads project memory before the LLM call and saves a one-line ledger entry after.
 
 Targets **Vercel AI SDK v5** (`ai@^5`, `@ai-sdk/react@^2`). For the older v4 surface
@@ -24,7 +24,7 @@ npm run dev
 # → open http://localhost:3000
 ```
 
-The Prism MCP server is auto-spawned via `npx -y prism-mcp-server` (see `lib/prism-client.ts`). No separate process to manage.
+The Prism Coder server is auto-spawned via `npx -y prism-mcp-server` (see `lib/prism-client.ts`). No separate process to manage.
 
 ## How it works
 
@@ -37,7 +37,7 @@ The Prism MCP server is auto-spawned via `npx -y prism-mcp-server` (see `lib/pri
   ┌──────────────────────────────────────┐
   │  app/api/chat/route.ts               │
   │  ┌────────────────────────────────┐  │
-  │  │ 1. loadProjectContext(project) │  │  ← Prism MCP
+  │  │ 1. loadProjectContext(project) │  │  ← Prism Coder
   │  │    via session_load_context    │  │
   │  └────────────────────────────────┘  │
   │  ┌────────────────────────────────┐  │
@@ -46,7 +46,7 @@ The Prism MCP server is auto-spawned via `npx -y prism-mcp-server` (see `lib/pri
   │  └────────────────────────────────┘  │
   │  ┌────────────────────────────────┐  │
   │  │ 3. onFinish:                   │  │
-  │  │    saveTurnToLedger(...)       │  │  ← Prism MCP
+  │  │    saveTurnToLedger(...)       │  │  ← Prism Coder
   │  └────────────────────────────────┘  │
   └──────────────────────────────────────┘
 ```
@@ -101,7 +101,7 @@ Then `npm run build` in the prism root before each iteration.
 
 ## Beyond this example
 
-Once you're comfortable with `load_context` + `save_ledger`, the full Prism MCP API
+Once you're comfortable with `load_context` + `save_ledger`, the full Prism Coder API
 adds search, knowledge graph, image memory, multi-agent registry, and more:
 
 - `session_search_memory` — semantic search across all memories

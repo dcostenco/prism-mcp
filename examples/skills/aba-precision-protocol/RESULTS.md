@@ -2,7 +2,7 @@
 
 ## Session Data Source
 - **Date range**: Apr 14-15, 2026 (26 hours, 10+ sessions)
-- **Project**: Synalux VS Code Extension + Portal + Prism MCP
+- **Project**: Synalux VS Code Extension + Portal + Prism Coder
 - **Incidents analyzed**: 5 real behavioral failures
 - **Test suite**: 24 tests encoding all 3 rules (v43-aba-precision.test.ts)
 

@@ -1,6 +1,6 @@
 # 🔬 Prism Research Agent — LangGraph Portfolio
 
-> A multi-step AI research agent built with **LangGraph** + **Gemini**, integrated with the **Prism MCP** agentic memory server. Demonstrates autonomous planning, tool use, decision-making, and persistent memory.
+> A multi-step AI research agent built with **LangGraph** + **Gemini**, integrated with the **Prism Coder** agentic memory server. Demonstrates autonomous planning, tool use, decision-making, and persistent memory.
 
 ## Architecture
 
@@ -43,7 +43,7 @@ pip install langgraph langchain langchain-google-genai
 export GOOGLE_API_KEY="your-gemini-key"
 
 # Run a query (standalone mode)
-python main.py "How does time travel work in Prism MCP?"
+python main.py "How does time travel work in Prism Coder?"
 
 # Interactive mode
 python main.py
@@ -82,7 +82,7 @@ Each query flows through the agent's reasoning pipeline:
 ### 2. MCP Client Bridge — Transport Lesson Learned
 
 ```
-When bridging LangGraph with Prism MCP, I initially tried invoking the
+When bridging LangGraph with Prism Coder, I initially tried invoking the
 server via npx. However, the Python client would drop the connection.
 I realized npx acts as a wrapper that disrupts the continuous stdio
 piping required for MCP's JSON-RPC heartbeat. By pointing directly
@@ -96,7 +96,7 @@ Desktop manage their connections.
 The agent's `search_node` is **tool-source agnostic**:
 
 - **Standalone**: `python main.py "query"` → uses built-in Prism KB (12 entries) + Brave API
-- **MCP-connected**: `python main.py --prism "query"` → routes through live Prism MCP tools
+- **MCP-connected**: `python main.py --prism "query"` → routes through live Prism Coder tools
 
 This proves the architecture is **decoupled** — the LangGraph agent orchestrates reasoning (Plan → Analyze → Decide), while tool execution is abstracted by the MCP protocol.
 
@@ -105,9 +105,9 @@ This proves the architecture is **decoupled** — the LangGraph agent orchestrat
 - **Agent Framework**: LangGraph (Python)
 - **LLM**: Google Gemini 2.5 Flash Lite (`langchain-google-genai`)
 - **MCP Protocol**: Raw JSON-RPC 2.0 over stdio (no SDK, Python 3.9+)
-- **Knowledge Base**: Curated Prism MCP documentation (12 entries, 13 glossary terms)
+- **Knowledge Base**: Curated Prism Coder documentation (12 entries, 13 glossary terms)
 - **Web Search**: Brave Search API (optional, via `BRAVE_API_KEY`)
-- **Memory**: Local JSON ledger + Prism MCP `session_save_ledger`
+- **Memory**: Local JSON ledger + Prism Coder `session_save_ledger`
 
 ## Environment Variables
 
@@ -116,9 +116,9 @@ This proves the architecture is **decoupled** — the LangGraph agent orchestrat
 | `GOOGLE_API_KEY` | ✅ | Google Gemini API key (free tier available) |
 | `BRAVE_API_KEY` | Optional | Brave Search API key for web search |
 
-## Integration with Prism MCP
+## Integration with Prism Coder
 
-This agent lives inside the [Prism MCP](https://github.com/yourusername/bcba) repository as a showcase of how LangGraph agents can integrate with MCP servers. See [INTEGRATION_PLAN.md](./INTEGRATION_PLAN.md) for the 4-phase integration roadmap.
+This agent lives inside the [Prism Coder](https://github.com/yourusername/bcba) repository as a showcase of how LangGraph agents can integrate with MCP servers. See [INTEGRATION_PLAN.md](./INTEGRATION_PLAN.md) for the 4-phase integration roadmap.
 
 ## Known Limitations
 
@@ -138,4 +138,4 @@ transport = sse_client("http://localhost:3001/sse")
 
 ## License
 
-MIT — Part of the Prism MCP project.
+MIT — Part of the Prism Coder project.

@@ -12,7 +12,7 @@ Run two AI agents (Dev + QA) on the same project with role-isolated memory and r
          │ stdio                  │ stdio
          ▼                        ▼
 ┌─────────────────────────────────────────┐
-│          Prism MCP Server               │
+│          Prism Coder Server               │
 │                                         │
 │  ┌───────────┐  ┌───────────────────┐   │
 │  │ Hivemind  │  │ Shared Storage    │   │

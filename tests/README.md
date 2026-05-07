@@ -1,4 +1,4 @@
-# 🧪 Prism MCP — Test Suite
+# 🧪 Prism Coder — Test Suite
 
 > **425 tests across 20 test files.** All passing. `npm test` to verify.
 

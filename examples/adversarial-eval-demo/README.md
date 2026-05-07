@@ -197,4 +197,4 @@ The pipeline will run autonomously. Check progress with `session_check_pipeline_
 
 ---
 
-*Part of the [Prism MCP Server](../../README.md) — v7.4.0 Adversarial Evaluation.*
+*Part of the [Prism Coder Server](../../README.md) — v7.4.0 Adversarial Evaluation.*

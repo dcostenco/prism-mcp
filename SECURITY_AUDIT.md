@@ -1,4 +1,4 @@
-# Prism MCP Server Security Audit -- Full Remediation Report
+# Prism Coder Server Security Audit -- Full Remediation Report
 
 **Date:** 2026-05-01
 **Auditor:** Deep code review (external), remediation by development team
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-A comprehensive security audit of the Prism MCP server identified 83 findings across 115 source files spanning storage backends, synchronization layers, tool handlers, utility modules, the dashboard UI, darkfactory automation, verification pipelines, VM workspace management, SCM integrations, scholar search, and SDM decoding. All 17 CRITICAL findings -- including path traversal, dashboard authentication bypass, raw data leaks, SSRF, and missing fail-closed behavior in security scans -- have been fully remediated. The test suite now passes 2,016 tests including 51 newly added security-specific tests. Two architectural items (RBAC enforcement and plugin sandboxing) remain in the backlog as planned work.
+A comprehensive security audit of the Prism Coder server identified 83 findings across 115 source files spanning storage backends, synchronization layers, tool handlers, utility modules, the dashboard UI, darkfactory automation, verification pipelines, VM workspace management, SCM integrations, scholar search, and SDM decoding. All 17 CRITICAL findings -- including path traversal, dashboard authentication bypass, raw data leaks, SSRF, and missing fail-closed behavior in security scans -- have been fully remediated. The test suite now passes 2,016 tests including 51 newly added security-specific tests. Two architectural items (RBAC enforcement and plugin sandboxing) remain in the backlog as planned work.
 
 ---
 

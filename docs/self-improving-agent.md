@@ -1,8 +1,8 @@
-# How to Build a Self-Improving Agent with Prism MCP
+# How to Build a Self-Improving Agent with Prism Coder
 
 > **An agent that learns from its mistakes, remembers what works, and gets better at its job over time — all running locally.**
 
-This guide walks you through building an AI agent that uses Prism MCP's behavioral memory to create a genuine learning loop. By the end, your agent will:
+This guide walks you through building an AI agent that uses Prism Coder's behavioral memory to create a genuine learning loop. By the end, your agent will:
 
 1. **Remember corrections** and avoid repeating mistakes
 2. **Surface learned patterns** at the start of every session
@@ -200,8 +200,8 @@ Monthly maintenance:
 
 The key insight: **AI agents don't need to be retrained to improve**. They need a memory system that captures corrections, surfaces them proactively, and graduates the most important ones into permanent rules.
 
-Prism MCP provides that system — running entirely on your local machine, with zero cloud dependencies.
+Prism Coder provides that system — running entirely on your local machine, with zero cloud dependencies.
 
 ---
 
-<sub>**Prism MCP v5.1** — Self-improving agent guide. Last updated: March 2026.</sub>
+<sub>**Prism Coder v5.1** — Self-improving agent guide. Last updated: March 2026.</sub>

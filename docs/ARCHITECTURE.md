@@ -1,8 +1,8 @@
-# Prism MCP Architecture: The Mind Palace Engine
+# Prism Coder Architecture: The Mind Palace Engine
 
 > **A local-first, self-improving memory engine for AI agents.**
 > 
-> Prism MCP provides persistent state, semantic search, multimodal capabilities, and observability for AI agents. This document details the architectural decisions, math, and data flows powering Prism v5.4–v6.5.
+> Prism Coder provides persistent state, semantic search, multimodal capabilities, and observability for AI agents. This document details the architectural decisions, math, and data flows powering Prism v5.4–v6.5.
 
 ---
 
@@ -165,7 +165,7 @@ Imports use `p-limit(5)` to cap concurrent database writes, preventing SQLite WA
 2.  **Dashboard**: File picker + manual path input + dry-run toggle on the Import tab.
 
 ---
-*Prism MCP Architecture Guide — Last Updated: v5.4*
+*Prism Coder Architecture Guide — Last Updated: v5.4*
 
 ---
 
@@ -400,5 +400,5 @@ The Mind Palace dashboard exposes:
 
 ---
 
-*Prism MCP Architecture Guide — Last Updated: v6.5*
+*Prism Coder Architecture Guide — Last Updated: v6.5*
 

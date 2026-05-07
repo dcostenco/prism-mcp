@@ -1,4 +1,4 @@
-# Prism MCP — Skills Catalog (22 Skills + 30 MCP Tools)
+# Prism Coder — Skills Catalog (22 Skills + 30 MCP Tools)
 #
 # Skills are synced from ~/.agent/skills/ into Prism's config DB
 # via `scripts/sync-skills.sh`. Auto-loaded during session_load_context

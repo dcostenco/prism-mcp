@@ -217,7 +217,7 @@ This release was driven by a deep code review that surfaced numerical correctnes
 ### 🎨 Pricing Page UI
 
 - **Synalux Section** — 3-tier card layout (Standard, Advanced, Enterprise) with feature lists, hover animations, and CTA buttons wired to Stripe checkout.
-- **Prism IDE Section** — New dedicated section for Prism MCP IDE Extension with 4-tier layout (Free, Standard, Advanced, Enterprise).
+- **Prism IDE Section** — New dedicated section for Prism Coder IDE Extension with 4-tier layout (Free, Standard, Advanced, Enterprise).
 - **Multi-Currency Table** — USD, CAD, GBP, EUR, AUD, NZD pricing with volume discount tiers.
 - **14-Day Trial Badge** — Prominent green banner across all paid tier cards.
 
@@ -527,7 +527,7 @@ This release was driven by a deep code review that surfaced numerical correctnes
 - Dependencies: `playwright` + `playwright-stealth` (Python), Chromium browser binary
 - 1 new file: `browse.py` (680 lines)
 - Registered as `local-browser` Antigravity skill for future agent auto-routing
-- Compatible with Prism MCP integration (Phase 3 planned)
+- Compatible with Prism Coder integration (Phase 3 planned)
 
 ---
 

@@ -1,4 +1,4 @@
-# Prism MCP Server — README/CHANGELOG/Roadmap Review (v10.0.0)
+# Prism Coder Server — README/CHANGELOG/Roadmap Review (v10.0.0)
 
 **Repomix:** `repomix-prism-coder-prism.txt` (~15.6K tokens)
 **Also feed:** The `git diff` of `README.md`, `CHANGELOG.md`, and `package.json`.
@@ -7,7 +7,7 @@
 
 ## Context
 
-This is a **documentation review** for the v10.0.0 release of Prism MCP Server.
+This is a **documentation review** for the v10.0.0 release of Prism Coder Server.
 The release adds HIPAA-hardened local LLM integration (`prism-coder:7b`) with
 10 security findings closed across 3 rounds of adversarial review.
 

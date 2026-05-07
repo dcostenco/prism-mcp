@@ -1,11 +1,11 @@
-# Prism MCP — TypeScript LangGraph Agent Example
+# Prism Coder — TypeScript LangGraph Agent Example
 
-> A reference implementation showing how to use Prism MCP as the memory backend for a LangGraph agent in TypeScript.
+> A reference implementation showing how to use Prism Coder as the memory backend for a LangGraph agent in TypeScript.
 
 ## Overview
 
 This example demonstrates:
-1. **MCP Client** — Connect to the Prism MCP server via stdio transport
+1. **MCP Client** — Connect to the Prism Coder server via stdio transport
 2. **Memory Retriever** — Custom LangGraph node that searches Prism's semantic memory
 3. **Agent Loop** — A LangGraph agent that uses Prism for session persistence
 
@@ -34,7 +34,7 @@ npm install @langchain/core @langchain/langgraph @modelcontextprotocol/sdk
 │       │                              │
 │       ▼ MCP stdio                    │
 ├─────────────────────────────────────┤
-│  Prism MCP Server (Node.js)         │
+│  Prism Coder Server (Node.js)         │
 │  session_search_memory              │
 │  session_save_ledger                │
 │  knowledge_search                   │
@@ -47,7 +47,7 @@ npm install @langchain/core @langchain/langgraph @modelcontextprotocol/sdk
 # 1. Install dependencies
 npm install
 
-# 2. Run the agent (Prism MCP server must be running)
+# 2. Run the agent (Prism Coder server must be running)
 npx tsx agent.ts
 ```
 

@@ -10,7 +10,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Prism MCP, please report it responsibly.
+If you discover a security vulnerability in Prism Coder, please report it responsibly.
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
@@ -23,7 +23,7 @@ You can expect:
 
 ## Security Architecture
 
-Prism MCP is designed with a security-first mindset:
+Prism Coder is designed with a security-first mindset:
 
 - **Local-first by default**: All data stays on your machine in SQLite. No telemetry, no phone-home.
 - **Zero credential storage**: API keys are passed as environment variables, never persisted in the database.
