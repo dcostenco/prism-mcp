@@ -108,11 +108,24 @@ The thin-client architecture: when authenticated to Synalux, prism-mcp routes th
 
 ---
 
-## Companion: Prism Coder IDE
+## Companions
 
-Standalone desktop AI IDE built on Prism's memory backend. macOS / Windows. Local-first 7B model handles routine edits; Standard+ tiers route to Claude Sonnet 4; Enterprise gets Claude Opus 4.
+### Synalux — VS Code Extension
 
-[Download Prism Coder IDE →](https://github.com/dcostenco/prism-coder/releases/latest)
+Memory-augmented AI inside VS Code, backed by Prism. 20 multimodal tools, multi-agent orchestration, 12-language support. Works offline (Ollama) or cloud (OpenRouter). HIPAA-compliant healthcare workflows.
+
+[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/synalux-ai.synalux?label=VS%20Marketplace&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=synalux-ai.synalux)
+
+```bash
+# Install from terminal
+code --install-extension synalux-ai.synalux
+```
+
+Or open VS Code → Extensions (⇧⌘X) → search **"Synalux"** → Install.
+
+### PrismAAC
+
+AAC communication app for non-speaking users. Powered by Prism's spreading-activation phrase ranking + on-device 7B model. macOS / iOS / Android via web. → [github.com/dcostenco/prism-aac](https://github.com/dcostenco/prism-aac)
 
 ---
 
