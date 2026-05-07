@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [14.0.0] - 2026-05-07 — 🧠 Prism as Foundation: algorithm-stability contract
+
+A documentation + governance release. **No code changes to the npm package or the binary distribution** — `prism-mcp-server` semver continues at 13.x. v14.0.0 marks the cognitive-architecture / source-tree version where Prism's algorithm exports become a stable public contract.
+
+### What's new
+
+- **Algorithm-stability contract.** The following exports are now considered stable public API under SemVer: `actrActivation.ts` (`baseLevelActivation`, `parameterizedSigmoid`, `compositeRetrievalScore`, all `ACT_R_*` / `DEFAULT_*` constants); `spreadingActivation.ts` (`applySpreadingActivation`, the 0.7/0.3 hybrid score blend, the `finalM=7` cap); `routerExperience.ts` (`getExperienceBias`, `MAX_BIAS_CAP=0.15`, `MIN_SAMPLES=5`, the bias-scale formula); `compactionHandler.ts` (default `threshold=50`, `keep_recent=10`, `MAX_ENTRIES_CHARS=25_000`); `graphMetrics.ts` warning ratios (0.20 / 0.30 / 0.40 / 0.85 with their min-sample gates); `config.ts` (`PRISM_ACTR_DECAY`, `PRISM_GRAPH_PRUNE_MIN_STRENGTH`, full `PRISM_GRAPH_PRUNE_*` family). Breaking changes go through deprecation cycles announced here in CHANGELOG.
+
+- **`docs/WOW_FEATURES.md`** — citation-grade catalogue of Prism's algorithms with their constants, semantics, and reuse patterns. Written for engineers who want their thresholds backed by published implementations rather than guesswork.
+
+- **`docs/releases/v14.0.0-prism-as-foundation.md`** — release notes covering what the contract guarantees, why now, and the migration path for systems that have been re-implementing Prism algorithms in their own code.
+
+- **First reference consumer documented:** an external audit hooks framework (separate skill, not in this repo) that ports ACT-R decay, the spreading-activation hybrid blend, experience bias, and the graph-metrics warning ratios with citations. 327 tests in that consumer pin the constants — divergence from this repo's source is caught automatically.
+
+### Why a major bump
+
+External systems were already building on Prism algorithms with hand-tuned approximations. Two failure modes when that happens: (1) the consumer's thresholds drift from Prism's over time, and (2) a copy-pasted constant loses its citation in 6 months and nobody remembers why `0.15` was chosen. Formalizing the stability contract fixes both.
+
+### What's NOT in this release
+
+- No new MCP tools.
+- No model changes — `prism-coder:7b` and `prism-coder:14b` unchanged from v13.1.x.
+- No schema changes.
+- No npm package version bump for `prism-mcp-server` — the binary distribution is unchanged from 13.1.1.
+
+---
+
 ## [13.1.1] - 2026-05-05 — Tool-call format normalizer + Modal training resilience
 
 ### Local LLM client

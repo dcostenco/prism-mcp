@@ -116,6 +116,16 @@ Standalone desktop AI IDE built on Prism's memory backend. macOS / Windows. Loca
 
 ---
 
+## 🆕 Prism as Foundation (v14.0.0)
+
+As of v14.0.0, Prism's algorithm exports are a **stable public contract** under SemVer. External systems can port `actrActivation.ts` (ACT-R cognitive decay), `spreadingActivation.ts` (the 0.7 similarity + 0.3 activation hybrid score), `routerExperience.ts` (experience bias with `MIN_SAMPLES=5` cold-start gate), `compactionHandler.ts` (the 25KB prompt-budget cap), and `graphMetrics.ts` (warning ratios) with citations and pin a Prism version.
+
+The first reference consumer: an audit hooks framework that ports every threshold with a `# config.ts:317` style comment. **327 tests in that framework pin the cited Prism constants** — divergence from this repo is caught automatically.
+
+See [`docs/WOW_FEATURES.md`](docs/WOW_FEATURES.md) for the algorithm catalogue. Release notes in [`docs/releases/v14.0.0-prism-as-foundation.md`](docs/releases/v14.0.0-prism-as-foundation.md).
+
+---
+
 <details>
 <summary>📚 Architecture, cognitive systems, and full feature catalog</summary>
 
