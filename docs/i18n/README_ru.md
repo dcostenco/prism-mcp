@@ -152,6 +152,7 @@ See [`docs/WOW_FEATURES.md`](../WOW_FEATURES.md) for the algorithm catalogue. Re
 
 **Detailed docs in this repo:**
 - [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) — system architecture, memory routing, HRR
+- [`docs/COMPACTION.md`](../COMPACTION.md) — how Prism handles LLM context compaction and ledger compaction
 - [`docs/SETUP_GEMINI.md`](../SETUP_GEMINI.md) — Gemini configuration
 - [`docs/self-improving-agent.md`](../self-improving-agent.md) — adversarial eval / anti-sycophancy
 - [`docs/rfcs/`](../rfcs/) — design RFCs
