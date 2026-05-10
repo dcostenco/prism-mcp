@@ -17,19 +17,35 @@
  * — that defeats the single-source-of-truth design.
  */
 
+export interface UserLocalPolicy {
+  /** Whether user-local skills (user_skill: prefix in SQLite) load automatically. */
+  enabled: boolean;
+  /** SQLite key prefix for user-defined local skills. Default: "user_skill:". */
+  key_prefix: string;
+}
+
 export interface SkillRoutingTable {
   version: number;
   universal: string[];
   /** project-name substring → list of skill names */
   projects: Record<string, string[]>;
+  /**
+   * User-local skill policy. Disabled by default — user must explicitly
+   * request local skill loading (user_local=true on session_load_context,
+   * or admin sets user_local.enabled=true in routing table).
+   * User-local skills are stored in local SQLite under user_skill:<name>.
+   * They are NEVER sent to Supabase — platform skills only go through
+   * /api/v1/admin/skills (platform admin auth required).
+   */
+  user_local: UserLocalPolicy;
 }
 
-// Minimal fallback when synalux is unreachable. Only the universal BCBA
-// skill — project-specific mappings need synalux to resolve.
+// Minimal fallback when synalux is unreachable.
 const OFFLINE_FALLBACK: SkillRoutingTable = {
   version: 1,
   universal: ['bcba_ai_assistant'],
   projects: {},
+  user_local: { enabled: false, key_prefix: 'user_skill:' },
 };
 
 const SYNALUX_BASE = process.env.SYNALUX_BASE_URL || 'https://synalux.ai';
@@ -62,12 +78,18 @@ async function fetchOnce(): Promise<SkillRoutingTable> {
   }
 }
 
+export interface ResolvedSkills {
+  names: string[];
+  user_local: UserLocalPolicy;
+}
+
 /**
  * Resolve the skill list for a given project (case-insensitive substring
  * match against the routing table). Always returns at least the universal
- * skills.
+ * skills. Also returns the user_local policy so callers know whether to
+ * load user_skill:* entries from local SQLite.
  */
-export async function resolveSkillsForProject(project: string): Promise<string[]> {
+export async function resolveSkillsForProject(project: string): Promise<ResolvedSkills> {
   const now = Date.now();
   if (!cached || now - cached.fetchedAt > CACHE_TTL_MS) {
     if (!inflight) {
@@ -86,7 +108,10 @@ export async function resolveSkillsForProject(project: string): Promise<string[]
       for (const s of skills) out.add(s);
     }
   }
-  return Array.from(out);
+  return {
+    names: Array.from(out),
+    user_local: table.user_local ?? OFFLINE_FALLBACK.user_local,
+  };
 }
 
 /** Force a re-fetch on the next call. Exposed for tests + admin tooling. */

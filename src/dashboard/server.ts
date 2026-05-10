@@ -595,22 +595,24 @@ return false;}
         return res.end(JSON.stringify({ skills }));
       }
 
-      // POST /api/skills → { role, content } saves skill:<role>
+      // POST /api/skills → { role, content } saves user_skill:<role> (user-local namespace).
+      // Platform skills (skill:*) are read-only — populated only by sync-skills.sh
+      // or fetched from Synalux. Users cannot overwrite platform skills from the dashboard.
       if (url.pathname === "/api/skills" && req.method === "POST") {
         const body = await readBody(req);
         const { role, content } = JSON.parse(body || "{}");
         if (!role) { res.writeHead(400); return res.end(JSON.stringify({ error: "role required" })); }
-        await setSetting(`skill:${role}`, content || "");
+        await setSetting(`user_skill:${role}`, content || "");
         res.writeHead(200, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ ok: true, role }));
+        return res.end(JSON.stringify({ ok: true, role, namespace: "user_skill" }));
       }
 
-      // DELETE /api/skills/:role → clears skill:<role>
+      // DELETE /api/skills/:role → clears user_skill:<role> (user-local only).
       if (url.pathname.startsWith("/api/skills/") && req.method === "DELETE") {
         const role = url.pathname.replace("/api/skills/", "");
-        await setSetting(`skill:${role}`, "");
+        await setSetting(`user_skill:${role}`, "");
         res.writeHead(200, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ ok: true, role }));
+        return res.end(JSON.stringify({ ok: true, role, namespace: "user_skill" }));
       }
 
       // ─── API: Knowledge Graph (v6.2 — extracted to graphRouter.ts) ───

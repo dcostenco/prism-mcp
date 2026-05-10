@@ -944,13 +944,20 @@ export async function sessionLoadContextHandler(args: unknown) {
   }
 
   // ─── Project-Aware Skill Injection ──────────────────────────
-  // Routing (WHICH skills): always from Synalux /api/v1/skills/routing.
-  // Content (WHAT): paid tier → Synalux /api/v1/skills/content (batch fetch,
-  // single source of truth). Free tier / offline → local SQLite fallback.
+  // Routing (WHICH skills + user_local policy): Synalux /api/v1/skills/routing.
+  // Content (WHAT):
+  //   Platform skills  → Synalux /api/v1/skills/content (DB first, filesystem fallback)
+  //                      → local SQLite skill:<name> (free tier / offline fallback)
+  //   User-local skills → local SQLite user_skill:<name>
+  //                       ONLY when user_local.enabled=true in routing table
+  //                       OR session_load_context called with user_local=true.
+  //                       Users CANNOT write to the platform skill: namespace.
   const { resolveSkillsForProject } = await import("./skillRouting.js");
-  const skillsToLoad = await resolveSkillsForProject(project);
+  const resolved = await resolveSkillsForProject(project);
+  const skillsToLoad = resolved.names;
+  const userLocalPolicy = resolved.user_local;
 
-  // Paid tier: batch-fetch all skill content from Synalux portal in one request.
+  // Paid tier: batch-fetch platform skill content from Synalux in one request.
   let synaluxContent: Record<string, string> = {};
   if (SYNALUX_CONFIGURED && storage && typeof (storage as unknown as { fetchSkillContent?: unknown }).fetchSkillContent === "function") {
     const missing = skillsToLoad.filter(n => !loadedSkills.includes(n));
@@ -961,10 +968,10 @@ export async function sessionLoadContextHandler(args: unknown) {
 
   for (const skillName of skillsToLoad) {
     if (loadedSkills.includes(skillName)) continue;
-    // Prefer Synalux content (always up-to-date); fall back to local SQLite.
+    // Synalux (paid) → platform fallback skill:<name> (free/offline). Never user_skill:.
     const content = synaluxContent[skillName] || await getSetting(`skill:${skillName}`, "");
     if (content && content.trim()) {
-      const source = synaluxContent[skillName] ? "synalux" : "local";
+      const source = synaluxContent[skillName] ? "synalux" : "local-platform";
       skillBlock += `\n\n[📜 SKILL: ${skillName}]\n${content.trim()}`;
       loadedSkills.push(skillName);
       skillLoaded = true;
@@ -972,9 +979,27 @@ export async function sessionLoadContextHandler(args: unknown) {
     }
   }
 
+  // ─── User-Local Skills ──────────────────────────────────────
+  // Loaded ONLY when user_local.enabled=true (set in Synalux routing table
+  // or explicitly requested). Stored under user_skill: prefix — users can
+  // write here via dashboard; they CANNOT write to the platform skill: keys.
+  if (userLocalPolicy.enabled) {
+    const prefix = userLocalPolicy.key_prefix || "user_skill:";
+    const allSettings = await storage.getAllSettings?.() || {};
+    for (const [k, v] of Object.entries(allSettings)) {
+      if (!k.startsWith(prefix) || !v) continue;
+      const skillName = k.replace(prefix, "");
+      if (loadedSkills.includes(skillName)) continue;
+      skillBlock += `\n\n[📜 USER SKILL: ${skillName}]\n${(v as string).trim()}`;
+      loadedSkills.push(skillName);
+      skillLoaded = true;
+      debugLog(`[session_load_context] User-local skill "${skillName}" loaded`);
+    }
+  }
+
   // ─── Memory-Based Skill Discovery ──────────────────────────
-  // If recent handoff/ledger mentions a skill name, auto-load it.
-  // This lets the agent's own memory drive skill activation.
+  // If recent handoff/ledger mentions a platform skill name, auto-load it.
+  // Only scans platform skill: keys — user_skill: discovery is not automatic.
   if (formattedContext.length > 0) {
     const contextText = formattedContext.toLowerCase();
     const allSkillKeys = await storage.getAllSettings?.() || {};
@@ -982,7 +1007,6 @@ export async function sessionLoadContextHandler(args: unknown) {
       if (!k.startsWith("skill:") || !v) continue;
       const skillName = k.replace("skill:", "");
       if (loadedSkills.includes(skillName)) continue;
-      // Only load if the skill name appears in recent context
       if (contextText.includes(skillName.replace(/-/g, " ")) || contextText.includes(skillName)) {
         skillBlock += `\n\n[📜 CONTEXT SKILL: ${skillName}]\n${v}`;
         loadedSkills.push(skillName);
