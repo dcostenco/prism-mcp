@@ -246,7 +246,7 @@ backend is active.
 
 ## Related docs
 
-- [ARCHITECTURE.md §2 — Memory Lifecycle & OCC](ARCHITECTURE.md#2-the-memory-lifecycle--occ)
+- [ARCHITECTURE.md §2 — Memory Lifecycle & OCC](ARCHITECTURE.md#2-the-memory-lifecycle-occ)
 - [ARCHITECTURE.md §8 — Hivemind Mode](ARCHITECTURE.md#8-agent-hivemind-mode-v53)
 - [ARCHITECTURE.md §9 — Background Purge Scheduler](ARCHITECTURE.md#9-background-purge-scheduler-v54)
 - [`src/tools/compactionHandler.ts`](https://github.com/dcostenco/prism-coder/blob/main/src/tools/compactionHandler.ts) — ledger compaction source
