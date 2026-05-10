@@ -1,18 +1,20 @@
-# Prism Coder — Skills Catalog (22 Skills + 30 MCP Tools)
+# Prism Coder — Skills Catalog (24 Skills + 30 MCP Tools)
 #
 # Skills are synced from ~/.agent/skills/ into Prism's config DB
 # via `scripts/sync-skills.sh`. Auto-loaded during session_load_context
 # when the agent's role matches a skill name.
 #
 # Run: bash scripts/sync-skills.sh
-# Last synced: 2026-05-02
+# Last synced: 2026-05-10
 
-## Core Skills (5)
+## Core Skills (7)
 - **ask-first** — Ask before critical changes
 - **command_verification** — Verify shell commands before/after execution
 - **feature-preservation** — Never remove features without explicit approval
 - **critical_resolution_memory** — Capture resolved issues as reusable guidance
 - **gmail_oauth** — Gmail OAuth credential/token handling
+- **critical-thinking-debug** — Stop-and-diagnose discipline; two-strike stop; never substitute method instructions (May 2026)
+- **execute-method-literally** — When user says "revert to tag X / checkout Y", execute literally; never substitute equivalent path; 26-case test suite
 
 ## Clinical (1)
 - **bcba_ai_assistant** — ABA clinical standards, FBA/BIP, BACB ethics
