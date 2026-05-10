@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [15.2.0] - 2026-05-10 — 🛡 Two-namespace skill architecture + Synalux dynamic content
+
+### What's new
+
+**Two-namespace skill separation** — Platform skills (`skill:*`) are read-only. User-local skills get their own `user_skill:*` namespace, written by dashboard only when `user_local.enabled=true` in routing table (off by default).
+
+**Synalux dynamic skill content** — `GET /api/v1/skills/content` checks Supabase `platform_skills` table first (admin-updatable without redeploy), falls back to filesystem. Admin endpoint `POST /api/v1/admin/skills` gates on `isPlatformAdmin()`.
+
+**Skill routing schema v2** — `resolveSkillsForProject` returns `{ names, user_local }`. Routing table gains `user_local: { enabled, key_prefix }`.
+
+**New universal skills** — `execute-method-literally` (26-case test suite, verbatim May 2026 replay), `pre-push-audit` Rule 19 (`tsc --noEmit` before every push).
+
+## [15.1.0] - 2026-05-10 — 🔗 Skill content via Synalux for paid tier
+
+`fetchSkillContent()` in SynaluxStorage, skill content batch-fetched from Synalux on `session_load_context`, `execute-method-literally` in universal routing, Architecture docs Section 12.
+
 ## [15.0.0] - 2026-05-10 — 🔄 Proactive drift detection + evidence-first behavioral protocol
 
 ### What's new
