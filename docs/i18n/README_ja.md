@@ -126,6 +126,17 @@ All Prism Coder inference uses **only fine-tuned Prism Coder models** — no Cla
 
 Fine-tuned on the 3-layer corpus: AAC + BFCL tool-calling + clinical workflows. BFCL gate: ≥ 90% on all tiers before production promotion. Adapters stored at `dcostenco/prism-coder-*` (private HuggingFace).
 
+**Eval results (private, May 2026):**
+
+| Model | Tool-call accuracy | Gate | Status |
+|---|---|---|---|
+| Qwen3-1.7B (on-device) | **90.0%** (27/30) | ≥90% | ✅ Passed |
+| Qwen3-14B (cloud) | pending | ≥90% | ⏳ Training |
+| QwQ-32B (reasoning) | pending | ≥90% | ⏳ Training |
+| Qwen3-30B-A3B (MoE) | pending | ≥90% | ⏳ Training |
+
+Eval methodology: 30 natural-language tool-call prompts, exact tool name + valid JSON argument structure required. Private eval — model weights never leave Synalux infrastructure.
+
 ## Plans
 
 | | Free | Standard $19/mo | Pro $49/mo | Enterprise $99/mo |
