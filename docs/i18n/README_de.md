@@ -195,6 +195,58 @@ As of v14.0.0, Prism's algorithm exports are a **stable public contract** under 
 | [PrismAAC](https://github.com/dcostenco/prism-aac) | Spreading-activation phrase ranking (recency × frequency × per-user history). Caregiver corrections auto-harvest into the personalization corpus via the audit-hooks postflight harvester. The on-device 7B model + this algorithm stack is what makes PrismAAC defensible. |
 | Synalux portal | Tier-aware model routing using experience bias on prior outcomes per fingerprint. HIPAA-compliant clinical scribe with on-device-first privacy guarantees. |
 
+## Production Infrastructure (v16)
+
+### Hosting & Reliability
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        CLIENT LAYER                                  │
+│  prism-aac PWA (iOS/web)  │  Claude Code  │  Cursor  │  VS Code     │
+│  Vercel — free             │       MCP config → Railway URL          │
+└────────────┬───────────────────────────┬────────────────────────────┘
+             │ inference                  │ memory
+             ▼                            ▼
+┌────────────────────────┐   ┌──────────────────────────────────────┐
+│   SYNALUX ROUTER       │   │         prism-mcp SERVER             │
+│   Vercel (free)        │   │  Primary:  Railway  $5/mo  ✅ live   │
+│   /api/v1/prism-aac/   │   │  Standby:  Fly.io   ~$0/mo ✅ live  │
+│   inference            │   │  Fallback: Supabase direct (99.99%)  │
+│   ├─ auth check        │   │                                      │
+│   ├─ complexity route  │   │  Auto-failover chain:                │
+│   └─ proxy to RunPod   │   │  Railway → Fly.io → Supabase direct  │
+└────────────┬───────────┘   └──────────────┬─────────────────────┘
+             │                               │
+             ▼                               ▼
+┌────────────────────────────┐   ┌──────────────────────────┐
+│      RUNPOD SERVERLESS     │   │     SUPABASE (data)      │
+│  14B  A100 40GB  ~200ms    │   │  session ledgers         │
+│  30B  L40  46GB  ~500ms    │   │  knowledge graph         │
+│  QwQ  A100 80GB  ~3-5s     │   │  handoffs, todos         │
+│  $0 idle, pay per request  │   │  99.99% SLA              │
+└────────────────────────────┘   └──────────────────────────┘
+             │
+             ▼
+┌────────────────────────────┐
+│    ON-DEVICE (free)        │
+│  Qwen3-1.7B GGUF Q4_K_M   │
+│  iOS CoreML / Android ONNX │
+│  ~50ms, fully offline      │
+└────────────────────────────┘
+```
+
+**Monthly cost at <100 users: ~$5-25/mo total**
+
+| Service | Provider | Cost |
+|---|---|---|
+| prism-aac PWA | Vercel | Free |
+| synalux portal | Vercel | Free |
+| prism-mcp primary | Railway Hobby | $5/mo |
+| prism-mcp standby | Fly.io | ~$0 (idle) |
+| Model inference | RunPod serverless | ~$10-20/mo |
+| Model weights | HuggingFace Hub | Free |
+| Database | Supabase | Free tier |
+
 ## Synalux Inference Router — Architecture (v16)
 
 All Prism AAC model inference is protected behind Synalux as a mandatory router. Models are **never accessible directly** — all traffic goes through Synalux for auth, billing, and rate limiting.
