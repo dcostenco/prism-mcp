@@ -35,9 +35,9 @@ export default defineConfig({
     // creation in beforeEach can exceed that under CI load (we measured
     // tests/storage/isolation.test.ts at ~8s for the same operation,
     // and policyGateway/stateMachine beforeEach hooks have hit the
-    // 10s ceiling in Windows-22.x runs). Bump to 30s so transient
+    // 10s ceiling in Windows-22.x runs). Bump to 60s so transient
     // Windows file-system slowness doesn't fail the build.
-    hookTimeout: 30_000,
+    hookTimeout: 60_000,
 
     // ─── Reporters ────────────────────────────────────────────────
     // Verbose reporter shows each test name + duration
