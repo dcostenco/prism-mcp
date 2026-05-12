@@ -219,22 +219,22 @@ As of v14.0.0, Prism's algorithm exports are a **stable public contract** under 
   └──────────┬───────────┘  └─────────────┬───────────────┘
              │                            │
              ▼                            ▼
-  ┌──────────────────────┐  ┌─────────────────────────────┐
-  │  RUNPOD SERVERLESS   │  │  SUPABASE                   │
-  │                      │  │  session ledgers            │
-  │  Qwen2.5-Coder-14B  ~200ms   │  │  knowledge graph            │
-  │  Qwen2.5-30B-A3B  ~500ms   │  │  handoffs & todos           │
-  │  QwQ-32B    ~3-5s    │  │                             │
-  │                      │  │  source of truth            │
-  └──────────┬───────────┘  └─────────────────────────────┘
-             │
-             ▼
-  ┌──────────────────────┐
-  │  ON-DEVICE           │
-  │  Qwen3-1.7B Q4_K_M   │
-  │  iOS CoreML/Android  │
-  │  ~50ms · offline     │
-  └──────────────────────┘
+  ┌───────────────────────────┐  ┌─────────────────────────────┐
+  │  RUNPOD SERVERLESS        │  │  SUPABASE                   │
+  │                           │  │  session ledgers            │
+  │  Qwen2.5-Coder-14B ~200ms│  │  knowledge graph            │
+  │  Qwen2.5-30B-A3B   ~500ms│  │  handoffs & todos           │
+  │  QwQ-32B            ~3-5s │  │                             │
+  │                           │  │  source of truth            │
+  └─────────────┬─────────────┘  └─────────────────────────────┘
+                │
+                ▼
+  ┌───────────────────────────┐
+  │  ON-DEVICE                │
+  │  Qwen3-1.7B Q4_K_M       │
+  │  iOS CoreML / Android     │
+  │  ~50ms · offline          │
+  └───────────────────────────┘
 ```
 
 ## Synalux Inference Router — Architecture (v16)
@@ -260,12 +260,12 @@ All Prism AAC model inference is protected behind Synalux as a mandatory router.
 └──────────┬─────────────────────────────────────┬────────────┘
            │ tier=fast                            │ tier=reason
            ▼                                      ▼
-  ┌──────────────────┐               ┌───────────────────────┐
-  │  Qwen2.5-Coder-14B       │               │  QwQ-32B              │
-  │  RunPod A100 40G │               │  RunPod A100 80G      │
-  │  ~200ms          │               │  ~3–5s (reasoning)    │
-  │  standard/pro    │               │  pro/enterprise only  │
-  └──────────────────┘               └───────────────────────┘
+  ┌─────────────────────────┐      ┌───────────────────────┐
+  │  Qwen2.5-Coder-14B     │      │  QwQ-32B              │
+  │  RunPod A100 40G        │      │  RunPod A100 80G      │
+  │  ~200ms                 │      │  ~3–5s (reasoning)    │
+  │  standard/pro           │      │  pro/enterprise only  │
+  └─────────────────────────┘      └───────────────────────┘
            │                                      │
            └────────────────┬─────────────────────┘
                             ▼
@@ -279,9 +279,9 @@ On-device (free, zero latency, offline):
 | Plan | Cloud model | Daily limit | On-device |
 |---|---|---|---|
 | Free | — | unlimited local | Qwen3-1.7B |
-| Standard $5/mo | Qwen2.5-Coder-14B | 200 req | + cloud |
-| Pro $15/mo | QwQ-32B | 2,000 req | + reasoning |
-| Enterprise | QwQ-32B priority | unlimited | full stack |
+| Standard $19/mo | Qwen2.5-Coder-14B | 200 req | + cloud |
+| Pro $49/mo | QwQ-32B | 2,000 req | + reasoning |
+| Enterprise $99/mo | QwQ-32B priority | unlimited | full stack |
 
 See [`docs/WOW_FEATURES.md`](../WOW_FEATURES.md) for the algorithm catalogue. Release notes in [`docs/releases/v14.0.0-prism-as-foundation.md`](../releases/v14.0.0-prism-as-foundation.md).
 
