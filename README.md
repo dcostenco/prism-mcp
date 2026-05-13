@@ -60,7 +60,13 @@ ollama pull dcostenco/prism-coder:1b7   # 2.2 GB · ~0.5s · any machine
 ollama pull dcostenco/prism-coder:14b   # 9.3 GB · ~3s   · Mac M2+
 ollama pull dcostenco/prism-coder:32b   # 19 GB  · ~8s   · Mac M2 Ultra+
 ```
-All three score 100% on Synalux's internal 16-case tool-routing eval.
+Routing accuracy on the [100-case Prism eval](tests/benchmarks/prism-routing-100/README.md) (seed=2026, v25 system prompt):
+
+| Model | Accuracy | Invented tools | Avg latency |
+|---|---|---|---|
+| prism-coder:14b | **99%** | 0 | 9.0s |
+| prism-coder:32b | **97%** | 0 | 3.6s |
+| prism-coder:1b7 | **86%** | 0 | 6.0s |
 
 ### ⚡ Zero-search retrieval
 Holographic Reduced Representations (HRR) for instant similarity lookups without an index. ~5ms over 100K memories.
@@ -144,15 +150,17 @@ Prism Coder inference cascades through fine-tuned models first, with Claude as a
 
 Models trained on the Synalux SFT corpus (AAC + tool-calling + clinical workflows). The 1.7B uses system prompt engineering (v19) — no fine-tuning needed. 14B and 32B use 3-level curriculum training (L1 general + L3 precision). Internal quality gate: ≥ 90% on Synalux's private domain eval before production promotion.
 
-**Eval results (Synalux internal eval, May 2026):**
+**Routing accuracy — [Prism 100-case eval](tests/benchmarks/prism-routing-100/README.md) (May 2026, v25 system prompt, seed=2026):**
 
-| Model | Synalux domain eval | Gate | Status |
-|---|---|---|---|
-| Qwen3-1.7B `prism-coder:1b7-v19-q8` | 16/16 Prism routing cases | ≥90% | ✅ Shipped |
-| Qwen3-14B `prism-coder:14b` | — | ≥90% | ⏳ Training |
-| QwQ-32B `prism-coder:32b` | — | ≥90% | ⏳ Training |
+| Model | Overall | Load ctx | Save | Srch mem | Handoff | Compact | Web srch | Know srch | AAC | Translate | No-tool | Edge | Avg lat | Invented |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Sonnet 4** (cloud) | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
+| **prism-coder:14b** | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 9.0s | 0 |
+| **Opus 4.7** (cloud) | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 66% | 3.0s | 0 |
+| **prism-coder:32b** | **97%** | 100% | 100% | 100% | 100% | 100% | 100% | 85% | 100% | 100% | 83% | 83% | 3.6s | 0 |
+| **prism-coder:1b7** | **86%** | 100% | 63% | 100% | 87% | 100% | 100% | 71% | 100% | 66% | 83% | 50% | 6.0s | 0 |
 
-> **Note:** These are **not** Berkeley BFCL V4 leaderboard scores. The Synalux eval covers 16 Prism-specific tool-routing prompts (7 MCP tools, single-call, 4 categories). It measures whether the model correctly routes Prism memory operations — not general function-calling breadth. Official BFCL V4 has not been run on these models.
+> These are **not** Berkeley BFCL V4 leaderboard scores. The Prism eval covers 100 randomly sampled prompts across 13 categories (7 MCP tools, hallucination guards, AAC/translation plain-text). Full methodology and runner script: [`tests/benchmarks/prism-routing-100/`](tests/benchmarks/prism-routing-100/).
 
 **iOS deployment:** On-device inference via **llama.cpp Swift SPM** (`ggerganov/llama.cpp`). Model: `prism-aac-1b7-q4km.gguf` (1.0 GB, ~1.6 GB RAM at runtime). CoreML is not viable — coremltools does not support Qwen3 attention ops. Integration: `LLMEngine.swift` → `prismNativeBridge.askAI()` → `window.prismNativeAIResult()` token stream. Fallback: Mac Ollama over local WiFi (`OLLAMA_HOST=0.0.0.0`).
 
@@ -177,7 +185,7 @@ Set `LOCAL_LLM_URL=http://localhost:11434` in your portal config. Routing is aut
 - Fast queries → **1.7B** (~0.5s) · Standard → **14B** (~3s) · Complex/enterprise → **32B** (~8s) · Cloud fallback if Ollama unreachable
 
 iOS/mobile on same WiFi: `OLLAMA_HOST=0.0.0.0 ollama serve` on the Mac, then point `LOCAL_LLM_URL` at the Mac's IP.
-All models score **100% on Synalux internal BFCL eval** (16/16 tool-routing cases, May 2026).
+Routing accuracy (100-case Prism eval, May 2026): **14B = 99% · 32B = 97% · 1.7B = 86%**. Zero invented tool names across all models. → [Full results](tests/benchmarks/prism-routing-100/README.md)
 
 ---
 
