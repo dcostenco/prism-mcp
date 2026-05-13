@@ -6,15 +6,17 @@ Internal BFCL-style benchmark measuring tool-routing accuracy across Prism's 7 M
 
 ## Results — May 2026
 
-> v25 system prompt · seed=2026 · 100 cases · 5 models
+> v25 system prompt · 3 × 100 cases (seeds 2026/2027/2028) · 5 models
 
 | Model | Overall | Load ctx | Save | Srch mem | Handoff | Compact | Web srch | Know srch | AAC | Translate | Plain txt | No-tool | Info | Edge | Avg lat | Invented |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Sonnet 4** (cloud) | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
 | **14B local** | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 9.0s | 0 |
+| **32B local** ¹ | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 92% | 100% | 100% | 100% | 100% | 100% | 3.6s | 0 |
 | **Opus 4.7** (cloud) | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 66% | 3.0s | 0 |
-| **32B local** | **97%** | 100% | 100% | 100% | 100% | 100% | 100% | 85% | 100% | 100% | 100% | 83% | 100% | 83% | 3.6s | 0 |
 | **1.7B local** | **86%** | 100% | 63% | 100% | 87% | 100% | 100% | 71% | 100% | 66% | 87% | 83% | 100% | 50% | 6.0s | 0 |
+
+¹ 32B uses `nothink` Modelfile template (empty `<think></think>` prefix) — see [`Modelfile.32b`](Modelfile.32b). Without it: 97% (thinking chain over-reasons on `irrel`/`know` categories).
 
 **Invented tools across all models: 0** — hard constraint in v25 system prompt holds for all model sizes.
 
@@ -65,4 +67,5 @@ OLLAMA_HOST=http://192.168.1.10:11434 python3 tests/benchmarks/prism-routing-100
 ## Files
 
 - [`benchmark.py`](benchmark.py) — runner script (Ollama + Claude API)
-- [`results_may2026.json`](results_may2026.json) — raw results from May 2026 eval run
+- [`results_may2026.json`](results_may2026.json) — raw results from May 2026 eval run (32B at 97%, pre-fix)
+- [`Modelfile.32b`](Modelfile.32b) — Ollama Modelfile for `prism-coder:32b` with `nothink` template fix

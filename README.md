@@ -65,7 +65,7 @@ Routing accuracy on the [100-case Prism eval](tests/benchmarks/prism-routing-100
 | Model | Accuracy | Invented tools | Avg latency |
 |---|---|---|---|
 | prism-coder:14b | **99%** | 0 | 9.0s |
-| prism-coder:32b | **97%** | 0 | 3.6s |
+| prism-coder:32b | **99%** | 0 | 3.6s |
 | prism-coder:1b7 | **86%** | 0 | 6.0s |
 
 ### ⚡ Zero-search retrieval
@@ -157,10 +157,12 @@ Models trained on the Synalux SFT corpus (AAC + tool-calling + clinical workflow
 | **Sonnet 4** (cloud) | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
 | **prism-coder:14b** | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 9.0s | 0 |
 | **Opus 4.7** (cloud) | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 66% | 3.0s | 0 |
-| **prism-coder:32b** | **97%** | 100% | 100% | 100% | 100% | 100% | 100% | 85% | 100% | 100% | 83% | 83% | 3.6s | 0 |
+| **prism-coder:32b** ¹ | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 92% | 100% | 100% | 100% | 100% | 3.6s | 0 |
 | **prism-coder:1b7** | **86%** | 100% | 63% | 100% | 87% | 100% | 100% | 71% | 100% | 66% | 83% | 50% | 6.0s | 0 |
 
-> These are **not** Berkeley BFCL V4 leaderboard scores. The Prism eval covers 100 randomly sampled prompts across 13 categories (7 MCP tools, hallucination guards, AAC/translation plain-text). Full methodology and runner script: [`tests/benchmarks/prism-routing-100/`](tests/benchmarks/prism-routing-100/).
+> ¹ 32B uses a `nothink` Modelfile template (empty `<think></think>` prefix) to suppress QwQ's reasoning chain on routing tasks. Without it: 97%. See [`tests/benchmarks/prism-routing-100/Modelfile.32b`](tests/benchmarks/prism-routing-100/Modelfile.32b).
+>
+> These are **not** Berkeley BFCL V4 leaderboard scores. The Prism eval covers 3 × 100 randomly sampled prompts across 13 categories (7 MCP tools, hallucination guards, AAC/translation plain-text). Full methodology and runner script: [`tests/benchmarks/prism-routing-100/`](tests/benchmarks/prism-routing-100/).
 
 **iOS deployment:** On-device inference via **llama.cpp Swift SPM** (`ggerganov/llama.cpp`). Model: `prism-aac-1b7-q4km.gguf` (1.0 GB, ~1.6 GB RAM at runtime). CoreML is not viable — coremltools does not support Qwen3 attention ops. Integration: `LLMEngine.swift` → `prismNativeBridge.askAI()` → `window.prismNativeAIResult()` token stream. Fallback: Mac Ollama over local WiFi (`OLLAMA_HOST=0.0.0.0`).
 
@@ -185,7 +187,7 @@ Set `LOCAL_LLM_URL=http://localhost:11434` in your portal config. Routing is aut
 - Fast queries → **1.7B** (~0.5s) · Standard → **14B** (~3s) · Complex/enterprise → **32B** (~8s) · Cloud fallback if Ollama unreachable
 
 iOS/mobile on same WiFi: `OLLAMA_HOST=0.0.0.0 ollama serve` on the Mac, then point `LOCAL_LLM_URL` at the Mac's IP.
-Routing accuracy (100-case Prism eval, May 2026): **14B = 99% · 32B = 97% · 1.7B = 86%**. Zero invented tool names across all models. → [Full results](tests/benchmarks/prism-routing-100/README.md)
+Routing accuracy (100-case Prism eval, May 2026): **14B = 99% · 32B = 99% · 1.7B = 86%**. Zero invented tool names across all models. → [Full results](tests/benchmarks/prism-routing-100/README.md)
 
 ---
 
