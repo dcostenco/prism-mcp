@@ -123,17 +123,17 @@ Prism Coder inference cascades through fine-tuned models first, with Claude as a
 | **Qwen3-14B** (training) | `prism-coder:14b` | RunPod A100 via Synalux | Standard+ | ~200ms |
 | **QwQ-32B** (training) | `prism-coder:32b` | RunPod A100 80GB via Synalux | Pro/Enterprise | ~3–5s |
 
-Models trained on the Synalux SFT corpus (AAC + tool-calling + clinical workflows). The 1.7B uses system prompt engineering (v19) — no fine-tuning needed. 14B and 32B use 3-level curriculum training (L1 general + L3 precision). Internal quality gate: **≥ 90% on private 16-prompt BFCL tool-calling eval** before production promotion.
+Models trained on the Synalux SFT corpus (AAC + tool-calling + clinical workflows). The 1.7B uses system prompt engineering (v19) — no fine-tuning needed. 14B and 32B use 3-level curriculum training (L1 general + L3 precision). Internal quality gate: ≥ 90% on Synalux's private domain eval before production promotion.
 
-**Eval results (Synalux BFCL eval, May 2026):**
+**Eval results (Synalux internal eval, May 2026):**
 
-| Model | BFCL accuracy | Gate | Status |
+| Model | Synalux domain eval | Gate | Status |
 |---|---|---|---|
-| Qwen3-1.7B `prism-coder:1b7-v19-q8` | **100%** (16/16) | ≥90% | ✅ Shipped |
-| Qwen3-14B `prism-coder:14b` | — | ≥90% | ⏳ Training (ETA ~04:00) |
-| QwQ-32B `prism-coder:32b` | — | ≥90% | ⏳ Training (ETA ~03:00) |
+| Qwen3-1.7B `prism-coder:1b7-v19-q8` | 16/16 Prism routing cases | ≥90% | ✅ Shipped |
+| Qwen3-14B `prism-coder:14b` | — | ≥90% | ⏳ Training |
+| QwQ-32B `prism-coder:32b` | — | ≥90% | ⏳ Training |
 
-Eval methodology: 16 natural-language tool-call prompts across 4 categories (simple routing, hallucination resistance, relevance, parameter inference). Exact tool name + valid JSON argument structure required. Private eval — model weights never leave Synalux infrastructure.
+> **Note:** These are **not** Berkeley BFCL V4 leaderboard scores. The Synalux eval covers 16 Prism-specific tool-routing prompts (7 MCP tools, single-call, 4 categories). It measures whether the model correctly routes Prism memory operations — not general function-calling breadth. Official BFCL V4 has not been run on these models.
 
 **iOS deployment:** On-device inference via **llama.cpp Swift SPM** (`ggerganov/llama.cpp`). Model: `prism-aac-1b7-q4km.gguf` (1.0 GB, ~1.6 GB RAM at runtime). CoreML is not viable — coremltools does not support Qwen3 attention ops. Integration: `LLMEngine.swift` → `prismNativeBridge.askAI()` → `window.prismNativeAIResult()` token stream. Fallback: Mac Ollama over local WiFi (`OLLAMA_HOST=0.0.0.0`).
 
