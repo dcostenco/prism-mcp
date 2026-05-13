@@ -4,14 +4,14 @@
 
 **Persistent memory + tool-calling intelligence for AI agents.** *(formerly Prism MCP)*
 
-A Model Context Protocol server that gives Claude, Cursor, and other AI tools a Mind Palace — long-term memory that survives across sessions, with semantic search, cognitive routing, a visual dashboard, and the `prism-coder:7b` / `prism-coder:14b` LLM fleet for offline tool-calling.
+A Model Context Protocol server that gives Claude, Cursor, and other AI tools a Mind Palace — long-term memory that survives across sessions, with semantic search, cognitive routing, a visual dashboard, and the `prism-coder:1b7-v19-q8` / `prism-coder:14b` LLM fleet for offline tool-calling.
 
 [![npm](https://img.shields.io/npm/v/prism-mcp-server?color=cb0000&label=npm%20%E2%80%94%20prism-mcp-server)](https://www.npmjs.com/package/prism-mcp-server)
 [![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-00ADD8)](https://github.com/modelcontextprotocol/servers)
 [![Smithery](https://img.shields.io/badge/Smithery-listed-6B4FBB)](https://smithery.ai/server/@dcostenco/prism-mcp)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](../../LICENSE)
 
-> **Renamed in v14.0.0:** the project is now **Prism Coder** to cover both the Mind Palace memory server *and* the `prism-coder:7b` / `prism-coder:14b` LLM fleet on HuggingFace + Ollama. The npm package stays `prism-mcp-server` so existing install URLs and `mcp.json` entries keep working — the `prism-coder` binary has been the canonical entry point since v12.
+> **Renamed in v14.0.0:** the project is now **Prism Coder** to cover both the Mind Palace memory server *and* the `prism-coder:1b7-v19-q8` / `prism-coder:14b` LLM fleet on HuggingFace + Ollama. The npm package stays `prism-mcp-server` so existing install URLs and `mcp.json` entries keep working — the `prism-coder` binary has been the canonical entry point since v12.
 
 ---
 
@@ -117,26 +117,25 @@ The LLM context window is treated as ephemeral scratch space. All durable state 
 
 Prism Coder inference cascades through fine-tuned models first, with Claude as a quality-gate fallback. Models route through the Synalux router (authentication + subscription required). Cascade: RunPod → Ollama local → Claude fallback.
 
-| Model | Where | Tier | Latency |
+| Model | Ollama tag | Where | Tier | Latency |
+|---|---|---|---|---|
+| **Qwen3-1.7B** | `prism-coder:1b7-v19-q8` | On-device (Mac/local) · iOS via local network | Free | ~50ms |
+| **Qwen3-14B** (training) | `prism-coder:14b` | RunPod A100 via Synalux | Standard+ | ~200ms |
+| **QwQ-32B** (training) | `prism-coder:32b` | RunPod A100 80GB via Synalux | Pro/Enterprise | ~3–5s |
+
+Models trained on the Synalux SFT corpus (AAC + tool-calling + clinical workflows). The 1.7B uses system prompt engineering (v19) — no fine-tuning needed. 14B and 32B use 3-level curriculum training (L1 general + L3 precision). Internal quality gate: **≥ 90% on private 16-prompt BFCL tool-calling eval** before production promotion.
+
+**Eval results (Synalux BFCL eval, May 2026):**
+
+| Model | BFCL accuracy | Gate | Status |
 |---|---|---|---|
-| **Qwen3-1.7B** (fine-tuned) | On-device — iOS CoreML / Android ONNX | Free | ~50ms offline |
-| **Qwen2.5-Coder-7B** (fine-tuned) | Ollama local / Fireworks AI | Free (local) / Standard+ | ~100ms local |
-| **Qwen2.5-Coder-14B** (fine-tuned) | RunPod A100 via Synalux | Standard+ | ~200ms |
-| **QwQ-32B** (fine-tuned) | RunPod A100 80GB via Synalux | Pro/Enterprise | ~3–5s |
-| **Qwen2.5-30B-A3B** (fine-tuned MoE) | RunPod via Synalux | Enterprise | ~2–3s |
+| Qwen3-1.7B `prism-coder:1b7-v19-q8` | **100%** (16/16) | ≥90% | ✅ Shipped |
+| Qwen3-14B `prism-coder:14b` | — | ≥90% | ⏳ Training (ETA ~04:00) |
+| QwQ-32B `prism-coder:32b` | — | ≥90% | ⏳ Training (ETA ~03:00) |
 
-Fine-tuned on the Synalux SFT corpus (AAC + tool-calling + clinical workflows). Internal quality gate: ≥ 90% on private 30-prompt tool-calling eval before production promotion. Adapters stored at `dcostenco/prism-coder-*` (private HuggingFace). Note: these are NOT Berkeley BFCL V4 leaderboard scores — they are Synalux's internal domain-specific eval.
+Eval methodology: 16 natural-language tool-call prompts across 4 categories (simple routing, hallucination resistance, relevance, parameter inference). Exact tool name + valid JSON argument structure required. Private eval — model weights never leave Synalux infrastructure.
 
-**Eval results (Synalux private eval, May 2026):**
-
-| Model | Tool-call accuracy | Gate | Status |
-|---|---|---|---|
-| Qwen3-1.7B (on-device) | **90.0%** (27/30) | ≥90% | ✅ Passed |
-| Qwen2.5-Coder-14B (cloud) | pending | ≥90% | ⏳ Training |
-| QwQ-32B (reasoning) | pending | ≥90% | ⏳ Training |
-| Qwen2.5-30B-A3B (MoE) | pending | ≥90% | ⏳ Training |
-
-Eval methodology: 30 natural-language tool-call prompts, exact tool name + valid JSON argument structure required. Private eval — model weights never leave Synalux infrastructure.
+**iOS deployment:** The 1.7B runs on Mac via Ollama. iOS WKWebView app connects over local WiFi — set `OLLAMA_HOST=0.0.0.0` on Mac to expose. Native on-device CoreML conversion is handled separately.
 
 ## Plans
 
