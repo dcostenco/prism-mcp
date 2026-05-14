@@ -60,15 +60,17 @@ ollama pull dcostenco/prism-coder:1b7   # 2.2 GB · ~0.5s · any machine
 ollama pull dcostenco/prism-coder:14b   # 9.3 GB · ~3s   · Mac M2+
 ollama pull dcostenco/prism-coder:32b   # 19 GB  · ~8s   · Mac M2 Ultra+
 ```
-Routing accuracy — [100-case Prism eval](../../tests/benchmarks/prism-routing-100/README.md), 3 rounds, v25 system prompt:
+Routing accuracy — [100-case Prism eval](../../tests/benchmarks/prism-routing-100/README.md), v25 system prompt, **May 14 2026 rerun against currently-published Hub tags (seed=2026)**:
 
 | Model | Accuracy | Avg latency | Invented tools |
 |---|---|---|---|
 | Sonnet 4 (cloud) | **99%** | 3.2s | 0 |
-| prism-coder:14b (local) | **100%** | 9.0s | 0 |
 | Opus 4.7 (cloud) | **98%** | 3.0s | 0 |
-| prism-coder:32b (local) | **100%** | 3.6s | 0 |
-| prism-coder:1b7 (local) | **96%** | 6.0s | 0 |
+| prism-coder:32b (local) | **93%** | 2.4s | 0 |
+| prism-coder:14b (local) | **87%** | 7.0s | 0 |
+| prism-coder:1b7 (local) | **86%** | 1.5s | 1 |
+
+> Prior published runs (May 13) reported 100/100/96; today's rerun against the *same* `dcostenco/prism-coder:*` Hub tags shows regression — most likely Hub-tag drift (a retrain pushed to Hub between May 13 and 14 didn't carry the same routing precision as the original v19). A v25-max retrain attempt regressed gate scores further, so v19 remains the published baseline. See the `## Models` section below for details. Internal quality gate: ≥ 90% before production promotion — only 32B currently clears.
 
 ### ⚡ Zero-search retrieval
 Holographic Reduced Representations (HRR) for instant similarity lookups without an index. ~5ms over 100K memories.
@@ -146,21 +148,23 @@ Prism Coder inference cascades through fine-tuned models first, with Claude as a
 
 | Model | Ollama tag | Where | Tier | Latency |
 |---|---|---|---|---|
-| **Qwen3-1.7B** | `prism-coder:1b7-v19-q8` | On-device (Mac/local) · iOS via local network | Free | ~50ms |
-| **Qwen3-14B** (training) | `prism-coder:14b` | RunPod A100 via Synalux | Standard+ | ~200ms |
-| **QwQ-32B** (training) | `prism-coder:32b` | RunPod A100 80GB via Synalux | Pro/Enterprise | ~3–5s |
+| **Qwen3-1.7B** | `prism-coder:1b7-v19-q8` (published) | On-device (Mac/local) · iOS via local network | Free | ~50ms |
+| **Qwen3-14B** | `prism-coder:14b` (published v19) | RunPod A100 via Synalux | Standard+ | ~200ms |
+| **QwQ-32B** | `prism-coder:32b` (published v19) | RunPod A100 80GB via Synalux | Pro/Enterprise | ~3–5s |
 
-Models trained on the Synalux SFT corpus (AAC + tool-calling + clinical workflows). The 1.7B uses system prompt engineering (v19) — no fine-tuning needed. 14B and 32B use 3-level curriculum training (L1 general + L3 precision). Internal quality gate: ≥ 90% on Synalux's private domain eval before production promotion.
+Models use the Synalux SFT corpus (AAC + Prism MCP tool taxonomy + clinical workflows). **Internal quality gate: ≥ 90% on the Prism 100-case eval before production promotion.**
 
-**Routing accuracy — [Prism 100-case eval](../../tests/benchmarks/prism-routing-100/README.md) (May 2026, v25 system prompt, seed=2026):**
+> **Training note (May 14 2026)**: A v25-max retrain pass on a 40K-row composite corpus REGRESSED both 1.7B and 14B on the BFCL gate test (1.7B 100%→93.8%, 14B 100%→81.2%) because the corpus over-weighted tool-use density, causing the model to invoke tools for prompts like "write a Python function" that should be plain text. Reverted to v19 published adapters. Base Qwen3 models are strong tool-routers out of the box; future fine-tuning will use much sparser corpora focused on Synalux-specific tool names + AAC plain-text style.
+
+**Routing accuracy — [Prism 100-case eval](../../tests/benchmarks/prism-routing-100/README.md) (May 14 2026 rerun vs published Hub tags, v25 system prompt, seed=2026):**
 
 | Model | Overall | Load ctx | Save | Srch mem | Handoff | Compact | Web srch | Know srch | AAC | Translate | No-tool | Edge | Avg lat | Invented |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Sonnet 4** (cloud) | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
-| **prism-coder:14b** | **100%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 9.0s | 0 |
 | **Opus 4.7** (cloud) | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 66% | 3.0s | 0 |
-| **prism-coder:32b** ¹ | **100%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 3.6s | 0 |
-| **prism-coder:1b7** | **96%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 64% | 6.0s | 0 |
+| **prism-coder:32b** ¹ | **93%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 75% | 83% | 67% | 83% | 2.4s | 0 |
+| **prism-coder:14b** | **87%** | 100% | 100% | 100% | 62% | 100% | 100% | 43% | 100% | 100% | 62% | 67% | 7.0s | 0 |
+| **prism-coder:1b7** | **86%** | 100% | 77% | 88% | 75% | 100% | 100% | 71% | 92% | 100% | 88% | 67% | 1.5s | 1 |
 
 > ¹ 32B uses `nothink` template + surgical prompt disambiguation (know/smem/pred boundary). Without fixes: 98% (nothink only) or 97% (base). See [`tests/benchmarks/prism-routing-100/Modelfile.32b`](../../tests/benchmarks/prism-routing-100/Modelfile.32b). See [`tests/benchmarks/prism-routing-100/Modelfile.32b`](../../tests/benchmarks/prism-routing-100/Modelfile.32b).
 >
@@ -189,7 +193,7 @@ Set `LOCAL_LLM_URL=http://localhost:11434` in your portal config. Routing is aut
 - Fast queries → **1.7B** (~0.5s) · Standard → **14B** (~3s) · Complex/enterprise → **32B** (~8s) · Cloud fallback if Ollama unreachable
 
 iOS/mobile on same WiFi: `OLLAMA_HOST=0.0.0.0 ollama serve` on the Mac, then point `LOCAL_LLM_URL` at the Mac's IP.
-Routing accuracy (100-case Prism eval, May 2026): **14B = 100% · 32B = 100% · 1.7B = 96%**. Zero invented tool names across all models. → [Full results](../../tests/benchmarks/prism-routing-100/README.md)
+Routing accuracy (Prism 100-case eval, May 14 2026 rerun): **32B = 93% · 14B = 87% · 1.7B = 86%**. Zero invented tool names on 32B/14B; 1 on 1.7B. Only 32B currently clears the 90% gate; 14B/1.7B retrain plan in `## Models` section. → [Full results](../../tests/benchmarks/prism-routing-100/README.md)
 
 ---
 
