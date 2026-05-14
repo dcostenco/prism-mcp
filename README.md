@@ -60,17 +60,21 @@ ollama pull dcostenco/prism-coder:1b7   # 2.2 GB · ~0.5s · any machine
 ollama pull dcostenco/prism-coder:14b   # 9.3 GB · ~3s   · Mac M2+
 ollama pull dcostenco/prism-coder:32b   # 19 GB  · ~8s   · Mac M2 Ultra+
 ```
-Routing accuracy — [100-case Prism eval](tests/benchmarks/prism-routing-100/README.md), v25 system prompt, **May 14 2026 against currently-published Hub tags (mean of 3 seeds: 2027/2028/2029)**:
+Routing accuracy — [100-case Prism eval](tests/benchmarks/prism-routing-100/README.md), v25 system prompt, **May 14 2026 (seed 2027 unless noted; v19 columns = mean of 3 seeds)**:
 
-| Model | Mean ± Std | Avg latency | Invented tools (3-run total) |
-|---|---|---|---|
-| Sonnet 4 (cloud) | **99%** | 3.2s | 0 |
-| Opus 4.7 (cloud) | **98%** | 3.0s | 0 |
-| prism-coder:32b (local) | **93.7% ± 0.6%** | 2.3s | 0 |
-| prism-coder:14b (local) | **87.0% ± 0.0%** | 6.8s | 0 |
-| prism-coder:1b7 (local) | **84.0% ± 0.0%** | 1.6s | 6 |
+| Model | v19 published | **v26-polish** | Δ | Gate (≥90%) |
+|---|---|---|---|---|
+| Sonnet 4 (cloud) | **99%** | — | — | ✅ |
+| Opus 4.7 (cloud) | **98%** | — | — | ✅ |
+| prism-coder:32b | **93.7%** | not promoted¹ | — | ✅ |
+| **prism-coder:14b** | 87.0% | **90.0%** | **+3.0** | ✅ **(passed after retrain)** |
+| prism-coder:1b7 | 84.0% | not promoted² | — | ❌ (capacity ceiling) |
 
-> 3 runs at seeds 2027/2028/2029 show essentially zero variance — these numbers are stable, not noise. Prior published claims (May 13: 100/100/96) reflect a different benchmark configuration. Internal quality gate: ≥ 90% before production promotion — only 32B currently clears. 14B's biggest hole is `know_srch=43%` + `handoff=60%`; 32B's is `aac=79%` + `irrel=67%`; 1.7B is at small-model precision ceiling.
+> **14B retrain biggest wins** (v26-polish vs v19): know_srch 43% → 71% (+28), handoff 60% → 88% (+28), save 100% → 92% (-8 acceptable trade). v26-polish corpus is 576 hand-crafted rows, 56% plain-text / 44% tool, 50 iters @ LR 1e-6, LoRA r=8 on QKVO. The lesson from a prior v25-max attempt (40K rows, 300 iters, r=32) is that more data + more iters caused **regression** on the BFCL gate (base 100% → v25-max 81%). v26 is intentionally a light polish, not full SFT.
+>
+> ¹ 32B v26-polish was trained (50 iters on Mac) but the MLX-4bit → bf16 dequantize → Q4_K_M GGUF roundtrip produced a model with 60s+ inference latency — unshippable. Keeping the published v19 (93.7%, gate-passing). 32B retrain needs a different conversion path (e.g. fuse on bf16 base directly, but that requires 64GB unified memory headroom not currently available on this Mac).
+>
+> ² 1.7B v25-max retrain regressed BFCL gate (100% → 93.8%). Likely capacity-bound for this task class. Keeping published v19 (`:1b7-v19-q8`).
 
 ### ⚡ Zero-search retrieval
 Holographic Reduced Representations (HRR) for instant similarity lookups without an index. ~5ms over 100K memories.
@@ -156,15 +160,16 @@ Models use the Synalux SFT corpus (AAC + Prism MCP tool taxonomy + clinical work
 
 > **Training note (May 14 2026)**: A v25-max retrain pass on a 40K-row composite corpus REGRESSED both 1.7B and 14B on the BFCL gate test (1.7B 100%→93.8%, 14B 100%→81.2%) because the corpus over-weighted tool-use density, causing the model to invoke tools for prompts like "write a Python function" that should be plain text. Reverted to v19 published adapters. Base Qwen3 models are strong tool-routers out of the box; future fine-tuning will use much sparser corpora focused on Synalux-specific tool names + AAC plain-text style.
 
-**Routing accuracy — [Prism 100-case eval](tests/benchmarks/prism-routing-100/README.md) (May 14 2026, mean across 3 seeds 2027/2028/2029):**
+**Routing accuracy — [Prism 100-case eval](tests/benchmarks/prism-routing-100/README.md) (May 14 2026, seed 2027 for v26 vs v19 / mean of 3 seeds for v19 only rows):**
 
 | Model | Overall | Load ctx | Save | Srch mem | Handoff | Compact | Web srch | Know srch | AAC | Translate | Pred | Irrel | Info | Edge | Avg lat | Inv |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Sonnet 4** (cloud) | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
 | **Opus 4.7** (cloud) | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 66% | 3.0s | 0 |
-| **prism-coder:32b** ¹ | **93.7%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 79% | 83% | 100% | 67% | 100% | 82% | 2.3s | 0 |
-| **prism-coder:14b** | **87.0%** | 100% | 100% | 100% | 60% | 100% | 100% | 43% | 100% | 100% | 62% | 100% | 80% | 65% | 6.8s | 0 |
-| **prism-coder:1b7** | **84.0%** | 100% | 76% | 78% | 74% | 100% | 100% | 71% | 91% | 100% | 88% | 83% | 60% | 65% | 1.6s | 6 |
+| **prism-coder:32b** v19 ¹ | **93.7%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 79% | 83% | 100% | 67% | 100% | 82% | 2.3s | 0 |
+| **prism-coder:14b** v26-polish | **90.0%** | 100% | **92%** | 100% | **88%** | 100% | 100% | **71%** | 100% | 100% | 62% | 100% | 80% | 60% | 5.8s | 0 |
+| prism-coder:14b v19 | 87.0% | 100% | 100% | 100% | 60% | 100% | 100% | 43% | 100% | 100% | 62% | 100% | 80% | 65% | 6.8s | 0 |
+| **prism-coder:1b7** v19 | **84.0%** | 100% | 76% | 78% | 74% | 100% | 100% | 71% | 91% | 100% | 88% | 83% | 60% | 65% | 1.6s | 6 |
 
 > ¹ 32B uses `nothink` template + surgical prompt disambiguation (know/smem/pred boundary). Without fixes: 98% (nothink only) or 97% (base). See [`tests/benchmarks/prism-routing-100/Modelfile.32b`](tests/benchmarks/prism-routing-100/Modelfile.32b). See [`tests/benchmarks/prism-routing-100/Modelfile.32b`](tests/benchmarks/prism-routing-100/Modelfile.32b).
 >
