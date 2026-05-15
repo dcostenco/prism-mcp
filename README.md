@@ -355,7 +355,7 @@ node scripts/migrate-local-to-portal.mjs --include-scholar
 
 **One-shot only**: this script is a migration tool, not a sync daemon. Once you've moved, set `PRISM_STORAGE=synalux` (or leave it on `auto` and let the resolver pick synalux when credentials are present) and the MCP server writes directly to the portal going forward.
 
-## Production Infrastructure (v16)
+## Production Infrastructure
 
 ### Architecture
 
@@ -370,69 +370,99 @@ node scripts/migrate-local-to-portal.mjs --include-scholar
   ┌──────────────────────┐  ┌─────────────────────────────┐
   │  SYNALUX ROUTER      │  │  prism-mcp SERVER           │
   │  Vercel              │  │                             │
-  │                      │  │  Primary   — Railway        │
-  │  • JWT auth          │  │  Standby   — Fly.io         │
+  │  • JWT auth          │  │  Primary   — Railway        │
+  │  • tier enforcement  │  │  Standby   — Fly.io         │
   │  • complexity route  │  │  Fallback  — Supabase REST  │
-  │  • tier enforcement  │  │                             │
-  │  • proxy to Cloud (OpenRouter)   │  │  auto-failover chain        │
+  │  • proxy to cloud    │  │  auto-failover chain        │
   └──────────┬───────────┘  └─────────────┬───────────────┘
              │                            │
              ▼                            ▼
-  ┌───────────────────────────┐  ┌─────────────────────────────┐
-  │  CLOUD (OPENROUTER) SERVERLESS        │  │  SUPABASE                   │
-  │                           │  │  session ledgers            │
-  │  prism-coder:14b ~200ms│  │  knowledge graph            │
-  │  prism-coder:32b   ~500ms│  │  handoffs & todos           │
-  │  prism-coder:32b            ~3-5s │  │                             │
-  │                           │  │  source of truth            │
-  └─────────────┬─────────────┘  └─────────────────────────────┘
-                │
-                ▼
-  ┌───────────────────────────┐
-  │  ON-DEVICE                │
-  │  prism-coder:1.7b Q4_K_M       │
-  │  iOS CoreML / Android     │
-  │  ~50ms · offline          │
-  └───────────────────────────┘
+  ┌───────────────────────┐  ┌─────────────────────────────┐
+  │  OPENROUTER / LOCAL   │  │  SUPABASE                   │
+  │                       │  │  session ledgers            │
+  │  Cloud: Claude Sonnet │  │  knowledge graph            │
+  │  Local:  prism-coder  │  │  handoffs & todos           │
+  │   :14b (98%) :8b (96%)│  │                             │
+  │   :32b (97%) :1b7(88%)│  │  source of truth            │
+  └───────────────────────┘  └─────────────────────────────┘
 ```
 
-## Synalux Inference Router — Architecture (v16)
+### Service Routing
+
+**LLM Backends**
+
+| Surface | Primary | Fallback | Local |
+|---|---|---|---|
+| AI Chat (free) | Gemini 2.5 Flash (direct API) | Claude Haiku 3.5 | prism-coder:14b via Ollama |
+| AI Chat (paid) | Claude Sonnet 4 (OpenRouter) | Claude Haiku 3.5 | prism-coder:14b via Ollama |
+| Prism Coder (tool-calling) | Claude Haiku 3.5 (OpenRouter) | — | prism-coder:14b via Ollama |
+| Prism AAC | Local prism-coder:14b | Gemini 2.5 Flash / Claude | prism-coder:8b / :1b7 |
+
+**Web Search**
+
+| Surface | Primary | Fallback |
+|---|---|---|
+| AI Chat `@search` | Firecrawl | — |
+| Prism MCP agents (cloud) | Firecrawl | Brave Search |
+| Prism MCP server (local) | Brave Search (via MCP tools) | — |
+| Clinical research | PubMed + ERIC + Semantic Scholar | DuckDuckGo |
+
+**TTS (Text-to-Speech)**
+
+| Tier | Engine | Offline |
+|---|---|---|
+| 1 | Inworld TTS-2 (cloud) | — |
+| 1.5 | Kokoro-82M neural (WASM) | en/es/fr/pt/ja/zh |
+| 2 | OS Web Speech API | all |
+| 3 | WASM espeak-ng | all |
+
+**Other Services**
+
+| Service | Provider | Purpose |
+|---|---|---|
+| Payments | Stripe | Subscriptions, checkout |
+| Email | Resend | Transactional (invites, shares) |
+| Video | LiveKit | Telehealth, case conferences |
+| SMS | Twilio | Emergency alerts, caregiver notifications |
+| Translation | Offline dictionary (1,261 × 20 langs) | AAC, Watch |
+
+## Synalux Inference Router
 
 All Prism AAC model inference is protected behind Synalux as a mandatory router. Models are **never accessible directly** — all traffic goes through Synalux for auth, billing, and rate limiting.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      CLIENT LAYER                           │
-│  prism-aac (iOS/web)         │   Synalux Portal             │
-└──────────────┬──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  CLIENT LAYER                                            │
+│  prism-aac (iOS/web)         │   Synalux Portal          │
+└──────────────┬───────────────────────────────────────────┘
                │ POST /api/v1/prism-aac/inference
                │ Authorization: Bearer <user-JWT>
                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   SYNALUX ROUTER                            │
-│  1. Verify JWT (no anonymous access)                        │
-│  2. Check subscription tier                                 │
-│  3. Enforce rate limit (50–2000 req/day by plan)            │
-│  4. Route to model tier by complexity                       │
-│  5. Proxy → Cloud (OpenRouter) with SECRET key (never sent to client)   │
-│  6. Log → aac_inference_log (billing audit trail)           │
-└──────────┬─────────────────────────────────────┬────────────┘
-           │ tier=fast                            │ tier=reason
-           ▼                                      ▼
-  ┌─────────────────────────┐      ┌───────────────────────┐
-  │  prism-coder:14b     │      │  prism-coder:32b              │
-  │  Cloud (OpenRouter) A100 40G        │      │  Cloud (OpenRouter) A100 80G      │
-  │  ~200ms                 │      │  ~3–5s (reasoning)    │
-  │  standard/pro           │      │  pro/enterprise only  │
-  └─────────────────────────┘      └───────────────────────┘
-           │                                      │
-           └────────────────┬─────────────────────┘
-                            ▼
-               HuggingFace dcostenco/prism-coder-* (private)
-               Cloud (OpenRouter) pulls at pod start with server-side token
+┌──────────────────────────────────────────────────────────┐
+│  SYNALUX ROUTER                                          │
+│  1. Verify JWT (no anonymous access)                     │
+│  2. Check subscription tier                              │
+│  3. Enforce rate limit (per-tier daily cap)               │
+│  4. Route to model tier by complexity                    │
+│  5. Proxy → OpenRouter / Gemini (key never exposed)      │
+│  6. Log → aac_inference_log (audit trail)                │
+└──────────┬───────────────────────────────┬───────────────┘
+           │                               │
+           ▼                               ▼
+  ┌────────────────────┐      ┌──────────────────────┐
+  │  LOCAL (Ollama)    │      │  CLOUD (OpenRouter)  │
+  │  prism-coder:14b   │      │  Claude Sonnet 4     │
+  │  prism-coder:8b    │      │  Claude Haiku 3.5    │
+  │  prism-coder:1b7   │      │  Gemini 2.5 Flash    │
+  │  free, offline     │      │  paid tiers          │
+  └────────────────────┘      └──────────────────────┘
 
-On-device (free, zero latency, offline):
-  prism-coder:1.7b GGUF Q4_K_M → iOS CoreML / Android ONNX
+On-device (free, offline):
+  prism-coder:1b7 GGUF Q4_K_M (1.1 GB) → any Apple device
+  prism-coder:8b  GGUF Q4_K_M (4.7 GB) → iPhone/iPad 8 GB+
+  prism-coder:14b GGUF Q4_K_M (8.4 GB) → Mac/iPad Pro 16 GB+
+
+HuggingFace: dcostenco/prism-coder-{14b,8b,32b,1.7b} (public GGUF weights)
 ```
 
 | Plan | Cloud model | Daily limit | On-device |
