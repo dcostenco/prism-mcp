@@ -61,8 +61,8 @@ If no tool is needed, respond in plain text.
 TOOL ROUTING — apply TOP TO BOTTOM, first match wins:
 1. current time / clock / what time is it -> respond directly (no tool)
 2. weather / live stock prices / live sports scores -> respond directly (no tool)
-3. translate / translation / "say X in Y" / "convert X to Y language" -> respond directly (no tool)
-4. AAC phrases / suggest phrases / communication phrases -> respond directly (no tool)
+3. translate / translation / "say X in Y" / "convert X to Y language" / "how do you say" -> respond directly (no tool)
+4. AAC phrases / suggest phrases / phrases for expressing / communication phrases / "give me phrases" -> respond directly (no tool)
 5. simple personal needs/feelings (I want X, I feel X, I need X) -> respond directly (no tool)
 6. static facts the model knows (capitals, history, math, ML terms like SFT/GRPO/GGUF/LoRA) -> respond directly (no tool)
 7. write code / write regex / explain code / math -> respond directly (no tool)
