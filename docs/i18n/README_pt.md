@@ -60,21 +60,21 @@ ollama pull dcostenco/prism-coder:1b7   # 2.2 GB · ~0.5s · any machine
 ollama pull dcostenco/prism-coder:14b   # 9.3 GB · ~3s   · Mac M2+
 ollama pull dcostenco/prism-coder:32b   # 19 GB  · ~8s   · Mac M2 Ultra+
 ```
-Routing accuracy — [100-case Prism eval](../../tests/benchmarks/prism-routing-100/README.md), v25 system prompt, **May 14 2026 (seed 2027 unless noted; v19 columns = mean of 3 seeds)**:
+Routing accuracy — [100-case Prism eval](../../tests/benchmarks/prism-routing-100/README.md), v26 system prompt + nothink template, **May 14 2026 (seed 2027)**:
 
-| Model | v19 published | **v26-polish** | Δ | Gate (≥90%) |
+| Model | Previous | **Current** | Δ | Gate (≥90%) |
 |---|---|---|---|---|
-| Sonnet 4 (cloud) | **99%** | — | — | ✅ |
-| Opus 4.7 (cloud) | **98%** | — | — | ✅ |
-| prism-coder:32b | **93.7%** | not promoted¹ | — | ✅ |
-| **prism-coder:14b** | 87.0% | **90.0%** | **+3.0** | ✅ **(passed after retrain)** |
-| prism-coder:1b7 | 84.0% | not promoted² | — | ❌ (capacity ceiling) |
+| Sonnet 4 (cloud) | 99% | **99%** | — | ✅ |
+| Opus 4.7 (cloud) | 98% | **98%** | — | ✅ |
+| **prism-coder:32b** | 93.7% | **98%** | **+4.3** | ✅ |
+| **prism-coder:14b** | 87.0% | **91%** | **+4.0** | ✅ |
+| prism-coder:1b7 | 84.0% | **88%** | **+4.0** | ❌ (know_srch 43%) |
 
-> **14B retrain biggest wins** (v26-polish vs v19): know_srch 43% → 71% (+28), handoff 60% → 88% (+28), save 100% → 92% (-8 acceptable trade). v26-polish corpus is 576 hand-crafted rows, 56% plain-text / 44% tool, 50 iters @ LR 1e-6, LoRA r=8 on QKVO. The lesson from a prior v25-max attempt (40K rows, 300 iters, r=32) is that more data + more iters caused **regression** on the BFCL gate (base 100% → v25-max 81%). v26 is intentionally a light polish, not full SFT.
+> **System prompt fix (May 14 2026)**: Rules 1-7 changed from `-> plain text` to `-> respond directly (no tool)`. Q4_K_M quantized models misread "plain text" as a tool name, causing AAC phrase requests to hallucinate non-existent tools. Fix eliminates all AAC/weather/translate hallucinations across all tiers (100% AAC routing accuracy). Combined with nothink template, 14B latency dropped from 6.2s → 1.0s avg (6x faster).
 >
-> ¹ 32B v26-polish was trained (50 iters on Mac) but the MLX-4bit → bf16 dequantize → Q4_K_M GGUF roundtrip produced a model with 60s+ inference latency — unshippable. Keeping the published v19 (93.7%, gate-passing). 32B retrain needs a different conversion path (e.g. fuse on bf16 base directly, but that requires 64GB unified memory headroom not currently available on this Mac).
+> **14B weak spot**: `knowledge_search` at 43% — model confuses it with `session_search_memory`. Both use "what do I know" phrasing. Corpus rebalancing needed.
 >
-> ² 1.7B v25-max retrain regressed BFCL gate (100% → 93.8%). Likely capacity-bound for this task class. Keeping published v19 (`:1b7-v19-q8`).
+> **1.7B**: Crosses 88% but still below 90% gate. know_srch=43% is the bottleneck, same as 14B.
 
 ### ⚡ Zero-search retrieval
 Holographic Reduced Representations (HRR) for instant similarity lookups without an index. ~5ms over 100K memories.
@@ -160,20 +160,19 @@ Models use the Synalux SFT corpus (AAC + Prism MCP tool taxonomy + clinical work
 
 > **Training note (May 14 2026)**: A v25-max retrain pass on a 40K-row composite corpus REGRESSED both 1.7B and 14B on the BFCL gate test (1.7B 100%→93.8%, 14B 100%→81.2%) because the corpus over-weighted tool-use density, causing the model to invoke tools for prompts like "write a Python function" that should be plain text. Reverted to v19 published adapters. Base Qwen3 models are strong tool-routers out of the box; future fine-tuning will use much sparser corpora focused on Synalux-specific tool names + AAC plain-text style.
 
-**Routing accuracy — [Prism 100-case eval](../../tests/benchmarks/prism-routing-100/README.md) (May 14 2026, seed 2027 for v26 vs v19 / mean of 3 seeds for v19 only rows):**
+**Routing accuracy — [Prism 100-case eval](../../tests/benchmarks/prism-routing-100/README.md) (May 14 2026, v26 system prompt + nothink template, seed 2027):**
 
-| Model | Overall | Load ctx | Save | Srch mem | Handoff | Compact | Web srch | Know srch | AAC | Translate | Pred | Irrel | Info | Edge | Avg lat | Inv |
+| Model | Overall | Load ctx | Save | Srch mem | Handoff | Compact | Web srch | Know srch | AAC | Translate | Plain txt | No-tool | Info | Edge | Avg lat | Inv |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Sonnet 4** (cloud) | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
 | **Opus 4.7** (cloud) | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 66% | 3.0s | 0 |
-| **prism-coder:32b** v19 ¹ | **93.7%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 79% | 83% | 100% | 67% | 100% | 82% | 2.3s | 0 |
-| **prism-coder:14b** v26-polish | **90.0%** | 100% | **92%** | 100% | **88%** | 100% | 100% | **71%** | 100% | 100% | 62% | 100% | 80% | 60% | 5.8s | 0 |
-| prism-coder:14b v19 | 87.0% | 100% | 100% | 100% | 60% | 100% | 100% | 43% | 100% | 100% | 62% | 100% | 80% | 65% | 6.8s | 0 |
-| **prism-coder:1b7** v19 | **84.0%** | 100% | 76% | 78% | 74% | 100% | 100% | 71% | 91% | 100% | 88% | 83% | 60% | 65% | 1.6s | 6 |
+| **prism-coder:32b** | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 100% | 100% | 100% | 80% | 2.7s | 0 |
+| **prism-coder:14b** | **91%** | 100% | 100% | 100% | 75% | 100% | 100% | 43% | 100% | 100% | 88% | 100% | 80% | 80% | 1.0s | 0 |
+| **prism-coder:1b7** | **88%** | 100% | 85% | 100% | 75% | 100% | 86% | 43% | 100% | 100% | 100% | 83% | 100% | 60% | 1.6s | 0 |
 
-> ¹ 32B uses `nothink` template + surgical prompt disambiguation (know/smem/pred boundary). Without fixes: 98% (nothink only) or 97% (base). See [`tests/benchmarks/prism-routing-100/Modelfile.32b`](../../tests/benchmarks/prism-routing-100/Modelfile.32b). See [`tests/benchmarks/prism-routing-100/Modelfile.32b`](../../tests/benchmarks/prism-routing-100/Modelfile.32b).
+> All models use `nothink` template (pre-closes `<think>` block to prevent thinking mode from consuming tokens). System prompt v26 uses `-> respond directly (no tool)` instead of `-> plain text` to prevent Q4_K_M quantized models from misreading rule descriptions as tool names.
 >
-> These are **not** Berkeley BFCL V4 leaderboard scores. The Prism eval covers 3 × 100 randomly sampled prompts across 13 categories (7 MCP tools, hallucination guards, AAC/translation plain-text). Full methodology and runner script: [`tests/benchmarks/prism-routing-100/`](../../tests/benchmarks/prism-routing-100/).
+> These are **not** Berkeley BFCL V4 leaderboard scores. The Prism eval covers 100 randomly sampled prompts across 13 categories (7 MCP tools, hallucination guards, AAC/translation plain-text). Full methodology and runner script: [`tests/benchmarks/prism-routing-100/`](../../tests/benchmarks/prism-routing-100/).
 
 **iOS deployment:** On-device inference via **llama.cpp Swift SPM** (`ggerganov/llama.cpp`). Model: `prism-aac-1b7-q4km.gguf` (1.0 GB, ~1.6 GB RAM at runtime). CoreML is not viable — coremltools does not support Qwen3 attention ops. Integration: `LLMEngine.swift` → `prismNativeBridge.askAI()` → `window.prismNativeAIResult()` token stream. Fallback: Mac Ollama over local WiFi (`OLLAMA_HOST=0.0.0.0`).
 
@@ -198,7 +197,7 @@ Set `LOCAL_LLM_URL=http://localhost:11434` in your portal config. Routing is aut
 - Fast queries → **1.7B** (~0.5s) · Standard → **14B** (~3s) · Complex/enterprise → **32B** (~8s) · Cloud fallback if Ollama unreachable
 
 iOS/mobile on same WiFi: `OLLAMA_HOST=0.0.0.0 ollama serve` on the Mac, then point `LOCAL_LLM_URL` at the Mac's IP.
-Routing accuracy (Prism 100-case eval, May 14 2026 rerun): **32B = 93% · 14B = 87% · 1.7B = 86%**. Zero invented tool names on 32B/14B; 1 on 1.7B. Only 32B currently clears the 90% gate; 14B/1.7B retrain plan in `## Models` section. → [Full results](../../tests/benchmarks/prism-routing-100/README.md)
+Routing accuracy (Prism 100-case eval, May 14 2026, v26 prompt + nothink): **32B = 98% · 14B = 91% · 1.7B = 88%**. Zero invented tool names across all tiers. 32B and 14B clear the 90% gate; 1.7B at 88% (know_srch bottleneck). → [Full results](../../tests/benchmarks/prism-routing-100/README.md)
 
 ---
 
@@ -259,6 +258,24 @@ As of v14.0.0, Prism's algorithm exports are a **stable public contract** under 
 | [Audit hooks framework](https://github.com/dcostenco/prism-coder/blob/main/docs/WOW_FEATURES.md#7-the-recipe-combining-all-of-the-above) | ACT-R decay (`d=0.25` lesson rate), spreading activation hybrid score (0.7/0.3), experience bias (`MIN_SAMPLES=5`, `MAX_BIAS_CAP=0.15`), graph-metrics warning ratios (0.20 / 0.30 / 0.40), compaction's 25KB prompt-budget. **327 tests pin every constant** — CI catches divergence automatically. |
 | [PrismAAC](https://github.com/dcostenco/prism-aac) | Spreading-activation phrase ranking (recency × frequency × per-user history). Caregiver corrections auto-harvest into the personalization corpus via the audit-hooks postflight harvester. The on-device 7B model + this algorithm stack is what makes PrismAAC defensible. |
 | Synalux portal | Tier-aware model routing using experience bias on prior outcomes per fingerprint. HIPAA-compliant clinical scribe with on-device-first privacy guarantees. |
+
+## Testing
+
+```bash
+npm test                           # 1,815 test cases across 71 files (vitest)
+npm test -- --coverage             # coverage report
+python3 tests/benchmarks/prism-routing-100/benchmark.py --models 1b7 14b 32b
+```
+
+**Pinned in CI** — 327 tests enforce every constant: ACT-R decay `d=0.25`, spreading-activation hybrid score `0.7/0.3`, experience bias `MIN_SAMPLES=5` / `MAX_BIAS_CAP=0.15`, graph-metrics warning ratios `0.20 / 0.30 / 0.40`, compaction's 25KB prompt-budget. CI catches divergence automatically.
+
+**Coverage areas**:
+- HRR (Holographic Reduced Representations) edge cases + performance
+- Encrypted sync corruption recovery
+- BCBA skill integration
+- Deep storage tier
+- Dashboard rendering
+- Routing benchmarks (100-case Prism eval) — see `tests/benchmarks/prism-routing-100/`
 
 ## Production Infrastructure (v16)
 
