@@ -109,3 +109,13 @@ export {
   configureNotificationsHandler,
   queryMemoryNaturalHandler,
 } from "./v12Handlers.js";
+
+// ── v15.4: prism_infer — local-first inference (RAM-gated cascade) ──
+// Always available. Saves caller's cloud tokens by routing to local
+// prism-coder via Ollama. Falls through to synalux portal only when
+// cloud_fallback=true is passed in the call.
+export {
+  PRISM_INFER_TOOL,
+  prismInferHandler,
+  isPrismInferArgs,
+} from "./prismInferHandler.js";

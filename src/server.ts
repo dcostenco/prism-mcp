@@ -220,6 +220,9 @@ import {
   backupDatabaseHandler,
   configureNotificationsHandler,
   queryMemoryNaturalHandler,
+  // v15.4: prism_infer — local-first inference (RAM-gated cascade)
+  PRISM_INFER_TOOL,
+  prismInferHandler,
 } from "./tools/index.js";
 
 // ─── Security: Boundary Tags for Context Output ──────────────
@@ -243,6 +246,7 @@ const BASE_TOOLS: Tool[] = [
   CODE_MODE_TRANSFORM_TOOL,           // code_mode_transform — universal post-processing
   BRAVE_ANSWERS_TOOL,                 // brave_answers — AI-grounded answers
   RESEARCH_PAPER_ANALYSIS_TOOL,       // gemini_research_paper_analysis — paper analysis
+  PRISM_INFER_TOOL,                   // prism_infer — local-first inference (token-saving cascade)
 ];
 
 // ─── v4.1 FIX: Build Session Memory Tools dynamically ────────
@@ -833,6 +837,9 @@ export function createServer() {
 
           case "gemini_research_paper_analysis":
             result = await researchPaperAnalysisHandler(args); break;
+
+          case "prism_infer":
+            result = await prismInferHandler(args); break;
 
           // ── Session Memory Tools (only callable when Supabase is configured) ──
           // REVIEWER NOTE: Even though these tools won't appear in the
