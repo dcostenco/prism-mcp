@@ -66,9 +66,9 @@ Routing accuracy — [100-case Prism eval](../../tests/benchmarks/prism-routing-
 |---|---|---|---|---|
 | Sonnet 4 (cloud) | 99% | **99%** | — | ✅ |
 | Opus 4.7 (cloud) | 98% | **98%** | — | ✅ |
-| **prism-coder:32b** | 93.7% | **98%** | **+4.3** | ✅ |
-| **prism-coder:14b** | 87.0% | **91%** | **+4.0** | ✅ |
-| prism-coder:1b7 | 84.0% | **88%** | **+4.0** | ❌ (know_srch 43%) |
+| **prism-coder:32b** | 93.7% | **97.3% ± 0.6%** | **+3.6** | ✅ |
+| **prism-coder:14b** | 87.0% | **91.0% ± 0.0%** | **+4.0** | ✅ |
+| prism-coder:1b7 | 84.0% | **88.0% ± 0.0%** | **+4.0** | ❌ (know_srch 43%) |
 
 > **System prompt fix (May 14 2026)**: Rules 1-7 changed from `-> plain text` to `-> respond directly (no tool)`. Q4_K_M quantized models misread "plain text" as a tool name, causing AAC phrase requests to hallucinate non-existent tools. Fix eliminates all AAC/weather/translate hallucinations across all tiers (100% AAC routing accuracy). Combined with nothink template, 14B latency dropped from 6.2s → 1.0s avg (6x faster).
 >
@@ -166,9 +166,9 @@ Models use the Synalux SFT corpus (AAC + Prism MCP tool taxonomy + clinical work
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Sonnet 4** (cloud) | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
 | **Opus 4.7** (cloud) | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 66% | 3.0s | 0 |
-| **prism-coder:32b** | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 100% | 100% | 100% | 80% | 2.7s | 0 |
-| **prism-coder:14b** | **91%** | 100% | 100% | 100% | 75% | 100% | 100% | 43% | 100% | 100% | 88% | 100% | 80% | 80% | 1.0s | 0 |
-| **prism-coder:1b7** | **88%** | 100% | 85% | 100% | 75% | 100% | 86% | 43% | 100% | 100% | 100% | 83% | 100% | 60% | 1.6s | 0 |
+| **prism-coder:32b** | **97.3% ± 0.6%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 94% | 83% | 100% | 100% | 100% | 82% | 2.5s | 0 |
+| **prism-coder:14b** | **91.0% ± 0.0%** | 100% | 100% | 100% | 74% | 100% | 100% | 43% | 100% | 100% | 88% | 100% | 80% | 82% | 1.2s | 0 |
+| **prism-coder:1b7** | **88.0% ± 0.0%** | 100% | 84% | 100% | 74% | 100% | 86% | 43% | 100% | 100% | 100% | 83% | 100% | 64% | 1.6s | 0 |
 
 > All models use `nothink` template (pre-closes `<think>` block to prevent thinking mode from consuming tokens). System prompt v26 uses `-> respond directly (no tool)` instead of `-> plain text` to prevent Q4_K_M quantized models from misreading rule descriptions as tool names.
 >
@@ -197,7 +197,7 @@ Set `LOCAL_LLM_URL=http://localhost:11434` in your portal config. Routing is aut
 - Fast queries → **1.7B** (~0.5s) · Standard → **14B** (~3s) · Complex/enterprise → **32B** (~8s) · Cloud fallback if Ollama unreachable
 
 iOS/mobile on same WiFi: `OLLAMA_HOST=0.0.0.0 ollama serve` on the Mac, then point `LOCAL_LLM_URL` at the Mac's IP.
-Routing accuracy (Prism 100-case eval, May 14 2026, v26 prompt + nothink): **32B = 98% · 14B = 91% · 1.7B = 88%**. Zero invented tool names across all tiers. 32B and 14B clear the 90% gate; 1.7B at 88% (know_srch bottleneck). → [Full results](../../tests/benchmarks/prism-routing-100/README.md)
+Routing accuracy (Prism 100-case eval, May 14 2026, v26 prompt + nothink, 3-seed mean): **32B = 97.3% ± 0.6% · 14B = 91.0% ± 0.0% · 1.7B = 88.0% ± 0.0%**. Zero invented tool names across all tiers. 32B and 14B clear the 90% gate; 1.7B at 88% (know_srch bottleneck). → [Full results](../../tests/benchmarks/prism-routing-100/README.md)
 
 ---
 
