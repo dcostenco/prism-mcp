@@ -31,6 +31,8 @@ jobs:
 
       - name: Install Dependencies
         run: npm install --no-audit
+        env:
+          ONNXRUNTIME_NODE_INSTALL_CUDA: skip
 
       - name: Build TypeScript
         run: npm run build
