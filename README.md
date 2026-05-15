@@ -60,24 +60,21 @@ ollama pull dcostenco/prism-coder:1b7   # 2.2 GB · ~0.5s · any machine
 ollama pull dcostenco/prism-coder:14b   # 9.3 GB · ~3s   · Mac M2+
 ollama pull dcostenco/prism-coder:32b   # 19 GB  · ~8s   · Mac M2 Ultra+
 ```
-### Cascade: 100% routing accuracy offline — beats Claude Opus
+### Offline cascade: 14B → 1.7B fallback
 
-The offline model cascade (1.7B → 14B) achieves **100% on live integration tests** — surpassing Claude Opus (98%) while running fully offline at zero cost:
+When the Synalux cloud is unreachable, the AAC app cascades through local models:
 
-| | Cascade (1.7B→14B) | Claude Opus 4.7 | Claude Sonnet 4 |
-|---|---|---|---|
-| **Live test accuracy** | **100%** (15/15) | 98% | 99% |
-| AAC (life-critical) | **100%** | 100% | 100% |
-| Tool routing (7 tools) | **100%** | 98% | 99% |
-| Cost per request | **$0** | $0.05 | $0.01 |
-| Latency | **0.3–1.1s** | 3.0s | 3.2s |
-| Works offline | **Yes** | No | No |
+```
+Synalux cloud (Claude Sonnet/Opus, 98-99%)
+  ↓ offline
+prism-coder:14b (98%, 1.1s) — primary local router
+  ↓ model not loaded / unavailable
+prism-coder:1.7b (88%, 1.6s) — on-device fallback (iPhone)
+```
 
-How it works: the 1.7B handles easy cases instantly (AAC phrases, translations, plain text). When it can't produce a confident response (empty, truncated, or invented tool name), the 14B catches it. The 14B routes at 98% — so the cascade's effective accuracy is **88% + (12% × 98%) = 99.8% theoretical, 100% measured**.
+The 14B is the workhorse — it ties Claude Opus at 98% while running offline. The 1.7B is only used when the 14B can't be loaded (iPhone, low-memory devices). The cascade validates responses against the 7 known tool names and escalates on empty, truncated, or hallucinated tool calls.
 
-Tested with [28 unit tests + 16 live integration tests](https://github.com/dcostenco/prism-aac/blob/main/tests/cascade-live.test.ts) against real Ollama models — not mocked.
-
-**Routing accuracy — individual models** ([100-case Prism eval](tests/benchmarks/prism-routing-100/README.md), v27 system prompt + nothink template, 3-seed mean ± std, May 15 2026):
+**Routing accuracy** ([100-case Prism eval](tests/benchmarks/prism-routing-100/README.md), v27 system prompt + nothink template, 3-seed mean ± std, May 15 2026):
 
 | Model | Accuracy | Cost/req | Latency | Runs on | AAC | Know Search |
 |---|---|---|---|---|---|---|
@@ -87,7 +84,7 @@ Tested with [28 unit tests + 16 live integration tests](https://github.com/dcost
 | **prism-coder:32b** | **97.3% ± 0.6%** | **$0** | 2.5s | Mac (48GB+) | **100%** | 100% |
 | prism-coder:1.7b | **88%** | **$0** | 1.6s | **iPhone** | **100%** | 71% |
 
-**Why this matters for a life-critical AAC app**: a child in a hospital without WiFi, a nonverbal adult on an airplane, or a family on a budget gets **better-than-Claude routing accuracy** with zero cloud dependency — and the AAC path (expressing pain, asking for help) routes correctly **100% of the time across all tiers, all seeds, and all live tests**.
+**Why this matters for a life-critical AAC app**: a child in a hospital without WiFi, a nonverbal adult on an airplane, or a family on a budget gets Claude-grade routing accuracy (98%) with zero cloud dependency — and the AAC path (expressing pain, asking for help) routes correctly **100% of the time across all tiers and all seeds tested**.
 
 **What it does NOT mean**: these scores measure routing precision on a narrow 7-tool taxonomy, not general intelligence. Claude outperforms these models on everything outside this task. The value is **offline reliability at zero cost**, not replacing Claude.
 
@@ -214,7 +211,7 @@ Set `LOCAL_LLM_URL=http://localhost:11434` in your portal config. Routing is aut
 - Fast queries → **1.7B** (~0.5s) · Standard → **14B** (~3s) · Complex/enterprise → **32B** (~8s) · Cloud fallback if Ollama unreachable
 
 iOS/mobile on same WiFi: `OLLAMA_HOST=0.0.0.0 ollama serve` on the Mac, then point `LOCAL_LLM_URL` at the Mac's IP.
-Routing accuracy (May 15 2026): **Cascade (1.7B→14B) = 100% on live tests** — beats Claude Opus (98%). Individual models: 14B = 98.0% · 32B = 97.3% · 1.7B = 88%. → [Full results](tests/benchmarks/prism-routing-100/README.md) · [Live cascade tests](https://github.com/dcostenco/prism-aac/blob/main/tests/cascade-live.test.ts)
+Routing accuracy (May 15 2026, 3-seed mean): **14B = 98.0% (ties Claude Opus) · 32B = 97.3% · 1.7B = 88%**. Offline cascade: 14B primary → 1.7B fallback. → [Full results](tests/benchmarks/prism-routing-100/README.md)
 
 ---
 
