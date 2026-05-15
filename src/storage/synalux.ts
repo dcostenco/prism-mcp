@@ -70,20 +70,22 @@ export class SynaluxStorage extends SupabaseStorage {
 
   constructor() {
     super();
-    if (!PRISM_SYNALUX_BASE_URL || !PRISM_SYNALUX_API_KEY) {
+    const url = process.env.PRISM_SYNALUX_BASE_URL || PRISM_SYNALUX_BASE_URL;
+    const key = process.env.PRISM_SYNALUX_API_KEY || PRISM_SYNALUX_API_KEY;
+    if (!url || !key) {
       throw new Error(
         "[SynaluxStorage] PRISM_SYNALUX_BASE_URL and PRISM_SYNALUX_API_KEY must be set. " +
         "Set them, or use PRISM_STORAGE=local for offline mode."
       );
     }
-    if (!PRISM_SYNALUX_API_KEY.startsWith("synalux_sk_")) {
+    if (!key.startsWith("synalux_sk_")) {
       throw new Error(
         "[SynaluxStorage] PRISM_SYNALUX_API_KEY must be a synalux_sk_* refresh token. " +
         "Generate one in the synalux portal dashboard."
       );
     }
-    this.baseUrl = PRISM_SYNALUX_BASE_URL.replace(/\/+$/, "");
-    this.refreshToken = PRISM_SYNALUX_API_KEY;
+    this.baseUrl = url.replace(/\/+$/, "");
+    this.refreshToken = key;
   }
 
   async initialize(_isLocal: boolean = false): Promise<void> {

@@ -9,8 +9,7 @@ import { SupabaseStorage } from "./supabase.js";
 import type { StorageBackend } from "./interface.js";
 import { getSetting } from "./configStorage.js";
 
-/** Validates a URL is a valid http(s) Supabase endpoint. */
-function isValidSupabaseUrl(url: string): boolean {
+function isValidHttpUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return parsed.protocol === "http:" || parsed.protocol === "https:";
@@ -19,200 +18,112 @@ function isValidSupabaseUrl(url: string): boolean {
   }
 }
 
+/**
+ * Probe for synalux credentials: env vars first, then config DB.
+ * Returns true if usable credentials are now in process.env.
+ */
+async function ensureSynaluxCredentials(): Promise<boolean> {
+  if (SYNALUX_CONFIGURED) return true;
+  const url = (await getSetting("PRISM_SYNALUX_BASE_URL"))?.trim();
+  const key = (await getSetting("PRISM_SYNALUX_API_KEY"))?.trim();
+  if (url && key && isValidHttpUrl(url)) {
+    process.env.PRISM_SYNALUX_BASE_URL = url;
+    process.env.PRISM_SYNALUX_API_KEY = key;
+    debugLog("[Prism Storage] Synalux credentials loaded from dashboard config");
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Probe for direct-Supabase credentials: env vars first, then config DB.
+ * Returns true if usable credentials are now in process.env.
+ */
+async function ensureSupabaseCredentials(): Promise<boolean> {
+  if (SUPABASE_CONFIGURED) return true;
+  const envUrl = process.env.SUPABASE_URL?.trim();
+  const envKey = process.env.SUPABASE_KEY?.trim();
+  if (envUrl && envKey && isValidHttpUrl(envUrl)) return true;
+  const url = (await getSetting("SUPABASE_URL"))?.trim();
+  const key = (await getSetting("SUPABASE_KEY"))?.trim();
+  if (url && key && isValidHttpUrl(url)) {
+    process.env.SUPABASE_URL = url;
+    process.env.SUPABASE_KEY = key;
+    debugLog("[Prism Storage] Supabase credentials loaded from dashboard config");
+    return true;
+  }
+  return false;
+}
+
 let storageInstance: StorageBackend | null = null;
 export let activeStorageBackend: string = "local";
 
-/**
- * Returns the singleton storage backend.
- *
- * On first call: creates and initializes the appropriate backend.
- * On subsequent calls: returns the cached instance.
- */
 export async function getStorage(): Promise<StorageBackend> {
   if (storageInstance) return storageInstance;
 
-  // Use environment variable if explicitly set, otherwise fall back to db config
   const envStorage = process.env.PRISM_STORAGE as "supabase" | "synalux" | "local" | "auto" | undefined;
-  let requestedBackend = (envStorage || await getSetting("PRISM_STORAGE", ENV_PRISM_STORAGE)) as "supabase" | "synalux" | "local" | "auto";
+  let requested = (envStorage || await getSetting("PRISM_STORAGE", ENV_PRISM_STORAGE)) as "supabase" | "synalux" | "local" | "auto";
 
-  // ─── v13: PRISM_FORCE_LOCAL hard override ─────────────────────
-  // Used by free tier and HIPAA deployments that must never reach the
-  // network for memory operations. Wins over every other resolution.
   if (PRISM_FORCE_LOCAL) {
-    requestedBackend = "local";
+    requested = "local";
     debugLog("[Prism Storage] PRISM_FORCE_LOCAL=true — forcing local SQLite");
   }
 
-  // ─── v13: Auto-resolve "auto" → synalux > supabase > local ────
-  // Synalux portal is the paid-tier default — it mediates project
-  // validation, tier gating, and audit. Direct Supabase remains as a
-  // legacy fallback for installs that have not yet migrated to a portal
-  // API key. Local SQLite is the floor.
-  // Tracks whether synalux credentials are usable — starts from the module-load
-  // constant but may be promoted to true if the dashboard-config fallback
-  // injects credentials into process.env at runtime. Mirrors `supabaseReady`
-  // below; required because SYNALUX_CONFIGURED is captured once at import time.
-  let synaluxReady = SYNALUX_CONFIGURED;
-
-  if (requestedBackend === "auto") {
-    if (SYNALUX_CONFIGURED) {
-      requestedBackend = "synalux";
-      debugLog("[Prism Storage] Auto-resolved: synalux (portal credentials from env)");
+  // ─── Resolve "auto" → synalux > supabase > local ─────────────
+  if (requested === "auto") {
+    if (await ensureSynaluxCredentials()) {
+      requested = "synalux";
+    } else if (await ensureSupabaseCredentials()) {
+      requested = "supabase";
     } else {
-      // Check dashboard config DB for synalux credentials (env vars may be
-      // absent when the MCP client doesn't pass them through)
-      const dashSynaluxUrl = (await getSetting("PRISM_SYNALUX_BASE_URL"))?.trim();
-      const dashSynaluxKey = (await getSetting("PRISM_SYNALUX_API_KEY"))?.trim();
-      if (dashSynaluxUrl && dashSynaluxKey && isValidSupabaseUrl(dashSynaluxUrl)) {
-        process.env.PRISM_SYNALUX_BASE_URL = dashSynaluxUrl;
-        process.env.PRISM_SYNALUX_API_KEY = dashSynaluxKey;
-        requestedBackend = "synalux";
-        synaluxReady = true;
-        debugLog("[Prism Storage] Auto-resolved: synalux (dashboard config)");
-      } else {
-        const envUrl = process.env.SUPABASE_URL?.trim();
-        const envKey = process.env.SUPABASE_KEY?.trim();
-        if (envUrl && envKey && isValidSupabaseUrl(envUrl)) {
-          requestedBackend = "supabase";
-          debugLog("[Prism Storage] Auto-resolved: supabase (env vars, legacy direct-write path)");
-        } else {
-          const dashUrl = (await getSetting("SUPABASE_URL"))?.trim();
-          const dashKey = (await getSetting("SUPABASE_KEY"))?.trim();
-          if (dashUrl && dashKey && isValidSupabaseUrl(dashUrl)) {
-            requestedBackend = "supabase";
-            debugLog("[Prism Storage] Auto-resolved: supabase (dashboard config, legacy)");
-          } else {
-            requestedBackend = "local";
-            debugLog("[Prism Storage] Auto-resolved: local (no portal or Supabase credentials)");
-          }
-        }
-      }
+      requested = "local";
     }
+    debugLog(`[Prism Storage] Auto-resolved: ${requested}`);
   }
 
-  // Guardrail: if Supabase is requested but env-var credentials are missing,
-  // check the dashboard config DB (prism-config.db) as a fallback before
-  // giving up. Dashboard settings take precedence over absent env vars.
-  let supabaseReady = SUPABASE_CONFIGURED;
-  if (!supabaseReady && requestedBackend === "supabase") {
-    const dashUrl = await getSetting("SUPABASE_URL");
-    const dashKey = await getSetting("SUPABASE_KEY");
-    if (dashUrl && dashKey) {
-      try {
-        const parsed = new URL(dashUrl);
-        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-          supabaseReady = true;
-          // Inject into process.env so downstream consumers (SupabaseStorage,
-          // SyncBus) pick them up without needing their own dashboard lookups.
-          process.env.SUPABASE_URL = dashUrl;
-          process.env.SUPABASE_KEY = dashKey;
-          debugLog("[Prism Storage] Using Supabase credentials from dashboard config");
-        }
-      } catch {
-        // Invalid URL — fall through to local fallback
-      }
-    }
+  // ─── Validate explicit backend has credentials ────────────────
+  if (requested === "synalux" && !(await ensureSynaluxCredentials())) {
+    console.error("[Prism Storage] Synalux requested but credentials missing. Falling back to local.");
+    requested = "local";
+  }
+  if (requested === "supabase" && !(await ensureSupabaseCredentials())) {
+    console.error("[Prism Storage] Supabase requested but credentials missing. Falling back to local.");
+    requested = "local";
   }
 
-  // Last-chance probe for explicit "synalux" backend (from PRISM_STORAGE env
-  // or dashboard setting) when the auto branch above didn't run. Symmetric
-  // with the supabase fallback at lines 89-108.
-  if (requestedBackend === "synalux" && !synaluxReady) {
-    const dashSynaluxUrl = (await getSetting("PRISM_SYNALUX_BASE_URL"))?.trim();
-    const dashSynaluxKey = (await getSetting("PRISM_SYNALUX_API_KEY"))?.trim();
-    if (dashSynaluxUrl && dashSynaluxKey && isValidSupabaseUrl(dashSynaluxUrl)) {
-      process.env.PRISM_SYNALUX_BASE_URL = dashSynaluxUrl;
-      process.env.PRISM_SYNALUX_API_KEY = dashSynaluxKey;
-      synaluxReady = true;
-      debugLog("[Prism Storage] Using Synalux credentials from dashboard config");
-    }
-  }
-
-  if (requestedBackend === "supabase" && !supabaseReady) {
-    activeStorageBackend = "local";
-    console.error(
-      "[Prism Storage] Supabase backend requested but SUPABASE_URL/SUPABASE_KEY are invalid or unresolved. Falling back to local storage."
-    );
-  } else if (requestedBackend === "synalux" && !synaluxReady) {
-    activeStorageBackend = "local";
-    console.error(
-      "[Prism Storage] Synalux backend requested but PRISM_SYNALUX_BASE_URL/PRISM_SYNALUX_API_KEY are missing or invalid. Falling back to local storage."
-    );
-  } else {
-    activeStorageBackend = requestedBackend;
-  }
-
+  // ─── Initialize ───────────────────────────────────────────────
+  activeStorageBackend = requested;
   debugLog(`[Prism Storage] Initializing backend: ${activeStorageBackend}`);
 
-  if (activeStorageBackend === "local") {
-    const { SqliteStorage } = await import("./sqlite.js");
-    storageInstance = new SqliteStorage();
-  } else if (activeStorageBackend === "supabase") {
-    storageInstance = new SupabaseStorage();
-  } else if (activeStorageBackend === "synalux") {
+  if (activeStorageBackend === "synalux") {
     const { SynaluxStorage } = await import("./synalux.js");
     storageInstance = new SynaluxStorage();
+  } else if (activeStorageBackend === "supabase") {
+    storageInstance = new SupabaseStorage();
+  } else if (activeStorageBackend === "local") {
+    const { SqliteStorage } = await import("./sqlite.js");
+    storageInstance = new SqliteStorage();
   } else {
-    throw new Error(
-      `Unknown PRISM_STORAGE value: "${activeStorageBackend}". ` +
-      `Must be "local", "supabase", or "synalux".`
-    );
+    throw new Error(`Unknown PRISM_STORAGE value: "${activeStorageBackend}".`);
   }
 
   await storageInstance.initialize(activeStorageBackend === "local");
 
-  // ─── v9.2.4: Cross-Backend Handoff Reconciliation ──────────────
-  // When running on local SQLite but Supabase credentials exist,
-  // pull any newer handoffs from Supabase into SQLite. This fixes
-  // the split-brain where Claude Desktop writes go to Supabase but
-  // Antigravity reads from SQLite and sees stale data.
-  //
-  // IMPORTANT: The supabaseReady check above only resolves dashboard
-  // credentials when requestedBackend==="supabase". For reconciliation
-  // we need credentials even when backend is "local", so we do a
-  // second probe here.
-  if (activeStorageBackend === "local") {
-    let canReconcile = supabaseReady;
-    if (!canReconcile) {
-      // Probe dashboard config for Supabase credentials
-      const dashUrl = await getSetting("SUPABASE_URL");
-      const dashKey = await getSetting("SUPABASE_KEY");
-      if (dashUrl && dashKey) {
-        try {
-          const parsed = new URL(dashUrl);
-          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-            canReconcile = true;
-            process.env.SUPABASE_URL = dashUrl;
-            process.env.SUPABASE_KEY = dashKey;
-            debugLog("[Prism Storage] Reconciliation: using Supabase credentials from dashboard config");
-          }
-        } catch {
-          // Invalid URL — skip reconciliation
-        }
-      }
-    }
-
-    if (canReconcile) {
-      try {
-        const { reconcileHandoffs } = await import("./reconcile.js");
-        const { SqliteStorage } = await import("./sqlite.js");
-        const sqliteInstance = storageInstance as InstanceType<typeof SqliteStorage>;
-        const getTimestamps = () => sqliteInstance.getHandoffTimestamps();
-        await reconcileHandoffs(storageInstance!, getTimestamps);
-      } catch (err) {
-        // Non-fatal: reconciliation is best-effort
-        debugLog(`[Prism Storage] Reconciliation skipped: ${err instanceof Error ? err.message : String(err)}`);
-      }
+  // ─── Cross-backend reconciliation (local + Supabase available) ─
+  if (activeStorageBackend === "local" && await ensureSupabaseCredentials()) {
+    try {
+      const { reconcileHandoffs } = await import("./reconcile.js");
+      const { SqliteStorage } = await import("./sqlite.js");
+      const sqliteInstance = storageInstance as InstanceType<typeof SqliteStorage>;
+      await reconcileHandoffs(storageInstance!, () => sqliteInstance.getHandoffTimestamps());
+    } catch (err) {
+      debugLog(`[Prism Storage] Reconciliation skipped: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   return storageInstance;
 }
 
-/**
- * Closes the active storage backend and resets the singleton.
- * Used for testing and graceful shutdown.
- */
 export async function closeStorage(): Promise<void> {
   if (storageInstance) {
     await storageInstance.close();
@@ -220,7 +131,6 @@ export async function closeStorage(): Promise<void> {
   }
 }
 
-// Re-export the interface types for convenience
 export type { StorageBackend } from "./interface.js";
 export type {
   LedgerEntry,
