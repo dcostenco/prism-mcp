@@ -9,7 +9,7 @@ import { SupabaseStorage } from "./supabase.js";
 import type { StorageBackend } from "./interface.js";
 import { getSetting } from "./configStorage.js";
 
-function isValidHttpUrl(url: string): boolean {
+export function isValidHttpUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return parsed.protocol === "http:" || parsed.protocol === "https:";

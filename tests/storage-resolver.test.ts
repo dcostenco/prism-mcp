@@ -167,4 +167,31 @@ describe("getStorage — synalux dashboard-config fallback", () => {
     expect((storage as { tag?: string }).tag).toBe("sqlite");
     expect(synaluxInstances).toHaveLength(0);
   });
+
+  it("picks up synalux env vars injected after module load (no DB lookup)", async () => {
+    // Pins the symmetric process.env probe in ensureSynaluxCredentials.
+    // SYNALUX_CONFIGURED is captured at import time, so creds injected
+    // later (e.g. by a wrapper script or test harness) must still be
+    // visible without falling through to the DB.
+    process.env.PRISM_STORAGE = "auto";
+    process.env.PRISM_SYNALUX_BASE_URL = "https://portal.synalux.example";
+    process.env.PRISM_SYNALUX_API_KEY = "synalux_sk_test";
+    // Dashboard mockSettings is empty — the helper must not need it.
+
+    const storage = await freshGetStorage();
+
+    expect((storage as { tag?: string }).tag).toBe("synalux");
+  });
+
+  it("falls back to local when explicit synalux backend has no credentials anywhere", async () => {
+    // Mirror of the supabase guardrail: explicit backend, no creds, must
+    // fall back to local with the named-env-var error message (not crash).
+    process.env.PRISM_STORAGE = "synalux";
+    // No env vars, no dashboard creds.
+
+    const storage = await freshGetStorage();
+
+    expect((storage as { tag?: string }).tag).toBe("sqlite");
+    expect(synaluxInstances).toHaveLength(0);
+  });
 });
