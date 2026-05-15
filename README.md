@@ -47,7 +47,7 @@ Free tier runs entirely on your machine — SQLite, local embedding model, no AP
 
 | | Cloud LLM | Local `prism-coder` |
 |--|---|---|
-| Tool-call latency | 200ms–3s | **~0.5s (1.7B) / ~3s (14B)** |
+| Tool-call latency | 200ms–3s | **~1.6s (1.7B) / ~1.1s (14B)** |
 | API key required | Yes | **No** |
 | Data sent externally | Every prompt | **Nothing** |
 | Works offline | ❌ | ✅ |
@@ -56,33 +56,37 @@ Free tier runs entirely on your machine — SQLite, local embedding model, no AP
 
 Install in one command — no config, no keys, no vendor agreements:
 ```bash
-ollama pull dcostenco/prism-coder:1b7   # 2.2 GB · ~0.5s · any machine
-ollama pull dcostenco/prism-coder:14b   # 9.3 GB · ~3s   · Mac M2+
-ollama pull dcostenco/prism-coder:32b   # 19 GB  · ~8s   · Mac M2 Ultra+
+ollama pull dcostenco/prism-coder:1b7   # 2.2 GB · ~1.6s · any machine
+ollama pull dcostenco/prism-coder:8b    # 4.7 GB · ~0.8s · Mac M1+ / iPhone 8GB
+ollama pull dcostenco/prism-coder:14b   # 8.4 GB · ~1.1s · Mac M2+ / iPad Pro 16GB
+ollama pull dcostenco/prism-coder:32b   # 19 GB  · ~2.5s · Mac M2 Ultra+
 ```
-### Offline cascade: 14B → 1.7B fallback
+### Offline cascade: 14B → 8B → 1.7B fallback
 
 When the Synalux cloud is unreachable, the AAC app cascades through local models:
 
 ```
 Synalux cloud (Claude Sonnet/Opus, 98-99%)
   ↓ offline
-prism-coder:14b (98%, 1.1s) — primary local router
-  ↓ model not loaded / unavailable
-prism-coder:1.7b (88%, 1.6s) — on-device fallback (iPhone)
+prism-coder:14b (98%, ~1.1s) — Mac / iPad Pro 16GB
+  ↓ not loaded
+prism-coder:8b  (96%, ~0.8s) — iPhone / iPad 8GB
+  ↓ OOM or not loaded
+prism-coder:1.7b (88%, ~1.6s) — any device, always fits
 ```
 
-The 14B is the workhorse — it ties Claude Opus at 98% while running offline. The 1.7B is only used when the 14B can't be loaded (iPhone, low-memory devices). The cascade validates responses against the 7 known tool names and escalates on empty, truncated, or hallucinated tool calls.
+The cascade validates responses against the 7 known tool names and escalates on empty, truncated, or hallucinated tool calls.
 
-**Routing accuracy** ([100-case Prism eval](tests/benchmarks/prism-routing-100/README.md), v27 system prompt + nothink template, 3-seed mean ± std, May 15 2026):
+**Routing accuracy** ([100-case Prism eval](tests/benchmarks/prism-routing-100/README.md), v27 system prompt + nothink template, 3-seed mean, May 15 2026):
 
 | Model | Accuracy | Cost/req | Latency | Runs on | AAC | Know Search |
 |---|---|---|---|---|---|---|
 | Claude Sonnet 4 | **99%** | ~$0.01 | 3.2s | Cloud | 100% | 100% |
-| **prism-coder:14b** | **98.0% ± 0.0%** | **$0** | **1.1s** | Mac (24GB+) | **100%** | **100%** |
+| **prism-coder:14b** | **98.0% ± 0.0%** | **$0** | **1.1s** | Mac 24GB+ / iPad Pro 16GB | **100%** | **100%** |
 | Claude Opus 4.7 | **98%** | ~$0.05 | 3.0s | Cloud | 100% | 100% |
-| **prism-coder:32b** | **97.3% ± 0.6%** | **$0** | 2.5s | Mac (48GB+) | **100%** | 100% |
-| prism-coder:1.7b | **88%** | **$0** | 1.6s | **iPhone** | **100%** | 71% |
+| **prism-coder:32b** | **97.3% ± 0.6%** | **$0** | 2.5s | Mac 48GB+ | **100%** | 100% |
+| **prism-coder:8b** | **96.0% ± 0.0%** | **$0** | **0.8s** | iPhone/iPad 8GB | **100%** | 93% |
+| prism-coder:1.7b | **88%** | **$0** | 1.6s | Any device | **100%** | 71% |
 
 **Why this matters for a life-critical AAC app**: a child in a hospital without WiFi, a nonverbal adult on an airplane, or a family on a budget gets Claude-grade routing accuracy (98%) with zero cloud dependency — and the AAC path (expressing pain, asking for help) routes correctly **100% of the time across all tiers and all seeds tested**.
 
@@ -181,14 +185,15 @@ Models use the Synalux SFT corpus (AAC + Prism MCP tool taxonomy + clinical work
 | **Sonnet 4** (cloud) | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
 | **prism-coder:14b** | **98.0%** | 100% | 100% | 100% | 87% | 100% | 100% | **100%** | 100% | 100% | 100% | 100% | 100% | 82% | 1.1s | 0 |
 | **Opus 4.7** (cloud) | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 66% | 3.0s | 0 |
-| **prism-coder:32b** | **97.3%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 85% | 83% | 100% | 100% | 100% | 100% | 2.4s | 0 |
-| **prism-coder:1.7b** | **86.3%** | 100% | 71% | 100% | 87% | 89% | 100% | 43% | 100% | 100% | 88% | 100% | 80% | 64% | 2.3s | 1 |
+| **prism-coder:32b** | **97.3%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 85% | 83% | 100% | 100% | 100% | 100% | 2.5s | 0 |
+| **prism-coder:8b** | **96.0%** | 100% | 99% | 97% | 93% | 100% | 100% | 93% | 100% | 100% | 100% | 100% | 100% | 80% | 0.8s | 0 |
+| **prism-coder:1.7b** | **88%** | 100% | 77% | 100% | 87% | 100% | 86% | 71% | 100% | 100% | 100% | 83% | 80% | 64% | 1.6s | 0 |
 
 > **Methodology**: 100 prompts from a 200-pool across 13 categories. Scores are 3-seed mean (seeds 2027/2028/2029). 14B showed **zero variance**; 32B and 1.7B varied by ±0.6%. All models use the `nothink` template. System prompt v27 uses category labels (`CONVERSATION RECALL:` / `SAVED KNOWLEDGE:`) and `-> respond directly (no tool)` to prevent Q4_K_M quantization artifacts. Full runner: [`tests/benchmarks/prism-routing-100/`](tests/benchmarks/prism-routing-100/).
 >
 > **These are NOT general-purpose LLM benchmarks.** This eval measures routing precision on 7 specific MCP tools. The prism-coder models are specialists — they approach Claude on this narrow task but would not compete on general reasoning, coding, or open-domain QA. The value is **offline reliability at zero cost**, not replacing cloud models.
 
-**iOS deployment:** On-device inference via **llama.cpp Swift SPM** (`ggerganov/llama.cpp`). Model: `prism-aac-1b7-q4km.gguf` (1.0 GB, ~1.6 GB RAM at runtime). CoreML is not viable — coremltools does not support Qwen3 attention ops. Integration: `LLMEngine.swift` → `prismNativeBridge.askAI()` → `window.prismNativeAIResult()` token stream. Fallback: Mac Ollama over local WiFi (`OLLAMA_HOST=0.0.0.0`).
+**iOS deployment:** On-device inference via **llama.cpp Swift SPM**. Auto-selects by device RAM: 14B on iPad Pro 16GB (98%), 8B on iPhone/iPad 8GB (96%, OOM fallback to 1.7B at 88%). CoreML not viable — coremltools doesn't support Qwen3 attention ops. Integration: `LLMEngine.swift` → `prismNativeBridge.askAI()` → token stream. WiFi fallback: Mac Ollama (`OLLAMA_HOST=0.0.0.0`).
 
 ## Self-hosted / Local AI (Enterprise)
 
@@ -197,13 +202,16 @@ Run the full Prism model stack on your own hardware — zero cloud, zero latency
 **Requirements:** Mac M2 Pro+ (48GB recommended) or Linux with NVIDIA GPU · [Ollama](https://ollama.com)
 
 ```bash
-# Fast tier — 2.2 GB (Mac M1+, iPhone via WiFi)
+# On-device tier — 2.2 GB (any machine, iPhone)
 ollama pull dcostenco/prism-coder:1b7
 
-# Standard tier — 9.3 GB (Mac M2 Pro+ or RTX 3090+)
+# Mobile tier — 4.7 GB (iPhone/iPad 8GB, Mac M1+)
+ollama pull dcostenco/prism-coder:8b
+
+# Standard tier — 8.4 GB (Mac M2 Pro+, iPad Pro 16GB)
 ollama pull dcostenco/prism-coder:14b
 
-# Enterprise/reasoning — 19 GB (Mac M2 Ultra+ or A100)
+# Reasoning tier — 19 GB (Mac M2 Ultra+ or A100)
 ollama pull dcostenco/prism-coder:32b
 ```
 
@@ -211,7 +219,7 @@ Set `LOCAL_LLM_URL=http://localhost:11434` in your portal config. Routing is aut
 - Fast queries → **1.7B** (~0.5s) · Standard → **14B** (~3s) · Complex/enterprise → **32B** (~8s) · Cloud fallback if Ollama unreachable
 
 iOS/mobile on same WiFi: `OLLAMA_HOST=0.0.0.0 ollama serve` on the Mac, then point `LOCAL_LLM_URL` at the Mac's IP.
-Routing accuracy (May 15 2026, 3-seed mean): **14B = 98.0% (ties Claude Opus) · 32B = 97.3% · 1.7B = 88%**. Offline cascade: 14B primary → 1.7B fallback. → [Full results](tests/benchmarks/prism-routing-100/README.md)
+Routing accuracy (May 15 2026, 3-seed mean): **14B = 98% · 8B = 96% · 32B = 97.3% · 1.7B = 88%**. Cascade: 14B → 8B → 1.7B. → [Full results](tests/benchmarks/prism-routing-100/README.md)
 
 ---
 
