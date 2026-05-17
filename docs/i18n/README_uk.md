@@ -418,8 +418,8 @@ node scripts/migrate-local-to-portal.mjs --include-scholar
   │                       │  │  session ledgers            │
   │  Cloud: Claude Sonnet │  │  knowledge graph            │
   │  Local:  prism-coder  │  │  handoffs & todos           │
-  │   :14b (98%) :8b (96%)│  │                             │
-  │   :32b (97%) :1b7(88%)│  │  source of truth            │
+  │   :32b (99%) :14b(97%)│  │                             │
+  │   :8b (98%)  :1b7(96%)│  │  source of truth            │
   └───────────────────────┘  └─────────────────────────────┘
 ```
 
