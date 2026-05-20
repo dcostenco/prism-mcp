@@ -2,7 +2,7 @@
 
 **Claude Opus 4.7 is the etalon (gold standard).** This benchmark measures whether the local fine-tuned cascade matches or beats it on the Prism routing task.
 
-> **Result: Cascade wins.** 99.0% vs 97.1% Opus-solo, with only 1% of requests ever reaching the API.
+> **Result: Cascade wins.** 100.0% vs 98.3% Opus-solo, with 0% of requests ever reaching the API.
 
 ## How the cascade works
 
@@ -10,16 +10,16 @@
 User message
   │
   ▼
-prism-coder:14b  ──── correct? ──YES──▶  serve (97.1% of traffic)
+prism-coder:14b  ──── correct? ──YES──▶  serve (99.0% of traffic)
   │ NO
   ▼
-prism-coder:32b  ──── correct? ──YES──▶  serve (2.0% of traffic)
+prism-coder:32b  ──── correct? ──YES──▶  serve (1.0% of traffic)
   │ NO
   ▼
-Claude Opus 4.7  ──────────────────────▶  serve (1.0% of traffic, last resort)
+Claude Opus 4.7  ──────────────────────▶  serve (0% of traffic, last resort)
 ```
 
-Both local tiers run on-device (Ollama). Opus is the cloud fallback — engaged only when both local models fail the same case. In practice this happened for exactly **1 case per seed** (the `smem`/`knowledge_search` boundary on "Find my past notes about the BFCL v4 benchmark").
+Both local tiers run on-device (Ollama). Opus is the cloud fallback — engaged only when both local models fail the same case. With v36/v7 models this never occurs in practice.
 
 ## Results — May 2026
 
@@ -27,18 +27,18 @@ Both local tiers run on-device (Ollama). Opus is the cloud fallback — engaged 
 
 | | Cascade | Opus-solo | Δ |
 |---|---|---|---|
-| Seed 2027 | **99.0%** | 97.1% | +1.9% |
-| Seed 2028 | **99.0%** | 97.1% | +1.9% |
-| Seed 2029 | **99.0%** | 97.1% | +1.9% |
-| **Mean** | **99.0%** | **97.1%** | **+1.9%** |
+| Seed 2027 | **100.0%** | 98.0% | +2.0% |
+| Seed 2028 | **100.0%** | 99.0% | +1.0% |
+| Seed 2029 | **100.0%** | 98.0% | +2.0% |
+| **Mean** | **100.0%** | **98.3%** | **+1.7%** |
 
 ### Tier engagement
 
 | Tier | Cases served | % of traffic | Accuracy |
 |---|---|---|---|
-| prism-coder:14b | 99 / 102 | **97.1%** | **100%** |
-| prism-coder:32b | 2 / 102 | **2.0%** | **100%** |
-| Claude Opus 4.7 | 1 / 102 | **1.0%** | 0% (single hard case) |
+| prism-coder:14b | 101 / 102 | **99.0%** | **100%** |
+| prism-coder:32b | 1 / 102 | **1.0%** | **100%** |
+| Claude Opus 4.7 | 0 / 102 | **0%** | N/A |
 
 ### Per-category (seed 2027)
 
@@ -76,8 +76,8 @@ Both local tiers run on-device (Ollama). Opus is the cloud fallback — engaged 
 
 ## What this means
 
-**97% of routing decisions are made locally, for free, in ~1.1s.**  
-The fine-tuned cascade beats raw Opus by 1.9% on this specific task — particularly on edge cases where Opus confuses multi-intent prompts.
+**100% of routing decisions are made locally, for free, in ~1.1s.**  
+The fine-tuned cascade beats raw Opus by 1.7% on this specific task — particularly on edge cases where Opus confuses multi-intent prompts.
 
 **This does NOT mean local models beat Opus generally.** These models are routing specialists. Opus outperforms them on code generation, reasoning, and open-domain tasks. The value here is offline reliability at zero cost, not replacing cloud AI.
 
