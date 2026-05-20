@@ -201,13 +201,11 @@ Models use the Synalux SFT corpus (AAC + Prism MCP tool taxonomy + clinical work
 
 | Model | Overall | Load ctx | Save | Srch mem | Handoff | Compact | Know srch | AAC | Translate | No-tool | Info | Edge | Avg lat | Inv |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **Claude Sonnet 4** | **99%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.2s | 0 |
-| **prism-coder:32b** v33 | **99.0%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | **100%** | 2.5s | 0 |
-| **prism-coder:8b** v35 | **98.0%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | **100%** | 0.8s | 0 |
-| **prism-coder:14b** v33 | **97.1%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | **100%** | 1.1s | 0 |
+| **prism-coder:32b** v33 | **99.0%** | 100% | 100% | 92% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | **100%** | 2.5s | 0 |
+| **prism-coder:8b** v35 | **98.0%** | 100% | 100% | 83% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | **100%** | 0.8s | 0 |
+| **prism-coder:14b** v33 | **97.1%** | 100% | 100% | 92% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | **100%** | 1.1s | 0 |
 | **Claude Opus 4.7** | **97.1%** | 100% | 100% | 83% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 3.0s | 0 |
-| **prism-coder:1.7b** v41 | **96.1%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 83% | 1.6s | 0 |
-| **14B→32B cascade** | **99.0%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | **100%** | ~1.1s | 0 |
+| **prism-coder:1.7b** v41 | **96.1%** | 89% | 100% | 100% | 100% | 83% | 100% | 100% | 100% | 90% | 100% | 83% | 1.6s | 0 |
 
 > **Methodology**: 102-case pool across 12 categories. Scores are 3-seed mean (seeds 2027/2028/2029, zero variance across all seeds). All fine-tuned models use the Qwen3 nothink template with keyword-trigger routing prompts and `-> respond directly (no tool)` for the no-tool class. Full runner: [`tests/benchmarks/prism-routing-100/benchmark.py`](../../tests/benchmarks/prism-routing-100/benchmark.py) · Cascade runner: [`tests/benchmarks/cascade-14b-32b-opus/cascade_eval.py`](../../tests/benchmarks/cascade-14b-32b-opus/cascade_eval.py).
 >
