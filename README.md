@@ -432,14 +432,16 @@ node scripts/migrate-local-to-portal.mjs --include-scholar
   └──────────┬───────────┘  └─────────────┬───────────────┘
              │                            │
              ▼                            ▼
-  ┌───────────────────────┐  ┌─────────────────────────────┐
-  │  OPENROUTER / LOCAL   │  │  SUPABASE                   │
-  │                       │  │  session ledgers            │
-  │  Cloud: Claude Sonnet │  │  knowledge graph            │
-  │  Local:  prism-coder  │  │  handoffs & todos           │
-  │   :32b (100%) :14b(100%)│ │                             │
-  │   :8b (100%) :1b7(100%)│  │  source of truth            │
-  └───────────────────────┘  └─────────────────────────────┘
+  ┌──────────────────────────────┐  ┌─────────────────────────────┐
+  │  OPENROUTER / LOCAL          │  │  SUPABASE                   │
+  │                              │  │  session ledgers            │
+  │  Cloud: Claude Sonnet 4      │  │  knowledge graph            │
+  │  Routing: prism-coder        │  │  handoffs & todos           │
+  │   :32b(100%) :14b(100%)      │  │                             │
+  │   :8b(100%)  :1b7(100%)      │  │  source of truth            │
+  │  Code:    prism-ide          │  │                             │
+  │   :14b · :32b                │  │                             │
+  └──────────────────────────────┘  └─────────────────────────────┘
 ```
 
 ### Service Routing
